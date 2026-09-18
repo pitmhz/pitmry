@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "pitmry-config",
+  "description": "Pitmry Personal Memory Dashboard Configuration",
+  "cavemem_db_path": "~/.cavemem/data.db",
+  "lancedb_dir": "~/.strategic_memory/lancedb",
+  "tracked_repos": {
+    "pitmry": "."
+  }
+}

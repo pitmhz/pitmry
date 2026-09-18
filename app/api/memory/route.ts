@@ -2,9 +2,54 @@ import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
+import fs from "fs";
+import { getDemoFallback } from "./demo-data";
 
 const execFileAsync = promisify(execFile);
-const PYTHON_SCRIPT = String.raw`C:\Users\Pieter\scripts\memory_dashboard_api.py`;
+
+function resolvePythonBinary(): string {
+  const cwd = process.cwd();
+  // 1. Check local virtual environment (.venv)
+  const venvWindows = path.join(cwd, ".venv", "Scripts", "python.exe");
+  if (fs.existsSync(venvWindows)) return venvWindows;
+
+  const venvUnix = path.join(cwd, ".venv", "bin", "python");
+  if (fs.existsSync(venvUnix)) return venvUnix;
+
+  // 2. Custom environment variable
+  if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
+
+  // 3. System python
+  return process.platform === "win32" ? "python" : "python3";
+}
+
+function resolvePythonScript(): string | null {
+  // 1. Env variable override
+  if (process.env.MEMORY_API_SCRIPT && fs.existsSync(process.env.MEMORY_API_SCRIPT)) {
+    return process.env.MEMORY_API_SCRIPT;
+  }
+
+  // 2. In-repo server/memory_dashboard_api.py
+  const inRepo = path.join(process.cwd(), "server", "memory_dashboard_api.py");
+  if (fs.existsSync(inRepo)) return inRepo;
+
+  // 3. User global location fallback
+  const globalPath = path.join(process.env.USERPROFILE || process.env.HOME || "", "scripts", "memory_dashboard_api.py");
+  if (fs.existsSync(globalPath)) return globalPath;
+
+  return null;
+}
+
+function parseLastJson(stdout: string) {
+  const lines = stdout.trim().split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if ((line.startsWith("{") && line.endsWith("}")) || (line.startsWith("[") && line.endsWith("]"))) {
+      return JSON.parse(line);
+    }
+  }
+  throw new Error("Empty JSON from backend");
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -19,7 +64,26 @@ export async function GET(request: NextRequest) {
   const hops = searchParams.get("hops") || "3";
   const commitHash = searchParams.get("commit") || searchParams.get("commit_hash");
 
-  const args = [PYTHON_SCRIPT];
+  if (action === "readiness") {
+    // Quick readiness probe
+    const scriptPath = resolvePythonScript();
+    const isVenvPresent = fs.existsSync(path.join(process.cwd(), ".venv"));
+    return NextResponse.json({
+      status: scriptPath ? "ready" : "unconfigured",
+      script_path: scriptPath,
+      venv_present: isVenvPresent,
+      python_bin: resolvePythonBinary()
+    });
+  }
+
+  const scriptPath = resolvePythonScript();
+  if (!scriptPath) {
+    // Fall back gracefully to built-in sample data
+    return NextResponse.json(getDemoFallback(action, searchParams));
+  }
+
+  const pythonBin = resolvePythonBinary();
+  const args = [scriptPath];
 
   if (action === "summary") {
     args.push("--summary");
@@ -56,33 +120,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { stdout } = await execFileAsync("python", args, {
+    const { stdout } = await execFileAsync(pythonBin, args, {
       maxBuffer: 10 * 1024 * 1024,
       windowsHide: true,
+      env: {
+        ...process.env,
+      }
     });
 
-    // In case Python prints deprecation warnings on stdout, take the last JSON line
-    const lines = stdout.trim().split("\n");
-    let jsonStr = "";
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i].trim();
-      if ((line.startsWith("{") && line.endsWith("}")) || (line.startsWith("[") && line.endsWith("]"))) {
-        jsonStr = line;
-        break;
-      }
-    }
-
-    if (!jsonStr) {
-      return NextResponse.json({ error: "Empty JSON from backend", raw: stdout }, { status: 500 });
-    }
-
-    const data = JSON.parse(jsonStr);
-    return NextResponse.json(data);
+    const parsed = parseLastJson(stdout);
+    return NextResponse.json(parsed);
   } catch (error: any) {
-    console.error("API error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to query backend bridge" },
-      { status: 500 }
-    );
+    console.warn(`[API: ${action}] Backend query failed, serving demo fallback:`, error?.message);
+    return NextResponse.json(getDemoFallback(action, searchParams));
   }
 }

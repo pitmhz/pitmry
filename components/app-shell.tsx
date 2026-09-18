@@ -26,6 +26,7 @@ import { TimelinesActivityFeed } from "@/components/timelines-activity-feed";
 import { TimelinesNotifications, NotificationItem } from "@/components/timelines-notifications";
 import { NotificationToastContainer } from "@/components/notification-toast";
 import { CodeDiffViewer } from "@/components/code-diff-viewer";
+import { OnboardingDialog } from "@/components/onboarding-dialog";
 import { cn, formatDate } from "@/lib/utils";
 import {
   SidebarProvider,
@@ -295,12 +296,12 @@ function MemorySidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setViewMode("status")}
-              tooltip="LanceDB & SQLite Operational"
+              tooltip="Open memory readiness"
               className="text-muted-foreground hover:text-foreground cursor-pointer"
             >
-              <span className="size-2 rounded-full bg-emerald-500 shrink-0 shadow-[0_0_6px_rgba(16,185,129,0.6)] animate-pulse" />
-              <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
-                Operational · 39 Vectors
+              <span className="size-2 rounded-full bg-primary shrink-0" />
+              <span className="font-mono text-[10px] font-medium truncate">
+                Memory readiness
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -329,6 +330,9 @@ export function AppShell() {
     commitHash?: string;
     itemId?: number;
   }>({ open: false });
+
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -587,6 +591,17 @@ export function AppShell() {
 
             <DesignTokenController />
 
+            {summary?.is_demo && (
+              <button
+                onClick={() => setOnboardingOpen(true)}
+                className="flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                title="Connect real repositories & vector memory"
+              >
+                <Sparkles className="h-3 w-3" />
+                <span>Setup</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 fetchSummary();
@@ -599,6 +614,33 @@ export function AppShell() {
             </button>
           </div>
         </header>
+
+        {/* Demo Mode Notice Banner */}
+        {summary?.is_demo && !bannerDismissed && (
+          <div className="flex items-center justify-between border-b border-primary/25 bg-primary/10 px-4 py-1.5 text-xs backdrop-blur shrink-0 animate-in fade-in-0 duration-150">
+            <div className="flex items-center gap-2 text-foreground">
+              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+              <span>
+                <strong className="font-semibold text-primary">Demo Mode:</strong> You are exploring built-in sample memory. Run <code className="font-mono bg-black/40 px-1.5 py-0.5 rounded text-primary text-[11px]">pnpm setup</code> to connect your local repositories & vector engine.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setOnboardingOpen(true)}
+                className="rounded border border-primary/50 bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/30 transition-colors cursor-pointer"
+              >
+                Setup Guide
+              </button>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="text-muted-foreground hover:text-foreground px-1.5 py-0.5 text-xs transition-colors cursor-pointer"
+                title="Dismiss notice"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Body: Multi-View Hub */}
         <div className="flex flex-1 overflow-hidden">
@@ -840,6 +882,13 @@ export function AppShell() {
           setActiveItem(item);
           setViewMode("stream");
         }}
+      />
+
+      {/* Onboarding / Setup Guide Modal */}
+      <OnboardingDialog
+        open={onboardingOpen}
+        onClose={() => setOnboardingOpen(false)}
+        isDemo={summary?.is_demo}
       />
     </SidebarProvider>
   );

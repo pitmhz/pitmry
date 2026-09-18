@@ -53,7 +53,7 @@ Modern software development generates vast amounts of context across sessions, b
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                     Python Memory Bridge Runtime                            │
-│           C:\Users\Pieter\scripts\memory_dashboard_api.py                   │
+│         server/memory_dashboard_api.py (or custom via config)               │
 └──────────────┬───────────────────────┼───────────────────────┬──────────────┘
                ▼                       ▼                       ▼
     ┌──────────────────────┐┌──────────────────────┐┌──────────────────────┐
@@ -96,12 +96,15 @@ Modern software development generates vast amounts of context across sessions, b
 
 ### 2. Python Bridge Pattern
 
-The frontend does not communicate directly with the database files. Instead, Next.js executes the Python script `C:\Users\Pieter\scripts\memory_dashboard_api.py` via Node.js `execFileAsync`. The script processes arguments, queries the database or git repositories, and outputs a single JSON response to stdout.
+The frontend does not communicate directly with the database files. Instead, Next.js executes the bundled Python script `server/memory_dashboard_api.py` (or a custom path defined in `pitmry.config.json` or `.env`) via Node.js `execFileAsync`. The script processes arguments, queries the database or git repositories, and outputs a single JSON response to stdout.
+
+If Python is not installed or dependencies are missing, the API gateway automatically serves realistic interactive mock data with an in-app setup banner. This allows users to explore the dashboard immediately without setup errors.
 
 Benefits:
 - Clean decoupling between the Python data science toolchain and the TypeScript web application.
 - No need to maintain a separate persistent FastAPI or Flask daemon.
 - Safe argument passing with OS-level process isolation.
+- Automatic fallback to Demo Mode if backend components are not yet initialized.
 
 ### 3. Layered Frontend Hierarchy
 
@@ -345,40 +348,89 @@ interface DiffLine {
 - **`clsx`**, **`tailwind-merge`**, **`class-variance-authority`**: Type-safe CSS utility composition.
 - **`lucide-react`**: System icons for diff operations, command palette, and timelines.
 
-### External Runtime Requirements
-- **Node.js 20+** and **pnpm**.
-- **Python 3.10+** with the following packages installed:
-  - `sqlite3`
-  - `lancedb`
-  - `onnxruntime`
-  - `sentence-transformers` (or local ONNX model files)
+### Runtime Requirements
+- **Node.js 20+** and **pnpm** (or npm / yarn).
+- **Python 3.10+** (only required for full local memory persistence; not required for Demo Mode).
+  - Bundled dependencies in `server/requirements.txt`: `lancedb`, `pyarrow`, `numpy`, `scikit-learn`, `onnxruntime`, `tokenizers`.
+  - Automatically installed by `pnpm setup`.
 
 ---
 
 ## Installation & Setup
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://gitlab.com/pitmhs/pitmry.git
-   cd pitmry
-   ```
+You can run `pitmry` in two ways:
 
-2. **Install Node.js dependencies:**
-   ```bash
-   pnpm install
-   ```
+### Option A: Instant Demo Mode (Zero Backend Setup)
 
-3. **Verify backend script configuration:**
-   The backend path is configured in `app/api/memory/route.ts`:
-   ```typescript
-   const PYTHON_SCRIPT = String.raw`C:\Users\Pieter\scripts\memory_dashboard_api.py`;
-   ```
-   If running on a different machine, update this variable or set the `MEMORY_API_SCRIPT` environment variable.
+Explore the full UI, 3D galaxy visualization, timeline feeds, and code diffs immediately without Python or database setup:
 
-4. **Verify Python backend CLI:**
+```bash
+# 1. Clone the repository
+git clone https://gitlab.com/pitmhs/pitmry.git
+cd pitmry
+
+# 2. Install Node dependencies and start the dev server
+pnpm install
+pnpm dev
+```
+
+Open [http://localhost:4242](http://localhost:4242) in your browser.
+The dashboard automatically serves realistic demo data and displays a setup banner with an interactive in-app setup guide.
+
+---
+
+### Option B: Full Setup (Local Offline Memory Engine)
+
+Connect the dashboard to your local git commits, SQLite database, and LanceDB vector store:
+
+```bash
+# 1. Clone the repository
+git clone https://gitlab.com/pitmhs/pitmry.git
+cd pitmry
+
+# 2. Install Node dependencies
+pnpm install
+
+# 3. Run automated backend setup (provisions venv & bootstraps databases)
+pnpm setup
+
+# 4. Verify system readiness
+pnpm doctor
+
+# 5. Start the development server
+pnpm dev
+```
+
+### CLI Diagnostic Tools
+
+- **`pnpm setup`**:
+  - Automatically creates a Python virtual environment in `.venv/`.
+  - Installs requirements from `server/requirements.txt`.
+  - Initializes the SQLite database (`data/cavemem.db`) and LanceDB vector directory (`data/lancedb/`).
+  - Scans and indexes recent local git commits.
+- **`pnpm doctor`**:
+  - Runs full health diagnostics on Node.js runtime, Python virtual environment, bridge script, SQLite database, LanceDB vector storage, and git repository bindings.
+
+### Custom Configuration
+
+You can customize database paths, tracked git repositories, and Python executable locations:
+
+1. **Via `pitmry.config.json`**:
    ```bash
-   python C:\Users\Pieter\scripts\memory_dashboard_api.py --health
+   cp pitmry.config.example.json pitmry.config.json
    ```
+   Edit `pitmry.config.json` to point to your repositories and database locations.
+
+2. **Via environment variables (`.env`)**:
+   ```bash
+   cp .env.example .env
+   ```
+   Supported variables:
+   - `PYTHON_BIN`: Path to Python executable (defaults to `.venv` or system `python`).
+   - `MEMORY_API_SCRIPT`: Path to backend bridge script (defaults to `./server/memory_dashboard_api.py`).
+   - `CAVEMEM_DB_PATH`: Path to SQLite database (defaults to `data/cavemem.db`).
+   - `LANCEDB_DIR`: Path to LanceDB directory (defaults to `data/lancedb`).
+   - `TRACKED_REPOS`: Comma-separated list of repository names and paths (`name=path,name2=path2`).
 
 ---
 
@@ -419,12 +471,13 @@ pitmry/
 ├── app/
 │   ├── api/
 │   │   └── memory/
-│   │       └── route.ts               # API bridge: shells out to memory_dashboard_api.py
+│   │       ├── demo-data.ts           # Built-in demo fallback dataset
+│   │       └── route.ts               # API bridge: shells out to server script
 │   ├── globals.css                    # Tailwind v4 @theme, tokens, OKLCH colors
 │   ├── layout.tsx                     # Root layout, TooltipProvider, metadata
 │   └── page.tsx                       # Dashboard entry point (<AppShell />)
 ├── components/
-│   ├── app-shell.tsx                  # Root layout: Sidebar + Header + Views
+│   ├── app-shell.tsx                  # Root layout: Sidebar + Header + Views + Demo Banner
 │   ├── app-shared.tsx                 # Navigation links and state definitions
 │   ├── code-diff-viewer.tsx           # Split-resizable diff viewer with syntax highlighting
 │   ├── command-palette.tsx            # ⌘K instant search overlay
@@ -433,6 +486,7 @@ pitmry/
 │   ├── galaxy-view.tsx                # Three.js 3D vector space galaxy
 │   ├── knowledge-graph.tsx            # 2D Canvas force-directed graph
 │   ├── notification-toast.tsx         # 20s background polling toast dispatcher
+│   ├── onboarding-dialog.tsx          # Interactive in-app Setup Guide dialog
 │   ├── relational-inspector.tsx       # Record detail, journey, and neighbors panel
 │   ├── stat-tile.tsx                  # Metric cards with sparklines
 │   ├── timelines-activity-feed.tsx    # Sticky day-divider activity feed
@@ -442,8 +496,18 @@ pitmry/
 │   └── ui/                            # Primitives: buttons, badges, split-resizable, etc.
 ├── docs/
 │   └── sessions/                      # Offline markdown session logs & decision records
+├── scripts/
+│   ├── doctor.mjs                     # Diagnostic health inspector (pnpm doctor)
+│   └── setup.mjs                      # Automated 1-command setup CLI (pnpm setup)
+├── server/
+│   ├── cavemem_strategic.py           # SQLite relational memory engine
+│   ├── lancedb_strategic.py           # LanceDB vector similarity & 3D galaxy engine
+│   ├── memory_dashboard_api.py        # Portable CLI memory bridge
+│   └── requirements.txt               # Backend Python dependencies
+├── .env.example                       # Template for environment configuration
 ├── components.json                    # shadcn & @coss registry configuration
 ├── package.json                       # Scripts and dependency declarations
+├── pitmry.config.example.json         # Template for repository & path mapping
 ├── tsconfig.json                      # Strict TypeScript configuration
 └── README.md                          # Comprehensive documentation
 ```

@@ -30,3 +30,16 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# Python virtual environment & caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local data & database instances
+data/
+*.sqlite
+*.db
