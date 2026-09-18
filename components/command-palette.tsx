@@ -74,8 +74,17 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150 cursor-pointer"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search and command palette"
+    >
+      <div
+        className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Input Bar */}
         <div className="flex items-center border-b border-border px-4 py-3.5">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -89,7 +98,9 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
           />
           <button
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 rounded p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            title="Close (Esc)"
+            aria-label="Close search"
           >
             <X className="h-4 w-4" />
           </button>

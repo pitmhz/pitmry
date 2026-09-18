@@ -138,7 +138,7 @@ export function TimelinesActivityFeed({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5">
+          <div role="tablist" aria-label="Activity type filters" className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5">
             {[
               { label: "All", value: "all" },
               { label: "Decisions", value: "adr" },
@@ -148,10 +148,12 @@ export function TimelinesActivityFeed({
               <button
                 key={tab.value}
                 type="button"
+                role="tab"
+                aria-selected={filterType === tab.value}
                 onClick={() => setFilterType(tab.value)}
-                className={`rounded-md px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors cursor-pointer ${
+                className={`rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   filterType === tab.value
-                    ? "bg-foreground text-background font-semibold"
+                    ? "bg-foreground text-background font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -164,8 +166,9 @@ export function TimelinesActivityFeed({
             type="button"
             onClick={() => startTransition(() => fetchActivity())}
             disabled={loading || isPending}
-            className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-card/80 p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-card/80 p-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all cursor-pointer shadow-xs disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             title="Refresh feed"
+            aria-label="Refresh activity feed"
           >
             <RefreshCw className={`size-3.5 ${loading || isPending ? "animate-spin text-primary" : ""}`} />
           </button>
@@ -226,11 +229,11 @@ function DaySection({
   return (
     <section className="mt-6">
       <div className="sticky top-2 z-10 mb-3 flex items-center gap-3 bg-background/90 py-2 backdrop-blur-md">
-        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.25em] font-semibold">
+        <h2 className="font-mono text-xs text-primary uppercase tracking-widest font-bold">
           {label}
-        </span>
+        </h2>
         <span className="h-px flex-1 bg-border/40" />
-        <span className="font-mono text-[10px] text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/60">
+        <span className="font-mono text-[11px] text-muted-foreground tabular-nums px-2.5 py-0.5 rounded-full bg-secondary font-bold">
           {count}
         </span>
       </div>
@@ -251,54 +254,62 @@ function DaySection({
               </span>
 
               <div
+                tabIndex={0}
+                role="button"
                 onClick={() => onSelectItem?.(e.type, e.raw_id)}
-                className="group flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-xl border border-border/60 bg-card/40 hover:border-border hover:bg-card/70 px-4 py-3 shadow-2xs transition-all cursor-pointer"
+                onKeyDown={(evt) => {
+                  if (evt.key === "Enter" || evt.key === " ") {
+                    evt.preventDefault();
+                    onSelectItem?.(e.type, e.raw_id);
+                  }
+                }}
+                className="group flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-xl border border-border/60 bg-card/40 hover:border-primary/40 hover:bg-card/70 px-4 py-3 shadow-2xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <div className="flex items-start gap-3 min-w-0">
                   <Avatar className="size-7 mt-0.5 shrink-0">
-                    <AvatarFallback className="text-[10px] font-semibold bg-muted text-foreground">
+                    <AvatarFallback className="text-[11px] font-bold bg-muted text-foreground">
                       {e.initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs md:text-sm text-foreground leading-snug">
-                      <span className="font-semibold text-foreground">{e.who}</span>{" "}
+                      <span className="font-bold text-foreground">{e.who}</span>{" "}
                       <span className="text-muted-foreground">{e.what}</span>
                     </div>
                     {e.context && (
-                      <div className="mt-1 text-xs md:text-sm font-medium text-foreground/90 leading-relaxed group-hover:text-primary transition-colors">
+                      <div className="mt-1 font-heading text-sm md:text-[15px] font-bold text-foreground leading-snug group-hover:text-primary transition-colors">
                         {e.context}
                       </div>
                     )}
                     {e.bullets && e.bullets.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center gap-1 font-mono text-[9px] text-primary font-medium">
-                          <Sparkles className="size-2.5" />
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-primary font-bold">
+                          <Sparkles className="size-3" />
                           <span>{e.bullets.length} change highlights:</span>
                         </div>
                         <ul className="space-y-1 pl-1">
                           {e.bullets.slice(0, 3).map((b, i) => (
-                            <li key={i} className="text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+                            <li key={i} className="text-xs text-foreground/90 font-medium flex items-start gap-1.5 leading-relaxed">
                               <span className="text-primary font-bold mt-0.5">•</span>
                               <span className="line-clamp-2">{b}</span>
                             </li>
                           ))}
                           {e.bullets.length > 3 && (
-                            <li className="text-[10px] font-mono text-primary/80">
+                            <li className="text-[11px] font-mono text-primary font-semibold">
                               +{e.bullets.length - 3} more points...
                             </li>
                           )}
                         </ul>
                       </div>
                     )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                      <span className="text-foreground/75 font-medium">{e.project}</span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-xs text-muted-foreground">
+                      <span className="text-foreground font-bold">{e.project}</span>
                       <span>·</span>
                       <span>{e.time}</span>
                       {e.meta && (
                         <>
                           <span>·</span>
-                          <span className="text-muted-foreground/80">{e.meta}</span>
+                          <span className="text-muted-foreground font-medium">{e.meta}</span>
                         </>
                       )}
                     </div>
@@ -306,8 +317,8 @@ function DaySection({
                 </div>
 
                 <div className="shrink-0 self-end sm:self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="font-mono text-[10px] text-primary inline-flex items-center gap-1">
-                    View <ExternalLink className="size-2.5" />
+                  <span className="font-mono text-xs text-primary font-bold inline-flex items-center gap-1">
+                    View <ExternalLink className="size-3" />
                   </span>
                 </div>
               </div>

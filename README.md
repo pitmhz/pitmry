@@ -21,6 +21,7 @@ The entire application runs locally on your machine. It requires zero cloud serv
    - [2D Knowledge Graph & 3D Vector Space Galaxy](#2d-knowledge-graph--3d-vector-space-galaxy)
    - [Command Palette & Search](#command-palette--search)
    - [Design Token Controller](#design-token-controller)
+   - [Skills & Automations Hub](#skills--automations-hub)
 5. [API Reference](#api-reference)
 6. [Data Models](#data-models)
 7. [Dependencies](#dependencies)
@@ -194,6 +195,33 @@ Integrated with the `@coss` registry and customized for pitmry:
 - Flyout panel in the top header to adjust visual tokens at runtime.
 - Controls theme mode (dark/light), accent color palettes (Orange, Amber, Emerald, Indigo, Rose), border radius, and layout density (compact/default/relaxed).
 - Updates CSS custom properties directly on `document.documentElement`.
+
+### Skills & Automations Hub
+
+- Dedicated workspace for managing AI agent skills and executing Python automation scripts.
+- **Bundled Starter Skills (`skills/`)**:
+  - `strategic-memory`: Vector & SQLite memory engine protocol and lifecycle hooks.
+  - `memory-navigator`: Universal 4-step memory discovery, hybrid search, and record inspection.
+  - `cavemem`: Persistent memory across sessions and context compactions.
+  - `skill-router`: Progressive skill resolver for specialized domain capabilities.
+  - `simple-english`: ASD-STE100 technical writing standards for agent communication.
+- **Skills Catalog & Creator**:
+  - Browse installed and bundled agent skills with category and tag filtering.
+  - In-browser markdown editor for `SKILL.md` with live preview.
+  - One-click wizard to generate new custom skills with standard YAML frontmatter and starter templates.
+- **Python Automation Studio (`server/scripts/`)**:
+  - Inspect, edit, and test core Python automation tools directly in the browser:
+    - `memory_navigator.py`: Universal developer memory and vector DB CLI.
+    - `cavemem_search.py`: Fast relational FTS5 & semantic search.
+    - `cavemem_write.py`: Quick ADR and discussion logger.
+    - `export_session_to_memory.py`: Automated session & git-flow memory ingester.
+    - `resolve_skill.py`: Rapid skill resolver for 600+ skills.
+    - `build_skills_catalog.py`: Catalog index builder.
+    - `ingest_session_docs.py`: Offline markdown documentation ingester.
+  - **User Safety Safeguards**: Prominent risk warnings, automatic `.bak` backup creation, syntax validation via `python -m py_compile`, and factory revert capabilities.
+  - **Interactive Script Runner**: Execute scripts with custom CLI arguments directly from the browser, streaming stdout and stderr live.
+- **Adaptive Machine Setup**:
+  - `pnpm setup` automatically detects your machine's skills location (`$env:AGENTS_SKILLS_PATH`, `~/.agents/skills`, or `./.agents/skills`) and injects the starter skills cleanly.
 
 ---
 

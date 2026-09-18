@@ -219,12 +219,27 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
         return (
           n.title.toLowerCase().includes(q) ||
           n.project.toLowerCase().includes(q) ||
-          (n.rationale && n.rationale.toLowerCase().includes(q))
+          (n.rationale ? n.rationale.toLowerCase().includes(q) : false)
         );
       }
       return true;
     });
   }, [processedNodes, anomaliesOnly, typeFilter, selectedClusterId, searchQuery]);
+
+  // Handle Escape key to close modal or drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (diffModalNode) {
+          setDiffModalNode(null);
+        } else if (selectedNode) {
+          setSelectedNode(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [diffModalNode, selectedNode]);
 
   // 2. Initialize Three.js Scene
   useEffect(() => {
@@ -1333,8 +1348,17 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
 
       {/* Fullscreen / Expanded Diff Modal */}
       {diffModalNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in-0 duration-150">
-          <div className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in-0 duration-150 cursor-pointer"
+          onClick={() => setDiffModalNode(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Galaxy Diff Viewer"
+        >
+          <div
+            className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CodeDiffViewer
               project={diffModalNode.project}
               commitHash={diffModalNode.commit_hash}

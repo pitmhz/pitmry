@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "name": "pitmry-bundled-skills",
+  "description": "Core starter agent skills bundled with the Pitmry open-source memory engine",
+  "skills": [
+    {
+      "name": "strategic-memory",
+      "title": "Strategic Memory & Knowledge Base",
+      "category": "Memory",
+      "description": "Offline episodic & semantic vector memory engine for persistent knowledge.",
+      "version": "1.0.0",
+      "entry": "skills/strategic-memory/SKILL.md"
+    },
+    {
+      "name": "memory-navigator",
+      "title": "Memory Navigator",
+      "category": "Retrieval",
+      "description": "Universal 4-step memory discovery, hybrid vector search, and record inspection.",
+      "version": "1.0.0",
+      "entry": "skills/memory-navigator/SKILL.md"
+    },
+    {
+      "name": "cavemem",
+      "title": "Cavemem Persistent Memory",
+      "category": "Memory",
+      "description": "Persistent memory support across agent sessions and context compactions.",
+      "version": "1.0.0",
+      "entry": "skills/cavemem/SKILL.md"
+    },
+    {
+      "name": "skill-router",
+      "title": "Skill Router (Progressive Resolver)",
+      "category": "Workflow",
+      "description": "Fast skill resolver for specialized capabilities loaded on-demand.",
+      "version": "1.0.0",
+      "entry": "skills/skill-router/SKILL.md"
+    },
+    {
+      "name": "simple-english",
+      "title": "ASD-STE100 Simple English",
+      "category": "Standards",
+      "description": "Clear, precise technical communication using ASD-STE100 principles.",
+      "version": "1.0.0",
+      "entry": "skills/simple-english/SKILL.md"
+    }
+  ]
+}

@@ -86,6 +86,29 @@ async function runDoctor() {
     printRow("warn", "Git Repository Binding", "Not a git repository");
   }
 
+  // 6. Agent Skills Directory
+  let skillsDir = process.env.AGENTS_SKILLS_PATH;
+  if (!skillsDir || !fs.existsSync(skillsDir)) {
+    const globalAgents = path.join(os.homedir(), ".agents", "skills");
+    const localAgents = path.join(ROOT_DIR, ".agents", "skills");
+    skillsDir = fs.existsSync(localAgents) ? localAgents : globalAgents;
+  }
+  if (fs.existsSync(skillsDir)) {
+    const skillsList = fs.readdirSync(skillsDir).filter((f) => fs.existsSync(path.join(skillsDir, f, "SKILL.md")));
+    printRow("ok", "Agent Skills Directory", `${skillsDir} (${skillsList.length} skills active)`);
+  } else {
+    printRow("warn", "Agent Skills Directory", "No skills directory found. Run 'pnpm setup' to initialize");
+  }
+
+  // 7. Python Automation Scripts
+  const scriptsDir = path.join(ROOT_DIR, "server", "scripts");
+  if (fs.existsSync(scriptsDir)) {
+    const pyScripts = fs.readdirSync(scriptsDir).filter((f) => f.endsWith(".py"));
+    printRow("ok", "Python Automations", `server/scripts (${pyScripts.length} scripts available)`);
+  } else {
+    printRow("warn", "Python Automations", "Missing server/scripts directory");
+  }
+
   // Summary
   if (issues === 0) {
     console.log(`\n\x1b[32m✔ All core components operational. Dashboard ready.\x1b[0m\n`);

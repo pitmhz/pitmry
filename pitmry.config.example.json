@@ -4,6 +4,8 @@
   "description": "Pitmry Personal Memory Dashboard Configuration",
   "cavemem_db_path": "~/.cavemem/data.db",
   "lancedb_dir": "~/.strategic_memory/lancedb",
+  "skills_path": "auto",
+  "skills_scope": "global",
   "tracked_repos": {
     "pitmry": "."
   }

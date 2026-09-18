@@ -27,6 +27,7 @@ import { TimelinesNotifications, NotificationItem } from "@/components/timelines
 import { NotificationToastContainer } from "@/components/notification-toast";
 import { CodeDiffViewer } from "@/components/code-diff-viewer";
 import { OnboardingDialog } from "@/components/onboarding-dialog";
+import { SkillsWorkspace } from "@/components/skills-workspace";
 import { cn, formatDate } from "@/lib/utils";
 import {
   SidebarProvider,
@@ -62,7 +63,8 @@ export type ViewMode =
   | "galaxy"
   | "deploys"
   | "status"
-  | "activity";
+  | "activity"
+  | "skills";
 
 function formatItemType(type?: string): string {
   switch (type) {
@@ -163,6 +165,17 @@ function MemorySidebar({
               >
                 <HugeiconsIcon icon={ComputerTerminalIcon} strokeWidth={1.5} />
                 <span>Status</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={viewMode === "skills"}
+                onClick={() => setViewMode("skills")}
+                tooltip="Skills & Automations"
+              >
+                <Sparkles className="size-4 text-primary" />
+                <span>Skills &amp; Automations</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -391,6 +404,19 @@ export function AppShell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notifOpen]);
 
+  // Global Escape key listener for overlays
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (diffModalState.open) setDiffModalState({ open: false });
+        if (onboardingOpen) setOnboardingOpen(false);
+        if (notifOpen) setNotifOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [diffModalState.open, onboardingOpen, notifOpen]);
+
   const handleSelectNeighbor = (id: string, type: "adr" | "commit" | "grill") => {
     const numId = parseInt(id.split("-")[1]);
     fetch(`/api/memory?action=feed&type=${type}&limit=60`)
@@ -545,6 +571,20 @@ export function AppShell() {
                 <Server className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Status</span>
               </button>
+
+              <button
+                onClick={() => setViewMode("skills")}
+                className={cn(
+                  "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
+                  viewMode === "skills"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Skills & Automations"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden md:inline">Skills</span>
+              </button>
             </div>
 
             {/* Notification Bell with Popover */}
@@ -677,6 +717,10 @@ export function AppShell() {
             <div className="flex-1 h-full overflow-y-auto">
               <TimelinesStatusPage />
             </div>
+          ) : viewMode === "skills" ? (
+            <div className="flex-1 h-full overflow-y-auto flex flex-col">
+              <SkillsWorkspace />
+            </div>
           ) : viewMode === "activity" ? (
             <div className="flex-1 h-full overflow-y-auto">
               <TimelinesActivityFeed
@@ -697,7 +741,24 @@ export function AppShell() {
             /* Standard List / Stream View */
             <div className="flex flex-1 overflow-hidden">
               {/* Feed column */}
-              <div className="flex flex-1 flex-col overflow-y-auto p-3.5 sm:p-4 space-y-3.5">
+              <div className="flex flex-1 flex-col overflow-y-auto p-3.5 sm:p-5 space-y-4">
+                {/* View Header (H1) */}
+                <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 border-b border-border/50 pb-3">
+                  <div>
+                    <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                      Operational Memory Stream
+                    </h1>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Unified architectural decision records, semantic git digests, and discussions.
+                    </p>
+                  </div>
+                  {feed.length > 0 && (
+                    <div className="font-mono text-[11px] font-semibold text-muted-foreground shrink-0">
+                      {feed.length} indexed records
+                    </div>
+                  )}
+                </div>
+
                 {/* Stat Tiles */}
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                   <StatTile
@@ -735,11 +796,14 @@ export function AppShell() {
                 </div>
 
                 {/* Activity Feed */}
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Recent activity ({feed.length})
-                    </div>
+                    <h2 className="font-heading text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-2">
+                      <span>Recent Activity</span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground">
+                        {feed.length}
+                      </span>
+                    </h2>
                     {(selectedProject || selectedType || selectedTag) && (
                       <button
                         onClick={() => {
@@ -747,7 +811,7 @@ export function AppShell() {
                           setSelectedType(null);
                           setSelectedTag(null);
                         }}
-                        className="text-xs text-primary hover:underline font-medium cursor-pointer"
+                        className="text-xs text-primary hover:underline font-semibold cursor-pointer"
                       >
                         Clear filters
                       </button>
@@ -763,59 +827,67 @@ export function AppShell() {
                       No items match your filter.
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {feed.map((item) => {
                         const isSelected = activeItem?.id === item.id;
                         return (
                           <div
                             key={item.id}
+                            tabIndex={0}
+                            role="button"
                             onClick={() => setActiveItem(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setActiveItem(item);
+                              }
+                            }}
                             className={cn(
-                              "group flex cursor-pointer flex-col gap-1.5 rounded-lg border p-3 transition-all duration-150",
+                              "group flex cursor-pointer flex-col gap-2 rounded-xl border p-3.5 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                               isSelected
-                                ? "border-primary/50 bg-secondary/30 ring-1 ring-primary/40 shadow-xs"
-                                : "border-border/70 bg-card hover:border-primary/30 hover:bg-secondary/20"
+                                ? "border-primary/50 bg-secondary/35 ring-1 ring-primary/40 shadow-xs"
+                                : "border-border/70 bg-card hover:border-primary/40 hover:bg-secondary/20 shadow-2xs"
                             )}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-1.5">
-                                <span className="inline-flex items-center rounded border border-border/80 bg-secondary/80 px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase tracking-wider text-foreground">
+                                <span className="inline-flex items-center rounded border border-border/80 bg-secondary px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground">
                                   {formatItemType(item.type)}
                                 </span>
-                                <span className="rounded bg-secondary/60 px-1.5 py-0.2 text-[9px] font-medium text-muted-foreground">
+                                <span className="rounded bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                                   {item.project}
                                 </span>
                                 {item.commit_hash && (
-                                  <span className="font-mono text-[9px] text-muted-foreground">
+                                  <span className="font-mono text-[11px] text-muted-foreground">
                                     #{item.commit_hash}
                                   </span>
                                 )}
                                 {item.bullets && item.bullets.length > 0 && (
-                                  <span className="inline-flex items-center gap-1 font-mono text-[9px] text-primary bg-primary/10 px-1.5 py-0.2 rounded font-medium">
-                                    <Sparkles className="size-2.5" />
+                                  <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary bg-primary/10 px-2 py-0.5 rounded font-semibold">
+                                    <Sparkles className="size-3" />
                                     {item.bullets.length} points
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                              <span className="text-[11px] font-mono text-muted-foreground shrink-0">
                                 {formatDate(item.timestamp)}
                               </span>
                             </div>
 
-                            <div className="text-xs font-semibold text-foreground group-hover:text-primary leading-snug transition-colors">
+                            <h3 className="font-heading text-sm sm:text-[15px] font-bold text-foreground group-hover:text-primary leading-snug transition-colors">
                               {item.title}
-                            </div>
+                            </h3>
 
-                            <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                               {item.summary || item.rationale}
-                            </div>
+                            </p>
 
                             {item.tags && item.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-0.5">
                                 {item.tags.slice(0, 5).map((tg: string) => (
                                   <span
                                     key={tg}
-                                    className="rounded bg-secondary/40 px-1.5 py-0.2 text-[9px] text-muted-foreground font-mono"
+                                    className="rounded bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground font-mono font-medium"
                                   >
                                     #{tg}
                                   </span>
@@ -845,8 +917,17 @@ export function AppShell() {
 
       {/* Global Diff Viewer Modal */}
       {diffModalState.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in-0 duration-150">
-          <div className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in-0 duration-150 cursor-pointer"
+          onClick={() => setDiffModalState({ open: false })}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Commit Diff Viewer"
+        >
+          <div
+            className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CodeDiffViewer
               project={diffModalState.project}
               commitHash={diffModalState.commitHash}

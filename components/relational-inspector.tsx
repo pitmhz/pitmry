@@ -86,6 +86,20 @@ export function RelationalInspector({
       });
   }, [item]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (diffModalOpen) {
+          setDiffModalOpen(false);
+        } else if (item && onClose) {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [diffModalOpen, item, onClose]);
+
   if (!item) return null;
 
   const handleCopy = () => {
@@ -98,13 +112,13 @@ export function RelationalInspector({
   return (
     <aside className="w-[420px] xl:w-[460px] shrink-0 border-l border-border/80 bg-card flex flex-col h-full overflow-hidden">
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-border/80 px-3.5 py-2.5">
+      <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded border border-border bg-secondary px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
+          <span className="inline-flex items-center rounded border border-border bg-secondary px-2.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-foreground">
             {item.type}
           </span>
           <span className="text-xs text-muted-foreground">in</span>
-          <span className="rounded bg-secondary/80 px-2 py-0.5 font-mono text-xs text-foreground font-medium">
+          <span className="rounded bg-secondary/90 px-2.5 py-0.5 font-mono text-xs text-foreground font-bold">
             {item.project}
           </span>
         </div>
@@ -112,8 +126,9 @@ export function RelationalInspector({
         <div className="flex items-center gap-1">
           <button
             onClick={handleCopy}
-            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
             title="Copy text"
+            aria-label="Copy record details"
           >
             {copied ? (
               <Check className="h-4 w-4 text-primary" />
@@ -123,7 +138,9 @@ export function RelationalInspector({
           </button>
           <button
             onClick={onClose}
-            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+            aria-label="Close inspector"
+            title="Close"
           >
             <X className="h-4 w-4" />
           </button>
@@ -131,23 +148,23 @@ export function RelationalInspector({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Title & Metadata */}
-        <div>
-          <h2 className="text-sm font-semibold tracking-tight text-foreground leading-snug">
+        <div className="space-y-2">
+          <h2 className="font-heading text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug">
             {item.title}
           </h2>
-          <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-mono text-[11px]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               {formatDate(item.timestamp)}
             </span>
             {item.commit_hash && (
-              <span className="font-mono text-[10px] bg-secondary px-1.5 py-0.5 rounded border border-border">
+              <span className="font-mono text-[11px] bg-secondary px-2 py-0.5 rounded border border-border text-foreground font-semibold">
                 #{item.commit_hash}
               </span>
             )}
             {item.status && (
-              <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground uppercase">
+              <span className="rounded bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground uppercase font-semibold">
                 {item.status}
               </span>
             )}
@@ -156,11 +173,11 @@ export function RelationalInspector({
 
         {/* Tags */}
         {item.tags && item.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {item.tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+                className="rounded border border-border bg-secondary/60 px-2 py-0.5 text-[11px] font-mono text-muted-foreground font-medium"
               >
                 #{tag}
               </span>
@@ -169,36 +186,36 @@ export function RelationalInspector({
         )}
 
         {/* Core Decision / Summary */}
-        <div className="space-y-1">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="space-y-1.5 pt-1">
+          <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
             Summary
-          </div>
-          <p className="text-xs leading-relaxed text-foreground">
+          </h3>
+          <p className="text-xs sm:text-[13px] leading-relaxed text-foreground/95">
             {item.summary}
           </p>
         </div>
 
         {/* What Changed (Detailed Breakdown) */}
         {item.bullets && item.bullets.length > 0 && (
-          <div className="space-y-2 pt-2.5 border-t border-border/40">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-primary font-medium">
-                <Sparkles className="size-3" />
+          <div className="space-y-2 pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Sparkles className="size-3.5" />
                 What Changed ({item.bullets.length} points)
-              </span>
+              </h3>
               {item.session_file && (
-                <span className="font-mono text-[9px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded border border-border">
+                <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded border border-border font-medium">
                   Audit Doc
                 </span>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {item.bullets.map((bullet, idx) => (
                 <div
                   key={idx}
-                  className="text-xs text-foreground/90 leading-relaxed bg-secondary/35 hover:bg-secondary/50 transition-colors p-2.5 rounded-lg border border-border/50 flex items-start gap-2.5 shadow-2xs"
+                  className="text-xs sm:text-[13px] text-foreground font-medium leading-relaxed bg-secondary/35 hover:bg-secondary/50 transition-colors p-3 rounded-lg border border-border/60 flex items-start gap-2.5 shadow-2xs"
                 >
-                  <span className="font-mono text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">
+                  <span className="font-mono text-[11px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded shrink-0 mt-0.5">
                     #{idx + 1}
                   </span>
                   <span className="flex-1 leading-snug">{bullet}</span>
@@ -210,11 +227,11 @@ export function RelationalInspector({
 
         {/* Full Commit Message Body (fallback if no bullets) */}
         {item.body && (!item.bullets || item.bullets.length === 0) && (
-          <div className="space-y-1 pt-2.5 border-t border-border/40">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="space-y-1.5 pt-3 border-t border-border/50">
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
               Commit Description
-            </div>
-            <div className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap bg-secondary/20 p-2.5 rounded-lg border border-border/40 font-mono text-[11px]">
+            </h3>
+            <div className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap bg-secondary/20 p-3 rounded-lg border border-border/50 font-mono text-[11px]">
               {item.body}
             </div>
           </div>
@@ -222,22 +239,22 @@ export function RelationalInspector({
 
         {/* Rationale & Decisions */}
         {item.decision && (
-          <div className="space-y-1 pt-2.5 border-t border-border/40">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="space-y-1.5 pt-3 border-t border-border/50">
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
               Decision
-            </div>
-            <p className="text-xs text-foreground leading-relaxed">
+            </h3>
+            <p className="text-xs sm:text-[13px] text-foreground leading-relaxed">
               {item.decision}
             </p>
           </div>
         )}
 
         {item.rationale && (
-          <div className="space-y-1 pt-2.5 border-t border-border/40">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="space-y-1.5 pt-3 border-t border-border/50">
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
               Why this was done
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+            </h3>
+            <p className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {item.rationale}
             </p>
           </div>
@@ -245,12 +262,14 @@ export function RelationalInspector({
 
         {/* Code Diff or Changed Files */}
         {item.commit_hash ? (
-          <div className="pt-2.5 border-t border-border/40">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center justify-between">
-              <span>Code changes</span>
+          <div className="pt-3 border-t border-border/50">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+                Code changes
+              </h3>
               <button
                 onClick={() => setDiffModalOpen(true)}
-                className="text-[10px] text-primary hover:underline font-medium"
+                className="text-xs text-primary hover:underline font-semibold cursor-pointer"
               >
                 Expand diff
               </button>
@@ -264,15 +283,17 @@ export function RelationalInspector({
           </div>
         ) : (
           item.key_files && item.key_files.length > 0 && (
-            <div className="pt-2.5 border-t border-border/40">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center justify-between">
-                <span>Changed files ({item.key_files.length})</span>
+            <div className="pt-3 border-t border-border/50">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+                  Changed files ({item.key_files.length})
+                </h3>
               </div>
-              <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                 {item.key_files.map((file) => (
                   <div
                     key={file}
-                    className="rounded bg-secondary/30 border border-border/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground truncate"
+                    className="rounded bg-secondary/35 border border-border/50 px-2.5 py-1 text-[11px] font-mono text-foreground/90 truncate"
                     title={file}
                   >
                     {file}
@@ -284,26 +305,30 @@ export function RelationalInspector({
         )}
 
         {/* Relational Tabs: Decision Path vs Related Items */}
-        <div className="pt-2.5 border-t border-border/50">
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center rounded-md border border-border/60 bg-secondary/30 p-0.5">
+        <div className="pt-3 border-t border-border/50">
+          <div className="flex items-center justify-between mb-3">
+            <div role="tablist" className="flex items-center rounded-lg border border-border/70 bg-secondary/40 p-0.5">
               <button
+                role="tab"
+                aria-selected={activeTab === "journey"}
                 onClick={() => setActiveTab("journey")}
                 className={cn(
-                  "rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   activeTab === "journey"
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 Decision Path
               </button>
               <button
+                role="tab"
+                aria-selected={activeTab === "neighbors"}
                 onClick={() => setActiveTab("neighbors")}
                 className={cn(
-                  "rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   activeTab === "neighbors"
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -311,7 +336,7 @@ export function RelationalInspector({
               </button>
             </div>
 
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="font-mono text-[11px] font-medium text-muted-foreground">
               {activeTab === "journey" ? "History" : "Similar topics"}
             </span>
           </div>
@@ -380,8 +405,17 @@ export function RelationalInspector({
 
       {/* Fullscreen / Expanded Diff Modal */}
       {diffModalOpen && item.commit_hash && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in-0 duration-150">
-          <div className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in-0 duration-150 cursor-pointer"
+          onClick={() => setDiffModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Commit Diff Modal"
+        >
+          <div
+            className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CodeDiffViewer
               project={item.project}
               commitHash={item.commit_hash}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Terminal,
   CheckCircle2,
@@ -25,6 +25,17 @@ interface OnboardingDialogProps {
 export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDialogProps) {
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleCopy = (text: string, stepNum: number) => {
@@ -34,8 +45,17 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in-0 duration-150 cursor-pointer"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Connect Your Memory Engine"
+    >
+      <div
+        className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/70 bg-secondary/30 px-6 py-4">
           <div className="flex items-center gap-2.5">
@@ -55,10 +75,15 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
           </div>
           <button
             onClick={onClose}
-            className="rounded-md border border-border/70 bg-secondary/40 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-            title="Close dialog"
+            className="flex items-center gap-1 rounded-md border border-border/70 bg-secondary/40 hover:bg-secondary px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            title="Close dialog (Esc)"
+            aria-label="Close dialog"
           >
             <X className="h-4 w-4" />
+            <span className="text-[11px] font-medium hidden sm:inline">Close</span>
+            <kbd className="hidden sm:inline-block rounded border border-border bg-card px-1 text-[9px] font-mono text-muted-foreground">
+              Esc
+            </kbd>
           </button>
         </div>
 

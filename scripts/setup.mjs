@@ -145,7 +145,66 @@ async function runSetup() {
     printStep("ok", "Local git history", "git repository connected");
   }
 
-  // 8. Ready Output
+  // 8. Adaptive Agent Skills Injection
+  const bundledSkillsDir = path.join(ROOT_DIR, "skills");
+  if (fs.existsSync(bundledSkillsDir)) {
+    // Detect machine configuration
+    let targetSkillsDir = process.env.AGENTS_SKILLS_PATH;
+    let targetScope = "env";
+
+    if (!targetSkillsDir || !fs.existsSync(targetSkillsDir)) {
+      const userGlobalAgents = path.join(os.homedir(), ".agents", "skills");
+      const projectLocalAgents = path.join(ROOT_DIR, ".agents", "skills");
+
+      const forceProject = process.argv.includes("--skills-scope=project");
+      if (forceProject) {
+        targetSkillsDir = projectLocalAgents;
+        targetScope = "project";
+      } else if (fs.existsSync(userGlobalAgents)) {
+        targetSkillsDir = userGlobalAgents;
+        targetScope = "global";
+      } else if (fs.existsSync(projectLocalAgents)) {
+        targetSkillsDir = projectLocalAgents;
+        targetScope = "project";
+      } else {
+        // Standard agent convention: ~/.agents/skills
+        targetSkillsDir = userGlobalAgents;
+        targetScope = "global (default)";
+      }
+    }
+
+    try {
+      if (!fs.existsSync(targetSkillsDir)) {
+        fs.mkdirSync(targetSkillsDir, { recursive: true });
+      }
+
+      let injectedCount = 0;
+      const skillsToInject = ["strategic-memory", "memory-navigator", "cavemem", "skill-router", "simple-english"];
+
+      for (const skillName of skillsToInject) {
+        const srcSkillDir = path.join(bundledSkillsDir, skillName);
+        const destSkillDir = path.join(targetSkillsDir, skillName);
+        const srcSkillFile = path.join(srcSkillDir, "SKILL.md");
+
+        if (fs.existsSync(srcSkillFile)) {
+          if (!fs.existsSync(destSkillDir)) {
+            fs.mkdirSync(destSkillDir, { recursive: true });
+          }
+          const destSkillFile = path.join(destSkillDir, "SKILL.md");
+          if (!fs.existsSync(destSkillFile) || process.argv.includes("--force-skills")) {
+            fs.copyFileSync(srcSkillFile, destSkillFile);
+            injectedCount++;
+          }
+        }
+      }
+
+      printStep("ok", "Agent skills injection", `${injectedCount} starter skill(s) synced to ${targetScope} (${targetSkillsDir})`);
+    } catch (skillsErr) {
+      printStep("warn", "Agent skills injection", `Could not write to ${targetSkillsDir}: ${skillsErr.message}`);
+    }
+  }
+
+  // 9. Ready Output
   console.log("\n\x1b[32m✔ Pitmry setup completed successfully!\x1b[0m");
   console.log("\n  Next action: \x1b[1mpnpm dev\x1b[0m to launch your dashboard at \x1b[36mhttp://localhost:4242\x1b[0m\n");
 }

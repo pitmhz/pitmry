@@ -129,15 +129,17 @@ export function TimelinesDeploys({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Env filters */}
-          <div className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5">
+          <div role="tablist" aria-label="Environment filters" className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5">
             {["all", "production", "staging", "preview"].map((env) => (
               <button
                 key={env}
                 type="button"
+                role="tab"
+                aria-selected={selectedEnv === env}
                 onClick={() => setSelectedEnv(env)}
-                className={`rounded-md px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors cursor-pointer ${
+                className={`rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   selectedEnv === env
-                    ? "bg-foreground text-background font-semibold"
+                    ? "bg-foreground text-background font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -150,9 +152,9 @@ export function TimelinesDeploys({
             type="button"
             onClick={() => startTransition(() => fetchDeploys())}
             disabled={loading || isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card/80 px-3 py-1.5 font-mono text-[11px] text-foreground hover:bg-accent/50 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card/80 px-3 py-1.5 font-mono text-xs text-foreground hover:bg-accent/50 transition-all cursor-pointer shadow-xs disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <RefreshCw className={`size-3 ${loading || isPending ? "animate-spin text-primary" : ""}`} />
+            <RefreshCw className={`size-3.5 ${loading || isPending ? "animate-spin text-primary" : ""}`} />
             Refresh
           </button>
         </div>
@@ -163,20 +165,28 @@ export function TimelinesDeploys({
         {(data?.repos || []).map((repo) => (
           <div
             key={repo.name}
+            tabIndex={0}
+            role="button"
             onClick={() => setSelectedRepo(selectedRepo === repo.name ? "all" : repo.name)}
-            className={`rounded-xl border p-3.5 transition-all cursor-pointer ${
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSelectedRepo(selectedRepo === repo.name ? "all" : repo.name);
+              }
+            }}
+            className={`rounded-xl border p-3.5 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               selectedRepo === repo.name
                 ? "border-primary bg-primary/5 shadow-xs"
                 : "border-border/60 bg-card/40 hover:border-border hover:bg-card/70"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <span className="font-mono text-xs font-bold text-foreground flex items-center gap-1.5">
                 <FolderGit2 className="size-3.5 text-primary" />
                 {repo.name}
               </span>
               <span
-                className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider border ${
+                className={`rounded-full px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider border font-semibold ${
                   ENV_TONE[repo.env]
                 }`}
               >
@@ -185,15 +195,15 @@ export function TimelinesDeploys({
             </div>
 
             <div className="mt-2.5 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1 text-muted-foreground font-mono text-[11px]">
+              <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
                 <GitBranch className="size-3 text-muted-foreground" />
                 <span>{repo.branch}</span>
               </div>
               <span
-                className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full ${
+                className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-semibold ${
                   repo.clean
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "bg-amber-500/15 text-amber-700 dark:text-amber-400 font-medium"
+                    : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
                 }`}
               >
                 {repo.clean ? "Clean" : `${repo.dirty_count} modified`}
@@ -206,13 +216,13 @@ export function TimelinesDeploys({
       {/* Deploys List (devl.dev design) */}
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card/50 backdrop-blur-md shadow-xs">
         <div className="flex items-center justify-between border-b border-border/40 px-5 py-3">
-          <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.25em]">
+          <div className="font-mono text-xs text-muted-foreground uppercase tracking-wider font-bold">
             Deploys · {filteredDeploys.length} commits
           </div>
           {selectedRepo !== "all" && (
             <button
               onClick={() => setSelectedRepo("all")}
-              className="font-mono text-[10px] text-primary hover:underline cursor-pointer"
+              className="font-mono text-xs text-primary hover:underline cursor-pointer font-semibold"
             >
               Show all repos ({selectedRepo})
             </button>
@@ -234,40 +244,40 @@ export function TimelinesDeploys({
                   <StatusGlyph status={d.status} />
                 </div>
                 <span
-                  className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] border ${
+                  className={`rounded px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider border font-semibold ${
                     ENV_TONE[d.env]
                   }`}
                 >
                   {d.env}
                 </span>
-                <span className="font-mono text-[10px] text-muted-foreground md:hidden">
+                <span className="font-mono text-xs text-muted-foreground md:hidden font-semibold">
                   {d.project}
                 </span>
               </div>
 
               <div className="min-w-0 w-full">
-                <div className="text-xs md:text-sm font-medium text-foreground leading-snug">
+                <div className="font-heading text-sm md:text-[15px] font-bold text-foreground leading-snug">
                   {d.message}
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                  <span className="text-foreground/80 font-semibold">{d.project}</span>
+                <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-muted-foreground">
+                  <span className="text-foreground font-bold">{d.project}</span>
                   <span>·</span>
                   <span className="inline-flex items-center gap-1">
-                    <GitBranch className="size-2.5" />
+                    <GitBranch className="size-3" />
                     {d.branch}
                   </span>
                   <span>·</span>
                   <button
                     type="button"
                     onClick={() => handleCopySha(d.sha)}
-                    className="hover:text-foreground inline-flex items-center gap-1 cursor-pointer"
+                    className="hover:text-foreground inline-flex items-center gap-1 cursor-pointer font-semibold"
                     title="Click to copy SHA"
                   >
                     <span>{d.sha}</span>
                     {copiedSha === d.sha ? (
-                      <Check className="size-2.5 text-emerald-500" />
+                      <Check className="size-3 text-emerald-500" />
                     ) : (
-                      <Copy className="size-2.5 opacity-60" />
+                      <Copy className="size-3 opacity-60" />
                     )}
                   </button>
                   <span>·</span>
@@ -278,14 +288,14 @@ export function TimelinesDeploys({
                       <button
                         type="button"
                         onClick={() => setExpandedDeploys((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-                        className="inline-flex items-center gap-1 text-primary hover:underline font-semibold cursor-pointer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline font-bold cursor-pointer"
                       >
-                        <Sparkles className="size-2.5" />
+                        <Sparkles className="size-3" />
                         {expandedDeploys[d.id] ? "Hide changes" : `${d.bullets.length} change highlights`}
                         {expandedDeploys[d.id] ? (
-                          <ChevronUp className="size-2.5" />
+                          <ChevronUp className="size-3" />
                         ) : (
-                          <ChevronDown className="size-2.5" />
+                          <ChevronDown className="size-3" />
                         )}
                       </button>
                     </>

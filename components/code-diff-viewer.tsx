@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
 import { Highlight, themes } from "prism-react-renderer";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,17 @@ export function CodeDiffViewer({
   };
 
   useEffect(() => {
+    if (!isModal || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModal, onClose]);
+
+  useEffect(() => {
     if (!commitHash && !itemId) return;
     setLoading(true);
     let url = `/api/memory?action=diff`;
@@ -215,26 +227,78 @@ export function CodeDiffViewer({
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-border/70 bg-secondary/20 p-6 text-center text-xs text-muted-foreground animate-pulse space-y-2">
-        <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
-        <div>Loading code diff...</div>
+      <div
+        className={cn(
+          "rounded-lg border border-border/70 bg-secondary/20 p-6 text-center text-xs text-muted-foreground animate-pulse space-y-3",
+          isModal && "h-[45vh] flex flex-col items-center justify-center relative bg-card border-0"
+        )}
+      >
+        {isModal && onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 flex items-center gap-1.5 rounded-md border border-border/80 bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            title="Close modal (Esc)"
+            aria-label="Close diff viewer"
+          >
+            <X className="h-4 w-4" />
+            <span className="text-[11px] font-medium hidden sm:inline">Close</span>
+            <kbd className="hidden sm:inline-block rounded border border-border bg-card px-1 text-[9px] font-mono text-muted-foreground">
+              Esc
+            </kbd>
+          </button>
+        )}
+        <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+        <div className="text-xs font-medium">Loading code diff...</div>
       </div>
     );
   }
 
   if (!data || !data.available) {
     return (
-      <div className="rounded-lg border border-border/70 bg-secondary/20 p-4 text-xs text-muted-foreground space-y-2">
-        <div className="font-semibold text-foreground flex items-center gap-1.5">
-          <FileCode className="h-4 w-4 text-muted-foreground" />
-          <span>Code comparison unavailable</span>
+      <div
+        className={cn(
+          "rounded-lg border border-border/70 bg-secondary/20 p-5 text-xs text-muted-foreground space-y-3",
+          isModal && "min-h-[320px] flex flex-col justify-between p-6 relative bg-card border-0"
+        )}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="font-semibold text-foreground flex items-center gap-2 text-sm">
+              <FileCode className="h-4 w-4 text-primary" />
+              <span>Code comparison unavailable</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-lg">
+              {data?.error || "Local git repository not connected or commit is a manual snapshot."}
+            </p>
+            {commitHash && (
+              <div className="font-mono text-[11px] text-muted-foreground pt-1">
+                Commit: #{commitHash}
+              </div>
+            )}
+          </div>
+          {isModal && onClose && (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 rounded-md border border-border/80 bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0"
+              title="Close modal (Esc)"
+              aria-label="Close diff viewer"
+            >
+              <X className="h-4 w-4" />
+              <span className="text-[11px] font-medium hidden sm:inline">Close</span>
+              <kbd className="hidden sm:inline-block rounded border border-border bg-card px-1 text-[9px] font-mono text-muted-foreground">
+                Esc
+              </kbd>
+            </button>
+          )}
         </div>
-        <p className="text-[11px] leading-relaxed">
-          {data?.error || "Local git repository not connected or commit is a manual snapshot."}
-        </p>
-        {commitHash && (
-          <div className="font-mono text-[10px] text-muted-foreground">
-            Commit: #{commitHash}
+        {isModal && onClose && (
+          <div className="flex justify-end pt-4 border-t border-border/40">
+            <button
+              onClick={onClose}
+              className="rounded-md border border-border bg-secondary/60 hover:bg-secondary px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Close window
+            </button>
           </div>
         )}
       </div>
@@ -497,32 +561,35 @@ export function CodeDiffViewer({
       )}
     >
       {/* 1. Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 bg-secondary/30 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 bg-secondary/30 px-3.5 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <span className="font-mono text-xs uppercase font-bold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded">
             #{data.commit_hash?.slice(0, 8)}
           </span>
-          <div className="flex items-center gap-1 text-[11px] font-mono">
-            <span className="text-emerald-400 font-medium">+{data.total_additions}</span>
-            <span className="text-rose-400 font-medium">-{data.total_deletions}</span>
-            <span className="text-muted-foreground">• {data.total_files} files</span>
+          <div className="flex items-center gap-1.5 text-xs font-mono font-semibold">
+            <span className="text-emerald-400">+{data.total_additions}</span>
+            <span className="text-rose-400">-{data.total_deletions}</span>
+            <span className="text-muted-foreground font-normal">• {data.total_files} files</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           {/* Mode Switcher */}
-          <div className="flex items-center rounded-md border border-border/80 bg-secondary/60 p-0.5 text-xs">
+          <div role="tablist" aria-label="Diff view modes" className="flex items-center rounded-lg border border-border/80 bg-secondary/60 p-0.5 text-xs">
             <button
+              role="tab"
+              aria-selected={viewMode === "inline"}
+              aria-label="Unified single column diff"
               onClick={() => setViewMode("inline")}
               className={cn(
-                "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 viewMode === "inline"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
+                  ? "bg-card text-foreground shadow-xs font-bold"
                   : "text-muted-foreground hover:text-foreground"
               )}
               title="Unified single column diff"
             >
-              <AlignJustify className="h-3 w-3" />
+              <AlignJustify className="h-3.5 w-3.5" />
               <span>Inline</span>
             </button>
 
@@ -530,45 +597,54 @@ export function CodeDiffViewer({
             {isModal && (
               <>
                 <button
+                  role="tab"
+                  aria-selected={viewMode === "split"}
+                  aria-label="Side-by-side comparison"
                   onClick={() => setViewMode("split")}
                   className={cn(
-                    "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     viewMode === "split"
-                      ? "bg-card text-foreground shadow-xs font-semibold"
+                      ? "bg-card text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                   title="Side-by-side comparison"
                 >
-                  <Columns className="h-3 w-3" />
+                  <Columns className="h-3.5 w-3.5" />
                   <span>Split</span>
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={viewMode === "resizable"}
+                  aria-label="Split resizable mode"
                   onClick={() => setViewMode("resizable")}
                   className={cn(
-                    "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     viewMode === "resizable"
-                      ? "bg-card text-primary shadow-xs font-semibold"
+                      ? "bg-card text-primary shadow-xs font-bold"
                       : "text-muted-foreground hover:text-primary"
                   )}
                   title="Split Resizable: Diff & Live Preview side-by-side"
                 >
-                  <SplitSquareVertical className="h-3 w-3" />
+                  <SplitSquareVertical className="h-3.5 w-3.5" />
                   <span>Resizable</span>
                 </button>
               </>
             )}
 
             <button
+              role="tab"
+              aria-selected={viewMode === "preview"}
+              aria-label="Post-change file preview"
               onClick={() => setViewMode("preview")}
               className={cn(
-                "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 viewMode === "preview"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
+                  ? "bg-card text-foreground shadow-xs font-bold"
                   : "text-muted-foreground hover:text-foreground"
               )}
               title="Post-change file preview"
             >
-              <Eye className="h-3 w-3" />
+              <Eye className="h-3.5 w-3.5" />
               <span>Preview</span>
             </button>
           </div>
@@ -576,39 +652,47 @@ export function CodeDiffViewer({
           {/* Copy Patch */}
           <button
             onClick={handleCopyPatch}
-            className="rounded border border-border bg-secondary/40 p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="rounded-md border border-border bg-secondary/50 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             title="Copy diff patch"
+            aria-label="Copy diff patch"
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
           </button>
 
           {/* Copy Reconstructed Code */}
           <button
             onClick={handleCopyCode}
-            className="rounded border border-border bg-secondary/40 p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="rounded-md border border-border bg-secondary/50 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             title="Copy post-commit file content"
+            aria-label="Copy file content"
           >
-            {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Code2 className="h-3.5 w-3.5" />}
+            {copiedCode ? <Check className="h-4 w-4 text-emerald-400" /> : <Code2 className="h-4 w-4" />}
           </button>
 
           {/* Expand Modal / Pop-out */}
           {onExpand && !isModal && (
             <button
               onClick={onExpand}
-              className="rounded border border-border bg-secondary/40 p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="rounded-md border border-border bg-secondary/50 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title="Expand into full modal view"
+              aria-label="Expand diff viewer"
             >
-              <Maximize2 className="h-3.5 w-3.5" />
+              <Maximize2 className="h-4 w-4" />
             </button>
           )}
 
           {isModal && onClose && (
             <button
               onClick={onClose}
-              className="rounded border border-border bg-secondary/40 p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-              title="Close modal"
+              className="flex items-center gap-1.5 rounded-md border border-border/80 bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-1"
+              title="Close modal (Esc)"
+              aria-label="Close modal diff viewer"
             >
-              <Minimize2 className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
+              <span className="text-[11px] font-medium hidden sm:inline">Close</span>
+              <kbd className="hidden sm:inline-block rounded border border-border bg-card px-1 text-[9px] font-mono text-muted-foreground">
+                Esc
+              </kbd>
             </button>
           )}
         </div>
@@ -676,24 +760,24 @@ export function CodeDiffViewer({
                 ref={isSelected ? activeTabRef : undefined}
                 onClick={() => setSelectedFileIndex(originalIndex)}
                 className={cn(
-                  "shrink-0 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-mono transition-all border",
+                  "shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition-all border cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   isSelected
-                    ? "bg-primary/15 text-primary border-primary/50 font-semibold shadow-xs"
+                    ? "bg-primary/15 text-primary border-primary/50 font-bold shadow-xs"
                     : "bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground border-border/40"
                 )}
                 title={file.path}
               >
-                <FileCode className={cn("h-3 w-3 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
+                <FileCode className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
                 <span className="truncate max-w-[130px] sm:max-w-[190px]">{fName}</span>
-                <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-mono">
-                  {file.additions > 0 && <span className="text-emerald-400 font-medium">+{file.additions}</span>}
-                  {file.deletions > 0 && <span className="text-rose-400 font-medium">-{file.deletions}</span>}
+                <span className="shrink-0 flex items-center gap-0.5 text-[10px] font-mono font-semibold">
+                  {file.additions > 0 && <span className="text-emerald-400 font-bold">+{file.additions}</span>}
+                  {file.deletions > 0 && <span className="text-rose-400 font-bold">-{file.deletions}</span>}
                 </span>
               </button>
             );
           })}
           {filteredFiles.length === 0 && (
-            <span className="text-[11px] text-muted-foreground italic px-2">No files match filter</span>
+            <span className="text-xs text-muted-foreground italic px-2">No files match filter</span>
           )}
         </div>
 
@@ -701,40 +785,41 @@ export function CodeDiffViewer({
         {files.length > 2 && (
           <button
             onClick={() => scrollTabs(160)}
-            className="h-6 w-5 shrink-0 rounded hover:bg-secondary/70 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="h-6 w-5 shrink-0 rounded hover:bg-secondary/70 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             title="Scroll files right"
+            aria-label="Scroll files right"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         )}
 
         {/* Files Count Indicator */}
-        <span className="shrink-0 text-[10px] font-mono text-muted-foreground/70 hidden sm:inline-block px-1">
+        <span className="shrink-0 text-[11px] font-mono text-muted-foreground hidden sm:inline-block px-1 font-semibold">
           {selectedFileIndex + 1}/{files.length}
         </span>
       </div>
 
       {/* 3. Active File Breadcrumb & Editor Launcher Bar */}
       {activeFile && (
-        <div className="flex items-center justify-between border-b border-border/70 bg-secondary/30 px-3 py-1.5 text-xs shrink-0">
+        <div className="flex items-center justify-between border-b border-border/70 bg-secondary/30 px-3.5 py-1.5 text-xs shrink-0">
           <div className="flex items-center gap-2 truncate pr-2 min-w-0">
             <FileCode className="h-3.5 w-3.5 text-primary shrink-0" />
             <div className="flex items-baseline gap-1 truncate font-mono min-w-0">
               {activeFile.path.substring(0, activeFile.path.lastIndexOf("/")) && (
-                <span className="text-[10px] text-muted-foreground/70 truncate shrink">
+                <span className="text-[11px] text-muted-foreground truncate shrink">
                   {activeFile.path.substring(0, activeFile.path.lastIndexOf("/"))}/
                 </span>
               )}
-              <span className="text-[11px] font-bold text-foreground shrink-0">
+              <span className="text-xs font-bold text-foreground shrink-0">
                 {activeFile.path.split("/").pop()}
               </span>
             </div>
-            <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.2 text-[9px] font-mono uppercase text-muted-foreground shrink-0">
+            <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground font-semibold shrink-0">
               {language}
             </span>
-            <span className="text-[10px] font-mono shrink-0">
-              {activeFile.additions > 0 && <span className="text-emerald-400 font-semibold">+{activeFile.additions} </span>}
-              {activeFile.deletions > 0 && <span className="text-rose-400 font-semibold">-{activeFile.deletions}</span>}
+            <span className="text-xs font-mono shrink-0">
+              {activeFile.additions > 0 && <span className="text-emerald-400 font-bold">+{activeFile.additions} </span>}
+              {activeFile.deletions > 0 && <span className="text-rose-400 font-bold">-{activeFile.deletions}</span>}
             </span>
           </div>
 
@@ -743,21 +828,21 @@ export function CodeDiffViewer({
             {zedUrl && (
               <a
                 href={zedUrl}
-                className="flex items-center gap-1 rounded border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
+                className="flex items-center gap-1 rounded border border-border/70 bg-secondary/50 px-2 py-0.5 text-[11px] font-mono font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
                 title="Open this file in Zed editor"
               >
                 <span>Zed</span>
-                <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                <ExternalLink className="h-3 w-3 opacity-70" />
               </a>
             )}
             {vscodeUrl && (
               <a
                 href={vscodeUrl}
-                className="flex items-center gap-1 rounded border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
+                className="flex items-center gap-1 rounded border border-border/70 bg-secondary/50 px-2 py-0.5 text-[11px] font-mono font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
                 title="Open this file in VS Code"
               >
                 <span>VS Code</span>
-                <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                <ExternalLink className="h-3 w-3 opacity-70" />
               </a>
             )}
           </div>
