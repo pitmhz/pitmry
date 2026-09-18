@@ -126,11 +126,25 @@ function SheetDescription({
   )
 }
 
+const SheetPopup = SheetContent
+
+function SheetPanel({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="sheet-panel"
+      className={cn("flex flex-col flex-1 overflow-y-auto p-4", className)}
+      {...props}
+    />
+  )
+}
+
 export {
   Sheet,
   SheetTrigger,
   SheetClose,
   SheetContent,
+  SheetPopup,
+  SheetPanel,
   SheetHeader,
   SheetFooter,
   SheetTitle,

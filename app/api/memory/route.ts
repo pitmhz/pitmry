@@ -4,6 +4,7 @@ import { promisify } from "util";
 import path from "path";
 import fs from "fs";
 import { getDemoFallback } from "./demo-data";
+import { logServerEvent } from "@/lib/server-logger";
 
 const execFileAsync = promisify(execFile);
 
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
     args.push("--summary");
   }
 
+  const startTime = performance.now();
   try {
     const { stdout } = await execFileAsync(pythonBin, args, {
       maxBuffer: 10 * 1024 * 1024,
@@ -128,9 +130,39 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const duration = Math.round(performance.now() - startTime);
     const parsed = parseLastJson(stdout);
+
+    logServerEvent({
+      severity: "info",
+      service: "api/memory",
+      message: `GET /api/memory?action=${action} 200 (${duration}ms)`,
+      status: 200,
+      duration,
+      context: [
+        { label: "action", value: action },
+        { label: "project", value: project || "all" },
+        { label: "python_bin", value: path.basename(pythonBin) }
+      ],
+      timing: [
+        { label: "bridge", ms: duration, share: 100 }
+      ]
+    });
+
     return NextResponse.json(parsed);
   } catch (error: any) {
+    const duration = Math.round(performance.now() - startTime);
+    logServerEvent({
+      severity: "warn",
+      service: "api/memory",
+      message: `GET /api/memory?action=${action} fallback: ${error?.message || "unknown"}`,
+      status: 200,
+      duration,
+      context: [
+        { label: "action", value: action },
+        { label: "fallback", value: "demo-data" }
+      ]
+    });
     console.warn(`[API: ${action}] Backend query failed, serving demo fallback:`, error?.message);
     return NextResponse.json(getDemoFallback(action, searchParams));
   }

@@ -13,6 +13,7 @@ import {
   GitBranch,
   Layers,
   Code2,
+  Terminal,
 } from "lucide-react";
 import { StatTile } from "@/components/stat-tile";
 import { RelationalInspector } from "@/components/relational-inspector";
@@ -24,10 +25,12 @@ import { TimelinesStatusPage } from "@/components/timelines-status-page";
 import { TimelinesDeploys } from "@/components/timelines-deploys";
 import { TimelinesActivityFeed } from "@/components/timelines-activity-feed";
 import { TimelinesNotifications, NotificationItem } from "@/components/timelines-notifications";
-import { NotificationToastContainer } from "@/components/notification-toast";
+import { NotificationToastContainer } from "@/components/notification-toast-container";
 import { CodeDiffViewer } from "@/components/code-diff-viewer";
 import { OnboardingDialog } from "@/components/onboarding-dialog";
 import { SkillsWorkspace } from "@/components/skills-workspace";
+import { FilterToolbar, type FilterToolbarState } from "@/components/filter-toolbar";
+import { TableLogs } from "@/components/table-logs";
 import { cn, formatDate } from "@/lib/utils";
 import {
   SidebarProvider,
@@ -64,7 +67,8 @@ export type ViewMode =
   | "deploys"
   | "status"
   | "activity"
-  | "skills";
+  | "skills"
+  | "logs";
 
 function formatItemType(type?: string): string {
   switch (type) {
@@ -176,6 +180,17 @@ function MemorySidebar({
               >
                 <Sparkles className="size-4 text-primary" />
                 <span>Skills &amp; Automations</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={viewMode === "logs"}
+                onClick={() => setViewMode("logs")}
+                tooltip="Server Logs"
+              >
+                <Terminal className="size-4 text-primary" />
+                <span>Server Logs</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -344,10 +359,58 @@ export function AppShell() {
     itemId?: number;
   }>({ open: false });
 
+  const [filterState, setFilterState] = useState<FilterToolbarState>({
+    query: "",
+    type: "all",
+    project: "all",
+    dateRange: { preset: "Last 30 days" },
+    density: "grid",
+  });
+
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const filteredFeed = React.useMemo(() => {
+    return feed.filter((item) => {
+      // 1. Text Query
+      if (filterState.query.trim()) {
+        const q = filterState.query.toLowerCase().trim();
+        const matchTitle = item.title?.toLowerCase().includes(q);
+        const matchSummary =
+          item.summary?.toLowerCase().includes(q) ||
+          item.rationale?.toLowerCase().includes(q);
+        const matchTags = item.tags?.some((t: string) => t.toLowerCase().includes(q));
+        const matchCommit = item.commit_hash?.toLowerCase().includes(q);
+        if (!matchTitle && !matchSummary && !matchTags && !matchCommit) return false;
+      }
+
+      // 2. Type Filter
+      if (filterState.type !== "all" && item.type !== filterState.type) {
+        return false;
+      }
+
+      // 3. Project Filter
+      if (filterState.project !== "all" && item.project !== filterState.project) {
+        return false;
+      }
+
+      // 4. Date Range Filter
+      if (filterState.dateRange.from && item.timestamp) {
+        const itemTime = new Date(item.timestamp).getTime();
+        const fromTime = filterState.dateRange.from.getTime();
+        if (itemTime < fromTime) return false;
+        if (filterState.dateRange.to) {
+          const toDate = new Date(filterState.dateRange.to);
+          toDate.setHours(23, 59, 59, 999);
+          if (itemTime > toDate.getTime()) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [feed, filterState]);
 
   const fetchSummary = () => {
     fetch("/api/memory?action=summary")
@@ -585,6 +648,20 @@ export function AppShell() {
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 <span className="hidden md:inline">Skills</span>
               </button>
+
+              <button
+                onClick={() => setViewMode("logs")}
+                className={cn(
+                  "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
+                  viewMode === "logs"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Server logs & Localhost status"
+              >
+                <Terminal className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden md:inline">Logs</span>
+              </button>
             </div>
 
             {/* Notification Bell with Popover */}
@@ -721,6 +798,10 @@ export function AppShell() {
             <div className="flex-1 h-full overflow-y-auto flex flex-col">
               <SkillsWorkspace />
             </div>
+          ) : viewMode === "logs" ? (
+            <div className="flex-1 h-full overflow-y-auto flex flex-col">
+              <TableLogs />
+            </div>
           ) : viewMode === "activity" ? (
             <div className="flex-1 h-full overflow-y-auto">
               <TimelinesActivityFeed
@@ -795,21 +876,49 @@ export function AppShell() {
                   />
                 </div>
 
+                {/* Filter Toolbar (devl.dev toolbar + date-range) */}
+                <FilterToolbar
+                  projects={summary?.projects || []}
+                  totalCount={feed.length}
+                  filteredCount={filteredFeed.length}
+                  state={filterState}
+                  onChange={setFilterState}
+                  onReset={() => {
+                    setSelectedProject(null);
+                    setSelectedType(null);
+                    setSelectedTag(null);
+                    setFilterState({
+                      query: "",
+                      type: "all",
+                      project: "all",
+                      dateRange: { preset: "Last 30 days" },
+                      density: filterState.density,
+                    });
+                  }}
+                />
+
                 {/* Activity Feed */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <h2 className="font-heading text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-2">
                       <span>Recent Activity</span>
                       <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground">
-                        {feed.length}
+                        {filteredFeed.length}
                       </span>
                     </h2>
-                    {(selectedProject || selectedType || selectedTag) && (
+                    {(selectedProject || selectedType || selectedTag || filterState.query || filterState.type !== "all" || filterState.project !== "all") && (
                       <button
                         onClick={() => {
                           setSelectedProject(null);
                           setSelectedType(null);
                           setSelectedTag(null);
+                          setFilterState({
+                            query: "",
+                            type: "all",
+                            project: "all",
+                            dateRange: { preset: "Last 30 days" },
+                            density: filterState.density,
+                          });
                         }}
                         className="text-xs text-primary hover:underline font-semibold cursor-pointer"
                       >
@@ -822,13 +931,62 @@ export function AppShell() {
                     <div className="flex items-center justify-center py-12 text-xs text-muted-foreground animate-pulse">
                       Loading...
                     </div>
-                  ) : feed.length === 0 ? (
+                  ) : filteredFeed.length === 0 ? (
                     <div className="rounded-md border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-                      No items match your filter.
+                      No items match your filter criteria.
+                    </div>
+                  ) : filterState.density === "rows" ? (
+                    /* Compact Rows View */
+                    <div className="divide-y divide-border/60 rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+                      {filteredFeed.map((item) => {
+                        const isSelected = activeItem?.id === item.id;
+                        return (
+                          <div
+                            key={item.id}
+                            tabIndex={0}
+                            role="button"
+                            onClick={() => setActiveItem(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setActiveItem(item);
+                              }
+                            }}
+                            className={cn(
+                              "flex items-center gap-3 px-3.5 py-2.5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
+                              isSelected ? "bg-primary/10" : "hover:bg-muted/40"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "size-2 rounded-full shrink-0",
+                                item.type === "adr"
+                                  ? "bg-primary"
+                                  : item.type === "commit"
+                                    ? "bg-emerald-500"
+                                    : "bg-sky-500"
+                              )}
+                            />
+                            <span className="font-mono text-[10px] uppercase font-bold text-muted-foreground w-16 shrink-0">
+                              {formatItemType(item.type)}
+                            </span>
+                            <span className="font-heading text-xs sm:text-[13px] font-semibold text-foreground truncate flex-1">
+                              {item.title}
+                            </span>
+                            <span className="rounded bg-secondary/80 px-2 py-0.5 text-[10px] font-mono text-muted-foreground shrink-0 hidden sm:inline-block">
+                              {item.project}
+                            </span>
+                            <span className="font-mono text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                              {formatDate(item.timestamp)}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
+                    /* Rich Bento Grid View */
                     <div className="space-y-2">
-                      {feed.map((item) => {
+                      {filteredFeed.map((item) => {
                         const isSelected = activeItem?.id === item.id;
                         return (
                           <div
