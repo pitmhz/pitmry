@@ -3,8 +3,8 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
-  title: "Memory Dashboard",
-  description: "Decisions, commits, and project notes",
+  title: "pitmry",
+  description: "A personal memory dashboard by pitmhs — decisions, commits, and discussions",
 };
 
 export default function RootLayout({

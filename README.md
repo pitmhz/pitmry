@@ -1,6 +1,8 @@
-# Memory Dashboard
+# pitmry
 
-A local-first developer memory dashboard. It reads architecture decisions, commit records, and design discussions from a SQLite + vector database, then displays them in a fast, filterable web interface. The dashboard runs entirely on your machine. No cloud service is required.
+A personal memory dashboard by [pitmhs](https://gitlab.com/pitmhs). It reads architecture decisions, commit records, and design discussions from a SQLite + vector database, then displays them in a fast, filterable web interface. The dashboard runs entirely on your machine. No cloud service is required.
+
+**Repository:** https://gitlab.com/pitmhs/pitmry
 
 ---
 
