@@ -15,6 +15,9 @@ import {
   Check,
   Copy,
   Sparkles,
+  ChevronDown,
+  ChevronUp,
+  FileText,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +33,10 @@ interface Deploy {
   full_sha: string;
   status: Status;
   message: string;
+  body?: string;
+  bullets?: string[];
+  stat_summary?: string;
+  session_file?: string;
   by: string;
   initials: string;
   duration: string;
@@ -71,6 +78,7 @@ export function TimelinesDeploys({
   const [selectedEnv, setSelectedEnv] = useState<string>("all");
   const [selectedRepo, setSelectedRepo] = useState<string>("all");
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
+  const [expandedDeploys, setExpandedDeploys] = useState<Record<string, boolean>>({});
 
   const fetchDeploys = async () => {
     try {
@@ -238,7 +246,7 @@ export function TimelinesDeploys({
               </div>
 
               <div className="min-w-0 w-full">
-                <div className="truncate text-xs md:text-sm font-medium text-foreground">
+                <div className="text-xs md:text-sm font-medium text-foreground leading-snug">
                   {d.message}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">
@@ -264,7 +272,61 @@ export function TimelinesDeploys({
                   </button>
                   <span>·</span>
                   <span>{d.duration}</span>
+                  {d.bullets && d.bullets.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedDeploys((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
+                        className="inline-flex items-center gap-1 text-primary hover:underline font-semibold cursor-pointer"
+                      >
+                        <Sparkles className="size-2.5" />
+                        {expandedDeploys[d.id] ? "Hide changes" : `${d.bullets.length} change highlights`}
+                        {expandedDeploys[d.id] ? (
+                          <ChevronUp className="size-2.5" />
+                        ) : (
+                          <ChevronDown className="size-2.5" />
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
+
+                {/* Expanded What Changed Breakdown */}
+                {d.bullets && d.bullets.length > 0 && expandedDeploys[d.id] && (
+                  <div className="mt-3 rounded-lg border border-border/70 bg-secondary/40 p-3 space-y-2 animate-in fade-in-50 duration-150 shadow-2xs">
+                    <div className="flex items-center justify-between text-[11px] font-mono font-medium text-foreground">
+                      <span className="flex items-center gap-1.5 text-primary">
+                        <Sparkles className="size-3" />
+                        What Changed ({d.bullets.length} points)
+                      </span>
+                      {d.stat_summary && (
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {d.stat_summary}
+                        </span>
+                      )}
+                    </div>
+                    <ul className="space-y-1.5 text-xs text-foreground/90">
+                      {d.bullets.map((bullet, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-start gap-2 leading-relaxed bg-background/70 p-2 rounded-md border border-border/40"
+                        >
+                          <span className="font-mono text-[10px] text-primary font-bold shrink-0 mt-0.5">
+                            #{idx + 1}
+                          </span>
+                          <span className="flex-1">{bullet}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {d.session_file && (
+                      <div className="pt-1.5 border-t border-border/40 flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
+                        <FileText className="size-3 text-primary" />
+                        <span>Audit record: {d.session_file}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 text-muted-foreground w-full md:w-auto">
@@ -280,6 +342,20 @@ export function TimelinesDeploys({
               </div>
 
               <div className="flex items-center gap-2 shrink-0 ml-auto md:ml-0 pt-2 md:pt-0 border-t md:border-t-0 border-border/30 w-full md:w-auto justify-end">
+                {d.bullets && d.bullets.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedDeploys((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/80 hover:bg-secondary text-foreground px-2 py-1 font-mono text-[10px] uppercase tracking-[0.15em] font-medium transition-colors cursor-pointer"
+                  >
+                    {expandedDeploys[d.id] ? (
+                      <ChevronUp className="size-3" />
+                    ) : (
+                      <ChevronDown className="size-3" />
+                    )}
+                    {expandedDeploys[d.id] ? "Less" : "Details"}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onInspectCommit?.(d.project, d.sha)}

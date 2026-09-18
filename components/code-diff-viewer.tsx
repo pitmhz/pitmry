@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   FileCode,
   Copy,
@@ -14,6 +14,8 @@ import {
   Eye,
   SplitSquareVertical,
   Code2,
+  ChevronLeft,
+  ChevronRight,
   RotateCcw,
   Sparkles
 } from "lucide-react";
@@ -118,6 +120,24 @@ export function CodeDiffViewer({
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const fileTabsRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [selectedFileIndex]);
+
+  const scrollTabs = (offset: number) => {
+    if (fileTabsRef.current) {
+      fileTabsRef.current.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
 
   useEffect(() => {
     if (!commitHash && !itemId) return;
@@ -505,32 +525,39 @@ export function CodeDiffViewer({
               <AlignJustify className="h-3 w-3" />
               <span>Inline</span>
             </button>
-            <button
-              onClick={() => setViewMode("split")}
-              className={cn(
-                "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
-                viewMode === "split"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Side-by-side comparison"
-            >
-              <Columns className="h-3 w-3" />
-              <span>Split</span>
-            </button>
-            <button
-              onClick={() => setViewMode("resizable")}
-              className={cn(
-                "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
-                viewMode === "resizable"
-                  ? "bg-card text-primary shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-primary"
-              )}
-              title="Split Resizable: Diff & Live Preview side-by-side"
-            >
-              <SplitSquareVertical className="h-3 w-3" />
-              <span>Resizable</span>
-            </button>
+
+            {/* Split & Resizable modes shown when in modal or explicitly toggled */}
+            {isModal && (
+              <>
+                <button
+                  onClick={() => setViewMode("split")}
+                  className={cn(
+                    "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                    viewMode === "split"
+                      ? "bg-card text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Side-by-side comparison"
+                >
+                  <Columns className="h-3 w-3" />
+                  <span>Split</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("resizable")}
+                  className={cn(
+                    "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                    viewMode === "resizable"
+                      ? "bg-card text-primary shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-primary"
+                  )}
+                  title="Split Resizable: Diff & Live Preview side-by-side"
+                >
+                  <SplitSquareVertical className="h-3 w-3" />
+                  <span>Resizable</span>
+                </button>
+              </>
+            )}
+
             <button
               onClick={() => setViewMode("preview")}
               className={cn(
@@ -587,147 +614,194 @@ export function CodeDiffViewer({
         </div>
       </div>
 
-      {/* 2. Main Content: File Navigator & Diff View */}
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-        {/* File Navigator Tabs (Left) */}
-        <div
-          className={cn(
-            "shrink-0 border-b md:border-b-0 md:border-r border-border bg-secondary/15 flex flex-col",
-            isModal ? "w-full md:w-64" : "w-full md:w-52 max-h-40 md:max-h-none"
-          )}
-        >
-          {/* File Filter Input */}
-          {files.length > 4 && (
-            <div className="p-2 border-b border-border/60">
-              <div className="relative flex items-center">
-                <Search className="h-3 w-3 text-muted-foreground absolute left-2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter files..."
-                  className="w-full bg-secondary/40 pl-7 pr-2 py-1 text-[11px] rounded border border-border/80 text-foreground placeholder:text-muted-foreground focus:outline-none"
-                />
-              </div>
-            </div>
-          )}
+      {/* 2. Horizontally Scrollable File Strip (Stacked Above Diff) */}
+      <div className="flex items-center border-b border-border/70 bg-secondary/15 px-2 py-1.5 gap-1.5 shrink-0 overflow-hidden">
+        {/* Search filter input if > 3 files */}
+        {files.length > 3 && (
+          <div className="relative shrink-0 flex items-center">
+            <Search className="h-3 w-3 text-muted-foreground absolute left-2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filter..."
+              className="w-20 sm:w-28 focus:w-36 transition-all bg-secondary/50 pl-6 pr-2 py-0.5 text-[11px] rounded border border-border/70 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+            />
+          </div>
+        )}
 
-          <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-            {filteredFiles.map((file) => {
-              const originalIndex = files.indexOf(file);
-              const isSelected = originalIndex === selectedFileIndex;
-              const fileName = file.path.split("/").pop() || file.path;
-              const dirPath = file.path.substring(0, file.path.lastIndexOf("/"));
-
+        {/* Quick jump select dropdown if > 5 files */}
+        {files.length > 5 && (
+          <select
+            value={selectedFileIndex}
+            onChange={(e) => setSelectedFileIndex(Number(e.target.value))}
+            className="h-6 max-w-[110px] bg-secondary/60 border border-border/70 text-[10px] font-mono rounded px-1 text-muted-foreground hover:text-foreground focus:outline-none truncate shrink-0 cursor-pointer"
+            title="Jump directly to file"
+          >
+            {files.map((f, i) => {
+              const fn = f.path.split("/").pop() || f.path;
               return (
-                <button
-                  key={file.path}
-                  onClick={() => setSelectedFileIndex(originalIndex)}
-                  className={cn(
-                    "w-full text-left rounded-md px-2 py-1.5 text-xs transition-colors flex items-center justify-between group",
-                    isSelected
-                      ? "bg-primary/15 text-primary border border-primary/30 font-medium"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  )}
-                >
-                  <div className="truncate pr-1.5 flex flex-col">
-                    <span className="truncate font-mono text-[11px]">{fileName}</span>
-                    {dirPath && (
-                      <span className="truncate text-[9px] text-muted-foreground font-mono opacity-70">
-                        {dirPath}
-                      </span>
-                    )}
-                  </div>
-                  <div className="shrink-0 flex items-center gap-1 font-mono text-[10px]">
-                    {file.additions > 0 && (
-                      <span className="text-emerald-400">+{file.additions}</span>
-                    )}
-                    {file.deletions > 0 && (
-                      <span className="text-rose-400">-{file.deletions}</span>
-                    )}
-                  </div>
-                </button>
+                <option key={f.path} value={i}>
+                  {fn} ({f.additions > 0 ? `+${f.additions}` : ""}{f.deletions > 0 ? ` -${f.deletions}` : ""})
+                </option>
               );
             })}
-          </div>
+          </select>
+        )}
+
+        {/* Left Scroll Chevron */}
+        {files.length > 2 && (
+          <button
+            onClick={() => scrollTabs(-160)}
+            className="h-6 w-5 shrink-0 rounded hover:bg-secondary/70 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            title="Scroll files left"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {/* Scrollable File Tabs */}
+        <div
+          ref={fileTabsRef}
+          className="flex-1 flex items-center gap-1.5 overflow-x-auto py-0.5 scroll-smooth"
+        >
+          {filteredFiles.map((file) => {
+            const originalIndex = files.indexOf(file);
+            const isSelected = originalIndex === selectedFileIndex;
+            const fName = file.path.split("/").pop() || file.path;
+
+            return (
+              <button
+                key={file.path}
+                ref={isSelected ? activeTabRef : undefined}
+                onClick={() => setSelectedFileIndex(originalIndex)}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-mono transition-all border",
+                  isSelected
+                    ? "bg-primary/15 text-primary border-primary/50 font-semibold shadow-xs"
+                    : "bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground border-border/40"
+                )}
+                title={file.path}
+              >
+                <FileCode className={cn("h-3 w-3 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
+                <span className="truncate max-w-[130px] sm:max-w-[190px]">{fName}</span>
+                <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-mono">
+                  {file.additions > 0 && <span className="text-emerald-400 font-medium">+{file.additions}</span>}
+                  {file.deletions > 0 && <span className="text-rose-400 font-medium">-{file.deletions}</span>}
+                </span>
+              </button>
+            );
+          })}
+          {filteredFiles.length === 0 && (
+            <span className="text-[11px] text-muted-foreground italic px-2">No files match filter</span>
+          )}
         </div>
 
-        {/* Diff & Preview Canvas Area (Right) */}
-        <div className="flex-1 overflow-hidden flex-col flex bg-background min-w-0">
-          {/* Active File Header & Editor Launcher */}
-          {activeFile && (
-            <div className="flex items-center justify-between border-b border-border bg-secondary/20 px-3.5 py-1.5 text-xs">
-              <div className="flex items-center gap-2 truncate pr-2">
-                <FileCode className="h-3.5 w-3.5 text-primary shrink-0" />
-                <span className="font-mono text-xs font-semibold text-foreground truncate" title={activeFile.path}>
-                  {activeFile.path}
-                </span>
-                <span className="rounded bg-secondary/70 border border-border/50 px-1.5 py-0.2 text-[9px] font-mono uppercase text-muted-foreground">
-                  {language}
-                </span>
-              </div>
+        {/* Right Scroll Chevron */}
+        {files.length > 2 && (
+          <button
+            onClick={() => scrollTabs(160)}
+            className="h-6 w-5 shrink-0 rounded hover:bg-secondary/70 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            title="Scroll files right"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        )}
 
-              {/* Editor Launch Links */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {zedUrl && (
-                  <a
-                    href={zedUrl}
-                    className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
-                    title="Open this file in Zed editor"
-                  >
-                    <span>Zed</span>
-                    <ExternalLink className="h-2.5 w-2.5 opacity-70" />
-                  </a>
-                )}
-                {vscodeUrl && (
-                  <a
-                    href={vscodeUrl}
-                    className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
-                    title="Open this file in VS Code"
-                  >
-                    <span>VS Code</span>
-                    <ExternalLink className="h-2.5 w-2.5 opacity-70" />
-                  </a>
-                )}
-              </div>
+        {/* Files Count Indicator */}
+        <span className="shrink-0 text-[10px] font-mono text-muted-foreground/70 hidden sm:inline-block px-1">
+          {selectedFileIndex + 1}/{files.length}
+        </span>
+      </div>
+
+      {/* 3. Active File Breadcrumb & Editor Launcher Bar */}
+      {activeFile && (
+        <div className="flex items-center justify-between border-b border-border/70 bg-secondary/30 px-3 py-1.5 text-xs shrink-0">
+          <div className="flex items-center gap-2 truncate pr-2 min-w-0">
+            <FileCode className="h-3.5 w-3.5 text-primary shrink-0" />
+            <div className="flex items-baseline gap-1 truncate font-mono min-w-0">
+              {activeFile.path.substring(0, activeFile.path.lastIndexOf("/")) && (
+                <span className="text-[10px] text-muted-foreground/70 truncate shrink">
+                  {activeFile.path.substring(0, activeFile.path.lastIndexOf("/"))}/
+                </span>
+              )}
+              <span className="text-[11px] font-bold text-foreground shrink-0">
+                {activeFile.path.split("/").pop()}
+              </span>
             </div>
-          )}
+            <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.2 text-[9px] font-mono uppercase text-muted-foreground shrink-0">
+              {language}
+            </span>
+            <span className="text-[10px] font-mono shrink-0">
+              {activeFile.additions > 0 && <span className="text-emerald-400 font-semibold">+{activeFile.additions} </span>}
+              {activeFile.deletions > 0 && <span className="text-rose-400 font-semibold">-{activeFile.deletions}</span>}
+            </span>
+          </div>
 
-          {/* Viewport: Resizable Split vs Diff vs Preview */}
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {viewMode === "resizable" ? (
-              <SplitResizable
-                showToolbar={true}
-                defaultLeftPct={50}
-                headerLeft={
-                  <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-                    <span className="text-foreground font-medium">Git Diff</span>
-                    <span>↔</span>
-                    <span className="text-foreground font-medium">Live File Preview</span>
-                  </div>
-                }
-                left={
-                  <div className="flex-1 overflow-auto h-full">
-                    {renderDiffContent("inline")}
-                  </div>
-                }
-                right={
-                  <div className="flex-1 overflow-auto h-full bg-secondary/[0.04]">
-                    {renderPreviewContent()}
-                  </div>
-                }
-              />
-            ) : viewMode === "preview" ? (
-              <div className="flex-1 overflow-auto">
-                {renderPreviewContent()}
-              </div>
-            ) : (
-              <div className="flex-1 overflow-auto">
-                {renderDiffContent(viewMode)}
-              </div>
+          {/* Editor Launch Links */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {zedUrl && (
+              <a
+                href={zedUrl}
+                className="flex items-center gap-1 rounded border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
+                title="Open this file in Zed editor"
+              >
+                <span>Zed</span>
+                <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+              </a>
+            )}
+            {vscodeUrl && (
+              <a
+                href={vscodeUrl}
+                className="flex items-center gap-1 rounded border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary hover:text-primary transition-colors"
+                title="Open this file in VS Code"
+              >
+                <span>VS Code</span>
+                <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+              </a>
             )}
           </div>
         </div>
+      )}
+
+      {/* 4. Full-Width Diff / Preview Canvas */}
+      <div
+        className={cn(
+          "w-full overflow-hidden flex flex-col bg-background",
+          isModal ? "flex-1" : "h-[400px]"
+        )}
+      >
+        {viewMode === "resizable" ? (
+          <SplitResizable
+            showToolbar={true}
+            defaultLeftPct={50}
+            headerLeft={
+              <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+                <span className="text-foreground font-medium">Git Diff</span>
+                <span>↔</span>
+                <span className="text-foreground font-medium">Live File Preview</span>
+              </div>
+            }
+            left={
+              <div className="flex-1 overflow-auto h-full">
+                {renderDiffContent("inline")}
+              </div>
+            }
+            right={
+              <div className="flex-1 overflow-auto h-full bg-secondary/[0.04]">
+                {renderPreviewContent()}
+              </div>
+            }
+          />
+        ) : viewMode === "preview" ? (
+          <div className="flex-1 overflow-auto h-full">
+            {renderPreviewContent()}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto h-full">
+            {renderDiffContent(viewMode)}
+          </div>
+        )}
       </div>
     </div>
   );

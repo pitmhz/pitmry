@@ -29,6 +29,7 @@ interface Event {
   tone: string;
   time: string;
   meta?: string;
+  bullets?: string[];
   timestamp: string;
 }
 
@@ -267,6 +268,27 @@ function DaySection({
                     {e.context && (
                       <div className="mt-1 text-xs md:text-sm font-medium text-foreground/90 leading-relaxed group-hover:text-primary transition-colors">
                         {e.context}
+                      </div>
+                    )}
+                    {e.bullets && e.bullets.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center gap-1 font-mono text-[9px] text-primary font-medium">
+                          <Sparkles className="size-2.5" />
+                          <span>{e.bullets.length} change highlights:</span>
+                        </div>
+                        <ul className="space-y-1 pl-1">
+                          {e.bullets.slice(0, 3).map((b, i) => (
+                            <li key={i} className="text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+                              <span className="text-primary font-bold mt-0.5">•</span>
+                              <span className="line-clamp-2">{b}</span>
+                            </li>
+                          ))}
+                          {e.bullets.length > 3 && (
+                            <li className="text-[10px] font-mono text-primary/80">
+                              +{e.bullets.length - 3} more points...
+                            </li>
+                          )}
+                        </ul>
                       </div>
                     )}
                     <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">

@@ -6,6 +6,9 @@ import {
   ArrowUpRight,
   Copy,
   Check,
+  Sparkles,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { DecisionJourney } from "./decision-journey";
@@ -27,6 +30,9 @@ interface ItemDetail {
   project: string;
   title: string;
   summary: string;
+  body?: string;
+  bullets?: string[];
+  session_file?: string;
   decision?: string;
   rationale?: string;
   trade_offs?: string;
@@ -171,6 +177,48 @@ export function RelationalInspector({
             {item.summary}
           </p>
         </div>
+
+        {/* What Changed (Detailed Breakdown) */}
+        {item.bullets && item.bullets.length > 0 && (
+          <div className="space-y-2 pt-2.5 border-t border-border/40">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-primary font-medium">
+                <Sparkles className="size-3" />
+                What Changed ({item.bullets.length} points)
+              </span>
+              {item.session_file && (
+                <span className="font-mono text-[9px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded border border-border">
+                  Audit Doc
+                </span>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              {item.bullets.map((bullet, idx) => (
+                <div
+                  key={idx}
+                  className="text-xs text-foreground/90 leading-relaxed bg-secondary/35 hover:bg-secondary/50 transition-colors p-2.5 rounded-lg border border-border/50 flex items-start gap-2.5 shadow-2xs"
+                >
+                  <span className="font-mono text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">
+                    #{idx + 1}
+                  </span>
+                  <span className="flex-1 leading-snug">{bullet}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Full Commit Message Body (fallback if no bullets) */}
+        {item.body && (!item.bullets || item.bullets.length === 0) && (
+          <div className="space-y-1 pt-2.5 border-t border-border/40">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Commit Description
+            </div>
+            <div className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap bg-secondary/20 p-2.5 rounded-lg border border-border/40 font-mono text-[11px]">
+              {item.body}
+            </div>
+          </div>
+        )}
 
         {/* Rationale & Decisions */}
         {item.decision && (

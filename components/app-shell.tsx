@@ -748,6 +748,12 @@ export function AppShell() {
                                     #{item.commit_hash}
                                   </span>
                                 )}
+                                {item.bullets && item.bullets.length > 0 && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[9px] text-primary bg-primary/10 px-1.5 py-0.2 rounded font-medium">
+                                    <Sparkles className="size-2.5" />
+                                    {item.bullets.length} points
+                                  </span>
+                                )}
                               </div>
                               <span className="text-[10px] font-mono text-muted-foreground shrink-0">
                                 {formatDate(item.timestamp)}
