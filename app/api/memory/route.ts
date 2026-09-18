@@ -43,6 +43,14 @@ export async function GET(request: NextRequest) {
     if (project) args.push("--project", project);
     if (commitHash) args.push("--commit-hash", commitHash);
     if (itemId) args.push("--item-id", itemId);
+  } else if (action === "health") {
+    args.push("--health");
+  } else if (action === "deploys") {
+    args.push("--deploys");
+  } else if (action === "activity") {
+    args.push("--activity");
+  } else if (action === "notifications") {
+    args.push("--notifications");
   } else {
     args.push("--summary");
   }
