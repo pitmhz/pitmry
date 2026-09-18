@@ -15,8 +15,9 @@ import subprocess
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
-CAVEMEM_STRATEGIC_SCRIPT = SCRIPTS_DIR / "cavemem_strategic.py"
-LANCEDB_STRATEGIC_SCRIPT = SCRIPTS_DIR / "lancedb_strategic.py"
+SERVER_DIR = SCRIPTS_DIR.parent
+CAVEMEM_STRATEGIC_SCRIPT = SERVER_DIR / "cavemem_strategic.py" if (SERVER_DIR / "cavemem_strategic.py").exists() else SCRIPTS_DIR / "cavemem_strategic.py"
+LANCEDB_STRATEGIC_SCRIPT = SERVER_DIR / "lancedb_strategic.py" if (SERVER_DIR / "lancedb_strategic.py").exists() else SCRIPTS_DIR / "lancedb_strategic.py"
 
 
 def ingest_git_flow_json_files():
