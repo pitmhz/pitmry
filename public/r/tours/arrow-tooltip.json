@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tours-arrow-tooltip",
+  "type": "registry:component",
+  "title": "Arrow Tooltip",
+  "description": "Directed coachmark callout with directional pointer arrow for UI elements.",
+  "files": [
+    {
+      "path": "components/tours/arrow-tooltip.tsx",
+      "type": "registry:component"
+    }
+  ],
+  "registryDependencies": [
+    "button"
+  ],
+  "dependencies": [
+    "lucide-react"
+  ]
+}

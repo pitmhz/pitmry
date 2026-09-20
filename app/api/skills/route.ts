@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { requireMutationAuth } from "@/lib/request-guard";
 
 interface SkillMetadata {
   name: string;
@@ -195,6 +196,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { action } = body;

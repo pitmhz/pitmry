@@ -23,6 +23,8 @@
   "menuAccent": "subtle",
   "registries": {
     "@efferd": "https://efferd.com/r/{name}.json",
-    "@coss": "https://coss.com/ui/r/{name}.json"
+    "@coss": "https://coss.com/ui/r/{name}.json",
+    "@odysseyui": "https://www.odysseyui.com/r/{name}.json",
+    "@tours": "https://www.devl.dev/r/tours/{name}.json"
   }
 }

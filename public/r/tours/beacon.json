@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tours-beacon",
+  "type": "registry:component",
+  "title": "Beacon",
+  "description": "Interactive radar ping beacon for highlighting newly introduced dashboard features.",
+  "files": [
+    {
+      "path": "components/tours/beacon.tsx",
+      "type": "registry:component"
+    }
+  ],
+  "registryDependencies": [
+    "button"
+  ],
+  "dependencies": [
+    "lucide-react"
+  ]
+}

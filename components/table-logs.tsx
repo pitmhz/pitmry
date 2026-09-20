@@ -176,7 +176,7 @@ export function TableLogs() {
             <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
               Server Logs & Localhost Status
             </h1>
-            <Badge variant="outline" className="ml-1 gap-1.5 font-mono text-[10px]">
+            <Badge variant="outline" className="ml-1 gap-1.5 font-mono text-[11px] font-semibold">
               <span
                 className={cn(
                   "size-2 rounded-full",
@@ -253,9 +253,9 @@ export function TableLogs() {
 
           <Button
             size="sm"
-            variant="outline"
+            variant="odysseyui"
             onClick={triggerHealthLog}
-            className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
+            className="h-8 gap-1.5 text-xs font-semibold cursor-pointer"
           >
             <span>Probe Health</span>
           </Button>
@@ -323,7 +323,7 @@ export function TableLogs() {
                     <TableCell>
                       <span className="inline-flex items-center gap-1.5">
                         <span className={cn("size-1.5 rounded-full shrink-0", s.dot)} />
-                        <span className={cn("text-[10px] uppercase tracking-wider", s.label)}>
+                        <span className={cn("text-[11px] uppercase tracking-wider font-mono", s.label)}>
                           {e.severity}
                         </span>
                       </span>
@@ -337,7 +337,7 @@ export function TableLogs() {
                     <TableCell className="max-w-md">
                       <span className="flex items-center gap-2">
                         {e.severity === "error" ? (
-                          <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" />
+                           <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" />
                         ) : e.severity === "warn" ? (
                           <FlameIcon className="size-3.5 shrink-0 text-amber-500" />
                         ) : (
@@ -350,7 +350,7 @@ export function TableLogs() {
                           <Badge
                             variant="outline"
                             className={cn(
-                              "ml-auto shrink-0 font-mono text-[9px] px-1.5 py-0",
+                              "ml-auto shrink-0 font-mono text-[10px] px-1.5 py-0",
                               e.status >= 400
                                 ? "border-destructive/40 text-destructive bg-destructive/5"
                                 : "text-muted-foreground"
@@ -410,7 +410,7 @@ function LogDetailSheet({
                 />
                 <span
                   className={cn(
-                    "text-[10px] uppercase tracking-wider",
+                    "text-[11px] uppercase tracking-wider font-mono font-bold",
                     SEVERITY_STYLES[entry.severity].label
                   )}
                 >
@@ -421,7 +421,7 @@ function LogDetailSheet({
                   <Badge
                     variant="outline"
                     className={cn(
-                      "font-mono text-[10px]",
+                      "font-mono text-[11px]",
                       entry.status >= 400 ? "border-destructive/30 text-destructive" : ""
                     )}
                   >
@@ -437,7 +437,7 @@ function LogDetailSheet({
             <SheetPanel className="flex flex-col gap-5 overflow-y-auto p-5">
               {/* Message Section */}
               <LogSection title="Message" copyValue={entry.message}>
-                <pre className="whitespace-pre-wrap rounded-md border border-border/60 bg-muted/30 p-3 font-mono text-[12px] leading-relaxed text-foreground">
+                <pre className="whitespace-pre-wrap rounded-md border border-border/80 bg-zinc-950/5 dark:bg-[#0d1117] p-3.5 font-mono text-[12px] leading-relaxed text-zinc-900 dark:text-zinc-100 shadow-2xs">
                   {entry.message}
                 </pre>
               </LogSection>
@@ -484,7 +484,7 @@ function LogDetailSheet({
               {/* Payload Viewer */}
               {entry.payload && (
                 <LogSection title="Payload" copyValue={entry.payload.body}>
-                  <pre className="overflow-x-auto rounded-md border border-border/60 bg-muted/30 p-3 font-mono text-[11px] leading-relaxed text-foreground">
+                  <pre className="overflow-x-auto rounded-md border border-border/80 bg-zinc-950/5 dark:bg-[#0d1117] p-3.5 font-mono text-[11px] leading-relaxed text-zinc-900 dark:text-zinc-100 shadow-2xs">
                     {entry.payload.body}
                   </pre>
                 </LogSection>
@@ -493,13 +493,13 @@ function LogDetailSheet({
               {/* Stack Trace */}
               {entry.stack && entry.stack.length > 0 && (
                 <LogSection title="Stack Trace">
-                  <ol className="overflow-hidden rounded-md border border-border/60 bg-muted/30">
+                  <ol className="overflow-hidden rounded-md border border-border/80 bg-zinc-950/5 dark:bg-[#0d1117]">
                     {entry.stack.map((line, i) => (
                       <li
                         key={i}
-                        className="flex items-baseline gap-3 border-b border-border/40 px-3 py-1.5 font-mono text-[11px] last:border-b-0 text-foreground/90"
+                        className="flex items-baseline gap-3 border-b border-border/40 px-3.5 py-1.5 font-mono text-[11px] last:border-b-0 text-zinc-900 dark:text-zinc-100"
                       >
-                        <span className="w-5 text-right text-muted-foreground/60 tabular-nums">
+                        <span className="w-6 text-right font-mono font-medium text-muted-foreground tabular-nums select-none">
                           {i + 1}
                         </span>
                         <span className="flex-1 truncate">{line}</span>
@@ -533,11 +533,11 @@ function LogSection({
     <section className="space-y-1.5">
       <header className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <h3 className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 className="font-mono text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             {title}
           </h3>
           {hint && (
-            <span className="font-mono text-[10px] text-muted-foreground/70">
+            <span className="font-mono text-[11px] text-muted-foreground/80 font-medium">
               ({hint})
             </span>
           )}
@@ -554,7 +554,7 @@ function LogSection({
                 /* ignore */
               }
             }}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
           >
             {copied ? <CheckIcon className="size-3 text-emerald-500" /> : <CopyIcon className="size-3" />}
             <span>{copied ? "Copied" : "Copy"}</span>
@@ -581,7 +581,7 @@ function LogKeyVal({
 
   return (
     <div className="group flex items-baseline justify-between gap-3 rounded-md px-2 py-1 transition-colors hover:bg-muted/40">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+      <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       <span className="flex items-center gap-1.5">

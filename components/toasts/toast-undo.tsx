@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { RotateCcwIcon, XIcon, CheckCircle2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export interface ToastUndoProps {
@@ -81,23 +82,27 @@ export function ToastUndo({
           )}
         </div>
         {!undone && (
-          <button
+          <Button
+            variant="secondary"
+            size="xs"
             type="button"
             onClick={handleUndoClick}
-            className="rounded-md bg-background/20 px-2.5 py-1 font-mono text-xs font-bold transition-colors hover:bg-background/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none cursor-pointer"
+            className="font-mono text-xs font-bold h-7 px-2.5"
           >
             Undo
-          </button>
+          </Button>
         )}
         {onDismiss && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             type="button"
             onClick={onDismiss}
             aria-label="Dismiss notification"
-            className="rounded-md p-1 opacity-60 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none cursor-pointer"
+            className="opacity-60 hover:opacity-100 text-background"
           >
             <XIcon className="size-3.5" />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -112,7 +117,7 @@ export function ToastUndo({
       )}
 
       {!undone && (
-        <div className="px-3 py-1 text-center font-mono text-[9px] uppercase tracking-[0.2em] opacity-60 bg-black/10">
+        <div className="px-3 py-1 text-center font-mono text-[10px] font-medium uppercase tracking-wider opacity-75 bg-black/10">
           {remaining > 0 ? `${remaining.toFixed(1)}s left to undo` : "Action confirmed"}
         </div>
       )}

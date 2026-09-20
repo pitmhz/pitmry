@@ -12,9 +12,9 @@ import {
   ExternalLink,
   Filter,
   Layers,
-  Sparkles,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 interface Event {
   id: string;
@@ -138,40 +138,40 @@ export function TimelinesActivityFeed({
         </div>
 
         <div className="flex items-center gap-2">
-          <div role="tablist" aria-label="Activity type filters" className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5">
+          <div role="tablist" aria-label="Activity type filters" className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5 gap-1">
             {[
               { label: "All", value: "all" },
               { label: "Decisions", value: "adr" },
               { label: "Commits", value: "commit" },
               { label: "Discussions", value: "grill" },
             ].map((tab) => (
-              <button
+              <Button
                 key={tab.value}
                 type="button"
                 role="tab"
                 aria-selected={filterType === tab.value}
+                variant={filterType === tab.value ? "odysseyui" : "ghost"}
+                size="xs"
                 onClick={() => setFilterType(tab.value)}
-                className={`rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  filterType === tab.value
-                    ? "bg-foreground text-background font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="font-mono text-[11px] uppercase tracking-wider h-7"
               >
                 {tab.label}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon-sm"
             onClick={() => startTransition(() => fetchActivity())}
             disabled={loading || isPending}
-            className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-card/80 p-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all cursor-pointer shadow-xs disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="shadow-xs"
             title="Refresh feed"
             aria-label="Refresh activity feed"
           >
             <RefreshCw className={`size-3.5 ${loading || isPending ? "animate-spin text-primary" : ""}`} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -283,19 +283,19 @@ function DaySection({
                     )}
                     {e.bullets && e.bullets.length > 0 && (
                       <div className="mt-2 space-y-1.5">
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-primary font-bold">
-                          <Sparkles className="size-3" />
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground font-medium">
+                          <Layers className="size-3" />
                           <span>{e.bullets.length} change highlights:</span>
                         </div>
                         <ul className="space-y-1 pl-1">
                           {e.bullets.slice(0, 3).map((b, i) => (
                             <li key={i} className="text-xs text-foreground/90 font-medium flex items-start gap-1.5 leading-relaxed">
-                              <span className="text-primary font-bold mt-0.5">•</span>
+                              <span className="text-muted-foreground font-bold mt-0.5">•</span>
                               <span className="line-clamp-2">{b}</span>
                             </li>
                           ))}
                           {e.bullets.length > 3 && (
-                            <li className="text-[11px] font-mono text-primary font-semibold">
+                            <li className="text-[11px] font-mono text-muted-foreground font-medium">
                               +{e.bullets.length - 3} more points...
                             </li>
                           )}

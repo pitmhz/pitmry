@@ -56,14 +56,16 @@ export function ToastInfoBanner({
             </Button>
           )}
           {onDismiss && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               type="button"
               onClick={onDismiss}
               aria-label="Dismiss banner"
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-amber-500/15 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none cursor-pointer"
+              className="text-muted-foreground hover:bg-amber-500/15 hover:text-foreground"
             >
               <XIcon className="size-3.5" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -105,14 +107,16 @@ export function ToastInfoBanner({
         )}
       </div>
       {onDismiss && (
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss notification"
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none cursor-pointer"
+          className="text-muted-foreground hover:text-foreground"
         >
           <XIcon className="size-3.5" />
-        </button>
+        </Button>
       )}
     </div>
   )

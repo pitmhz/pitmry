@@ -6,7 +6,6 @@ import {
   Play,
   RotateCcw,
   Share2,
-  Sparkles,
   Eye,
   Code2
 } from "lucide-react";
@@ -55,7 +54,18 @@ export function LayoutsSplitResizable({
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"code" | "preview" | "split">("split");
   const [count, setCount] = useState(0);
+  const [isDarkTheme, setIsDarkTheme] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDarkTheme(!document.documentElement.classList.contains("light"));
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!dragging) return;
@@ -99,38 +109,32 @@ export function LayoutsSplitResizable({
           </span>
           <Separator orientation="vertical" className="h-4" />
           <div className="flex items-center rounded-md border border-border/60 bg-secondary/60 p-0.5 text-xs">
-            <button
+            <Button
+              size="xs"
+              variant={activeTab === "code" ? "odysseyui" : "ghost"}
               onClick={() => setActiveTab("code")}
-              className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                activeTab === "code"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className="gap-1 text-[11px] font-medium"
             >
               <Code2 className="h-3 w-3" />
               <span>Code</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              size="xs"
+              variant={activeTab === "split" ? "odysseyui" : "ghost"}
               onClick={() => setActiveTab("split")}
-              className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                activeTab === "split"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className="gap-1 text-[11px] font-medium"
             >
               <span>Split</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              size="xs"
+              variant={activeTab === "preview" ? "odysseyui" : "ghost"}
               onClick={() => setActiveTab("preview")}
-              className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                activeTab === "preview"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className="gap-1 text-[11px] font-medium"
             >
               <Eye className="h-3 w-3" />
               <span>Preview</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -167,18 +171,18 @@ export function LayoutsSplitResizable({
             style={{ width: activeTab === "code" ? "100%" : `${leftPct}%` }}
           >
             <div className="flex-1 overflow-auto p-2">
-              <Highlight code={code.trimEnd()} language={language} theme={themes.vsDark}>
+              <Highlight code={code.trimEnd()} language={language} theme={isDarkTheme ? themes.vsDark : themes.vsLight}>
                 {({ className, style, tokens, getLineProps, getTokenProps }) => (
                   <pre
-                    className={`m-0 p-2 font-mono text-[11px] leading-[1.6] ${className}`}
-                    style={{ ...style, background: "transparent" }}
+                    className={`m-0 p-3 font-mono text-[11px] leading-[1.6] rounded-lg border border-border/70 ${className}`}
+                    style={{ ...style, backgroundColor: isDarkTheme ? "#0d1117" : "#f8fafc" }}
                   >
                     {tokens.map((line, i) => (
                       <div key={i} {...getLineProps({ line })} className="table-row">
-                        <span className="table-cell select-none pr-3 text-right font-mono text-muted-foreground/40 text-[10px] tabular-nums">
+                        <span className="table-cell select-none pr-3 text-right font-mono text-muted-foreground text-[11px] font-medium tabular-nums">
                           {i + 1}
                         </span>
-                        <span className="table-cell whitespace-pre">
+                        <span className="table-cell whitespace-pre font-mono">
                           {line.map((token, key) => (
                             <span key={key} {...getTokenProps({ token })} />
                           ))}

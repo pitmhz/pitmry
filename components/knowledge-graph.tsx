@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { ZoomIn, ZoomOut, RefreshCw, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { MemoryItemType } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 interface GraphNode {
   id: string;
@@ -26,7 +28,7 @@ interface GraphEdge {
 }
 
 interface KnowledgeGraphProps {
-  onSelectNode: (id: string, type: "adr" | "commit" | "grill") => void;
+  onSelectNode: (id: string, type: MemoryItemType) => void;
 }
 
 export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
@@ -39,10 +41,14 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
   const isPanning = useRef(false);
   const startPan = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const graphAbortRef = useRef<AbortController | null>(null);
 
   const fetchGraph = () => {
+    graphAbortRef.current?.abort();
+    const controller = new AbortController();
+    graphAbortRef.current = controller;
     setLoading(true);
-    fetch("/api/memory?action=graph")
+    fetch("/api/memory?action=graph", { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
         // Layout nodes in a circle or force cluster
@@ -79,6 +85,7 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
         setLoading(false);
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error("Failed to load graph:", err);
         setLoading(false);
       });
@@ -86,6 +93,7 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
 
   useEffect(() => {
     fetchGraph();
+    return () => graphAbortRef.current?.abort();
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -122,37 +130,45 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
     >
       {/* Controls Overlay */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-lg backdrop-blur">
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={() => setZoom((z) => Math.min(2.5, z + 0.15))}
-          className="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="text-muted-foreground hover:bg-secondary hover:text-foreground"
           title="Zoom in"
         >
           <ZoomIn className="h-4 w-4" />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={() => setZoom((z) => Math.max(0.4, z - 0.15))}
-          className="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="text-muted-foreground hover:bg-secondary hover:text-foreground"
           title="Zoom out"
         >
           <ZoomOut className="h-4 w-4" />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={() => {
             setZoom(1);
             setPan({ x: 0, y: 0 });
           }}
-          className="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="text-muted-foreground hover:bg-secondary hover:text-foreground"
           title="Reset view"
         >
           <Maximize2 className="h-4 w-4" />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={fetchGraph}
-          className="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="text-muted-foreground hover:bg-secondary hover:text-foreground"
           title="Reload"
         >
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-        </button>
+        </Button>
       </div>
 
       {/* Legend Overlay */}
@@ -243,7 +259,7 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!isProject) {
-                    onSelectNode(node.id, node.type as any);
+                    onSelectNode(node.id, node.type as MemoryItemType);
                   }
                 }}
                 className={cn("cursor-pointer transition-all", isProject && "cursor-default")}

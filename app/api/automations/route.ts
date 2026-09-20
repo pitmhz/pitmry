@@ -3,6 +3,7 @@ import { execFile, spawn } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
 import path from "path";
+import { requireMutationAuth } from "@/lib/request-guard";
 
 const execFileAsync = promisify(execFile);
 
@@ -113,6 +114,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { action } = body;

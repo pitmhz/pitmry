@@ -57,7 +57,7 @@ export function ToastErrorRetry({
             {status && (
               <Badge
                 variant="outline"
-                className="rounded bg-destructive/10 border-destructive/30 px-1.5 py-0 font-mono text-[9px] font-bold text-destructive uppercase tracking-wider"
+                className="rounded bg-destructive/10 border-destructive/30 px-1.5 py-0 font-mono text-[10px] font-bold text-destructive uppercase tracking-wider"
               >
                 {status}
               </Badge>
@@ -70,14 +70,16 @@ export function ToastErrorRetry({
           )}
         </div>
         {onDismiss && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             type="button"
             onClick={onDismiss}
             aria-label="Dismiss error"
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none cursor-pointer"
+            className="text-muted-foreground hover:text-foreground"
           >
             <XIcon className="size-3.5" />
-          </button>
+          </Button>
         )}
       </div>
 

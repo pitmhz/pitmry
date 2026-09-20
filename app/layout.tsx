@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotificationToastProvider } from "@/lib/notification-toast-context";
+import { OnboardingProvider } from "@/lib/onboarding-context";
 
 export const metadata: Metadata = {
   title: "pitmry",
@@ -17,9 +18,11 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="antialiased bg-background text-foreground min-h-screen">
         <NotificationToastProvider>
-          <TooltipProvider delay={400}>
-            {children}
-          </TooltipProvider>
+          <OnboardingProvider>
+            <TooltipProvider delay={400}>
+              {children}
+            </TooltipProvider>
+          </OnboardingProvider>
         </NotificationToastProvider>
       </body>
     </html>

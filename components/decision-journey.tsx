@@ -11,12 +11,12 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Sparkles,
   Layers,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export interface JourneyNode {
   id: string;
@@ -213,20 +213,17 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
       <div className="flex items-center justify-between pb-1 text-[11px] text-muted-foreground">
         <span className="text-[10px] font-mono">Depth</span>
         {/* Depth pills */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border/60 bg-secondary/40 p-0.5">
+        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-secondary/40 p-0.5">
           {[1, 2, 3, 5].map((h) => (
-            <button
+            <Button
               key={h}
+              variant={hops === h ? "odysseyui" : "ghost"}
+              size="xs"
               onClick={() => setHops(h)}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] font-mono font-medium transition-colors",
-                hops === h
-                  ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="font-mono text-[10px] h-5 px-1.5"
             >
               {h} {h === 1 ? "step" : "steps"}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -376,13 +373,15 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
                         )}
                       </div>
 
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() => onSelectNode(step.node.id, step.node.type)}
-                        className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        className="text-muted-foreground hover:bg-secondary hover:text-foreground"
                         title="View item"
                       >
                         <ExternalLink className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
 
                     {/* Title */}

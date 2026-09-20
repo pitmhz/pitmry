@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireMutationAuth, clampLimit } from "@/lib/request-guard"
 
 export interface BackendNotification {
   id: string
@@ -43,7 +44,7 @@ if (!global.__pitmry_undo_store__) {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const unreadOnly = searchParams.get("unread") === "true"
-  const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 20
+  const limit = clampLimit(searchParams.get("limit"), 20, 50);
 
   let list = global.__pitmry_notifications__ || []
   if (unreadOnly) {
@@ -60,6 +61,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   try {
     const body = await request.json()
     if (!body.title) {
@@ -93,6 +96,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   const { searchParams } = new URL(request.url)
   const undoId = searchParams.get("undo")
   const markRead = searchParams.get("mark_read")
@@ -124,7 +129,9 @@ export async function PUT(request: NextRequest) {
   return NextResponse.json({ error: "Missing action parameter" }, { status: 400 })
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   global.__pitmry_notifications__ = []
   return NextResponse.json({ success: true, message: "Notifications cleared" })
 }

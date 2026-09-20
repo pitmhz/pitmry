@@ -44,3 +44,7 @@ data/
 *.sqlite
 *.db
 .pitmry/
+
+# Temporary imports & staging
+.temp/
+

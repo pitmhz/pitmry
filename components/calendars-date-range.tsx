@@ -216,7 +216,7 @@ export function CalendarsDateRange({
                       className={cn(
                         "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium cursor-pointer",
                         active
-                          ? "bg-primary/10 text-primary font-bold border-l-2 border-primary"
+                          ? "bg-secondary text-foreground font-semibold"
                           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                       )}
                     >
@@ -234,7 +234,7 @@ export function CalendarsDateRange({
             </div>
             <div className="mt-2 grid grid-cols-2 gap-1.5 px-1">
               <div className="rounded-md border border-border/60 bg-background px-2 py-1.5">
-                <div className="font-mono text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">
+                <div className="font-mono text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   From
                 </div>
                 <div className="mt-0.5 font-mono text-[11px] font-semibold truncate text-foreground">
@@ -242,7 +242,7 @@ export function CalendarsDateRange({
                 </div>
               </div>
               <div className="rounded-md border border-border/60 bg-background px-2 py-1.5">
-                <div className="font-mono text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">
+                <div className="font-mono text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   To
                 </div>
                 <div className="mt-0.5 font-mono text-[11px] font-semibold truncate text-foreground">
@@ -319,6 +319,7 @@ export function CalendarsDateRange({
                 Reset
               </Button>
               <Button
+                variant="odysseyui"
                 size="sm"
                 type="button"
                 onClick={handleApply}
@@ -359,7 +360,7 @@ function CalendarMonth({
         {DAYS.map((d) => (
           <div
             key={d}
-            className="text-center font-mono text-[9px] font-bold text-muted-foreground uppercase"
+            className="text-center font-mono text-[10px] font-bold text-muted-foreground uppercase"
           >
             {d}
           </div>

@@ -233,36 +233,36 @@ export function FilterToolbar({
       {/* Secondary Row: Saved Views & Active Counter */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             Presets:
           </span>
           <Button
-            size="sm"
-            variant={activeFilterCount === 0 ? "secondary" : "ghost"}
+            size="xs"
+            variant={activeFilterCount === 0 ? "odysseyui" : "ghost"}
             onClick={() => setSavedView("all")}
             className="h-6 px-2 text-[11px] font-mono"
           >
             All
           </Button>
           <Button
-            size="sm"
-            variant={state.type === "adr" ? "secondary" : "ghost"}
+            size="xs"
+            variant={state.type === "adr" ? "odysseyui" : "ghost"}
             onClick={() => setSavedView("adrs")}
             className="h-6 px-2 text-[11px] font-mono"
           >
             Decisions
           </Button>
           <Button
-            size="sm"
-            variant={state.type === "commit" ? "secondary" : "ghost"}
+            size="xs"
+            variant={state.type === "commit" ? "odysseyui" : "ghost"}
             onClick={() => setSavedView("commits")}
             className="h-6 px-2 text-[11px] font-mono"
           >
             Commits
           </Button>
           <Button
-            size="sm"
-            variant={state.type === "grill" ? "secondary" : "ghost"}
+            size="xs"
+            variant={state.type === "grill" ? "odysseyui" : "ghost"}
             onClick={() => setSavedView("discussions")}
             className="h-6 px-2 text-[11px] font-mono"
           >

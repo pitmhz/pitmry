@@ -7,12 +7,12 @@ import {
   GitCommit,
   MessageCircle,
   Settings,
-  Sparkles,
   ExternalLink,
   Check,
   Filter,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 export interface NotificationItem {
   id: string;
@@ -100,13 +100,15 @@ export function TimelinesNotifications({
             </span>
           )}
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={handleMarkAllRead}
-          className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] hover:text-foreground transition-colors cursor-pointer"
+          className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] hover:text-foreground h-7 px-2"
         >
           Mark all as read
-        </button>
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -117,18 +119,16 @@ export function TimelinesNotifications({
           { id: "decisions", label: "Decisions" },
           { id: "commits", label: "Commits" },
         ].map((tab) => (
-          <button
+          <Button
             key={tab.id}
             type="button"
+            variant={activeTab === tab.id ? "odysseyui" : "ghost"}
+            size="xs"
             onClick={() => setActiveTab(tab.id as any)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
-              activeTab === tab.id
-                ? "bg-foreground/[0.08] text-foreground font-semibold"
-                : "text-muted-foreground hover:bg-foreground/[0.03] hover:text-foreground"
-            }`}
+            className="h-7 text-xs"
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -191,14 +191,16 @@ export function TimelinesNotifications({
 
       {/* Footer */}
       {onViewAllActivity && (
-        <div className="border-t border-border/60 px-4 py-2.5 text-center bg-muted/10">
-          <button
+        <div className="border-t border-border/60 px-4 py-2 text-center bg-muted/10">
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onViewAllActivity}
-            className="font-mono text-[10px] text-primary uppercase tracking-[0.25em] hover:underline transition-all cursor-pointer font-medium"
+            className="w-full font-mono text-[10px] text-primary uppercase tracking-[0.25em] hover:text-primary font-medium h-7"
           >
             View all activity →
-          </button>
+          </Button>
         </div>
       )}
     </div>

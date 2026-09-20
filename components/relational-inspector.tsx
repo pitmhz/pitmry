@@ -6,13 +6,14 @@ import {
   ArrowUpRight,
   Copy,
   Check,
-  Sparkles,
+  Layers,
   FileText,
   CheckCircle2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { DecisionJourney } from "./decision-journey";
 import { CodeDiffViewer } from "./code-diff-viewer";
+import { Button } from "@/components/ui/button";
 
 interface Neighbor {
   id: string;
@@ -110,61 +111,63 @@ export function RelationalInspector({
   };
 
   return (
-    <aside className="w-[420px] xl:w-[460px] shrink-0 border-l border-border/80 bg-card flex flex-col h-full overflow-hidden">
+    <aside className="w-[480px] lg:w-[500px] xl:w-[540px] 2xl:w-[580px] shrink-0 border-l border-border/80 bg-card flex flex-col h-full overflow-hidden">
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border/80 px-4 py-3 bg-muted/15">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded border border-border bg-secondary px-2.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-foreground">
+          <span className="inline-flex items-center rounded-md border border-border bg-secondary px-2.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
             {item.type}
           </span>
-          <span className="text-xs text-muted-foreground">in</span>
-          <span className="rounded bg-secondary/90 px-2.5 py-0.5 font-mono text-xs text-foreground font-bold">
+          <span className="text-xs text-muted-foreground font-medium">in</span>
+          <span className="rounded-md bg-secondary border border-border/70 px-2.5 py-0.5 font-mono text-xs text-foreground font-semibold">
             {item.project}
           </span>
         </div>
 
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={handleCopy}
-            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
             title="Copy text"
             aria-label="Copy record details"
           >
             {copied ? (
-              <Check className="h-4 w-4 text-primary" />
+              <Check className="h-4 w-4 text-foreground" />
             ) : (
               <Copy className="h-4 w-4" />
             )}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
             aria-label="Close inspector"
             title="Close"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
         {/* Title & Metadata */}
-        <div className="space-y-2">
+        <div className="space-y-2.5 pb-1">
           <h2 className="font-heading text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug">
             {item.title}
           </h2>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-mono text-xs text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground font-medium tabular-nums">
               {formatDate(item.timestamp)}
             </span>
             {item.commit_hash && (
-              <span className="font-mono text-[11px] bg-secondary px-2 py-0.5 rounded border border-border text-foreground font-semibold">
+              <span className="font-mono text-[11px] bg-secondary/80 px-2 py-0.5 rounded border border-border/80 text-foreground font-semibold">
                 #{item.commit_hash}
               </span>
             )}
             {item.status && (
-              <span className="rounded bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground uppercase font-semibold">
+              <span className="rounded bg-secondary/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground uppercase font-semibold border border-border/60">
                 {item.status}
               </span>
             )}
@@ -173,35 +176,35 @@ export function RelationalInspector({
 
         {/* Tags */}
         {item.tags && item.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 pb-1">
             {item.tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded border border-border bg-secondary/60 px-2 py-0.5 text-[11px] font-mono text-muted-foreground font-medium"
+                className="rounded-md border border-border/70 bg-secondary/60 px-2.5 py-0.5 text-[11px] font-mono text-muted-foreground font-medium"
               >
-                #{tag}
+                {tag}
               </span>
             ))}
           </div>
         )}
 
-        {/* Core Decision / Summary */}
-        <div className="space-y-1.5 pt-1">
-          <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+        {/* Core Decision / Summary Card */}
+        <div className="rounded-xl border border-border/80 bg-card p-4 space-y-2">
+          <h3 className="text-xs font-semibold text-foreground">
             Summary
           </h3>
-          <p className="text-xs sm:text-[13px] leading-relaxed text-foreground/95">
+          <p className="text-xs sm:text-[13px] leading-relaxed text-foreground/90 font-normal">
             {item.summary}
           </p>
         </div>
 
-        {/* What Changed (Detailed Breakdown) */}
+        {/* What Changed (Detailed Breakdown Cards) */}
         {item.bullets && item.bullets.length > 0 && (
-          <div className="space-y-2 pt-3 border-t border-border/50">
+          <div className="space-y-2.5 pt-2">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Sparkles className="size-3.5" />
-                What Changed ({item.bullets.length} points)
+              <h3 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Layers className="size-3.5 text-muted-foreground" />
+                <span>What Changed ({item.bullets.length})</span>
               </h3>
               {item.session_file && (
                 <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded border border-border font-medium">
@@ -213,12 +216,12 @@ export function RelationalInspector({
               {item.bullets.map((bullet, idx) => (
                 <div
                   key={idx}
-                  className="text-xs sm:text-[13px] text-foreground font-medium leading-relaxed bg-secondary/35 hover:bg-secondary/50 transition-colors p-3 rounded-lg border border-border/60 flex items-start gap-2.5 shadow-2xs"
+                  className="text-xs sm:text-[13px] text-foreground font-normal leading-relaxed bg-secondary/30 hover:bg-secondary/50 transition-colors p-3 rounded-lg border border-border/60 flex items-start gap-3"
                 >
-                  <span className="font-mono text-[11px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded shrink-0 mt-0.5">
-                    #{idx + 1}
+                  <span className="font-mono text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded shrink-0 mt-0.5">
+                    {idx + 1}
                   </span>
-                  <span className="flex-1 leading-snug">{bullet}</span>
+                  <span className="flex-1 leading-relaxed text-foreground/90">{bullet}</span>
                 </div>
               ))}
             </div>
@@ -227,20 +230,20 @@ export function RelationalInspector({
 
         {/* Full Commit Message Body (fallback if no bullets) */}
         {item.body && (!item.bullets || item.bullets.length === 0) && (
-          <div className="space-y-1.5 pt-3 border-t border-border/50">
-            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-2">
+            <h3 className="text-xs font-semibold text-foreground">
               Commit Description
             </h3>
-            <div className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap bg-secondary/20 p-3 rounded-lg border border-border/50 font-mono text-[11px]">
+            <div className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap font-mono text-[11px]">
               {item.body}
             </div>
           </div>
         )}
 
-        {/* Rationale & Decisions */}
+        {/* Decisions Card */}
         {item.decision && (
-          <div className="space-y-1.5 pt-3 border-t border-border/50">
-            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+          <div className="rounded-xl border border-border/80 bg-card p-4 space-y-1.5">
+            <h3 className="text-xs font-semibold text-foreground">
               Decision
             </h3>
             <p className="text-xs sm:text-[13px] text-foreground leading-relaxed">
@@ -249,9 +252,10 @@ export function RelationalInspector({
           </div>
         )}
 
+        {/* Rationale Card */}
         {item.rationale && (
-          <div className="space-y-1.5 pt-3 border-t border-border/50">
-            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+          <div className="rounded-xl border border-border/80 bg-card p-4 space-y-1.5">
+            <h3 className="text-xs font-semibold text-foreground">
               Why this was done
             </h3>
             <p className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -264,15 +268,16 @@ export function RelationalInspector({
         {item.commit_hash ? (
           <div className="pt-3 border-t border-border/50">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+              <h3 className="text-xs font-semibold text-foreground">
                 Code changes
               </h3>
-              <button
+              <Button
+                variant="odysseyui"
+                size="xs"
                 onClick={() => setDiffModalOpen(true)}
-                className="text-xs text-primary hover:underline font-semibold cursor-pointer"
               >
                 Expand diff
-              </button>
+              </Button>
             </div>
             <CodeDiffViewer
               project={item.project}
@@ -285,7 +290,7 @@ export function RelationalInspector({
           item.key_files && item.key_files.length > 0 && (
             <div className="pt-3 border-t border-border/50">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-primary">
+                <h3 className="text-xs font-semibold text-foreground">
                   Changed files ({item.key_files.length})
                 </h3>
               </div>
@@ -313,9 +318,9 @@ export function RelationalInspector({
                 aria-selected={activeTab === "journey"}
                 onClick={() => setActiveTab("journey")}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none",
                   activeTab === "journey"
-                    ? "bg-primary text-primary-foreground shadow-xs"
+                    ? "bg-card text-foreground shadow-xs border border-border/60"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -326,9 +331,9 @@ export function RelationalInspector({
                 aria-selected={activeTab === "neighbors"}
                 onClick={() => setActiveTab("neighbors")}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none",
                   activeTab === "neighbors"
-                    ? "bg-primary text-primary-foreground shadow-xs"
+                    ? "bg-card text-foreground shadow-xs border border-border/60"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -359,33 +364,33 @@ export function RelationalInspector({
                     <div
                       key={nbr.id}
                       onClick={() => onSelectNeighbor(nbr.id, nbr.type)}
-                      className="group flex cursor-pointer flex-col gap-1 rounded-md border border-border/60 bg-secondary/15 p-2.5 transition-all duration-150 hover:border-primary/40 hover:bg-secondary/40"
+                      className="group flex cursor-pointer flex-col gap-1 rounded-md border border-border/60 bg-secondary/15 p-2.5 transition-all duration-150 hover:border-border hover:bg-secondary/40"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="rounded border border-border/60 bg-secondary px-1.5 py-0.5 text-[9px] font-mono uppercase text-muted-foreground">
+                          <span className="rounded-md border border-border/80 bg-secondary px-2 py-0.5 text-[11px] font-mono font-semibold uppercase text-foreground">
                             {nbr.type}
                           </span>
-                          <span className="text-[10px] text-muted-foreground font-mono">
+                          <span className="text-[11px] text-muted-foreground font-mono font-medium">
                             {nbr.project}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-1">
-                          <div className="h-1.5 w-12 rounded-full bg-secondary overflow-hidden">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-1.5 w-14 rounded-full bg-secondary overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-primary"
+                              className="h-full rounded-full bg-foreground/50"
                               style={{ width: `${Math.round(nbr.similarity * 100)}%` }}
                             />
                           </div>
-                          <span className="font-mono text-[10px] font-semibold text-primary">
-                            {(nbr.similarity * 100).toFixed(0)}% match
+                          <span className="font-mono text-[11px] font-medium text-muted-foreground tabular-nums">
+                            {(nbr.similarity * 100).toFixed(0)}%
                           </span>
-                          <ArrowUpRight className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                         </div>
                       </div>
 
-                      <div className="text-xs font-medium text-foreground group-hover:text-primary leading-snug line-clamp-2 transition-colors">
+                      <div className="text-xs font-medium text-foreground group-hover:text-foreground leading-snug line-clamp-2 transition-colors">
                         {nbr.title}
                       </div>
 

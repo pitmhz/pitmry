@@ -1,11 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import dynamic from "next/dynamic";
+import React, { useDeferredValue, useEffect, useState, useRef } from "react";
+import type { MemoryItem, MemorySummary, TagCount } from "@/lib/types";
 import {
   Search,
   Network,
   ListFilter,
-  Sparkles,
+  Boxes,
+  Cpu,
+  AlertCircle,
   RefreshCw,
   Bell,
   Activity,
@@ -14,11 +18,19 @@ import {
   Layers,
   Code2,
   Terminal,
+  Compass,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { StatTile } from "@/components/stat-tile";
 import { RelationalInspector } from "@/components/relational-inspector";
-import { KnowledgeGraph } from "@/components/knowledge-graph";
-import { GalaxyView } from "@/components/galaxy-view";
+const KnowledgeGraph = dynamic(
+  () => import("@/components/knowledge-graph").then((m) => m.KnowledgeGraph),
+  { ssr: false, loading: () => <div className="flex items-center justify-center py-12 text-xs text-muted-foreground animate-pulse">Loading graph…</div> }
+);
+const GalaxyView = dynamic(
+  () => import("@/components/galaxy-view").then((m) => m.GalaxyView),
+  { ssr: false, loading: () => <div className="flex items-center justify-center py-12 text-xs text-muted-foreground animate-pulse">Loading 3D view…</div> }
+);
 import { DesignTokenController } from "@/components/design-token-controller";
 import { CommandPalette } from "@/components/command-palette";
 import { TimelinesStatusPage } from "@/components/timelines-status-page";
@@ -31,6 +43,13 @@ import { OnboardingDialog } from "@/components/onboarding-dialog";
 import { SkillsWorkspace } from "@/components/skills-workspace";
 import { FilterToolbar, type FilterToolbarState } from "@/components/filter-toolbar";
 import { TableLogs } from "@/components/table-logs";
+import {
+  WelcomeCarouselModal,
+  SpotlightTour,
+  FeatureBeacon,
+  OnboardingChecklistWidget,
+} from "@/components/tours";
+import { useOnboarding } from "@/lib/onboarding-context";
 import { cn, formatDate } from "@/lib/utils";
 import {
   SidebarProvider,
@@ -95,7 +114,7 @@ function MemorySidebar({
   viewMode,
   setViewMode,
 }: {
-  summary: any;
+  summary: MemorySummary | null;
   selectedProject: string | null;
   setSelectedProject: (p: string | null) => void;
   selectedType: string | null;
@@ -125,7 +144,7 @@ function MemorySidebar({
 
       <SidebarContent>
         {/* Hubs & Views Navigation */}
-        <SidebarGroup>
+        <SidebarGroup data-tour="views-nav">
           <SidebarGroupLabel>Views</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -178,7 +197,7 @@ function MemorySidebar({
                 onClick={() => setViewMode("skills")}
                 tooltip="Skills & Automations"
               >
-                <Sparkles className="size-4 text-primary" />
+                <Cpu className="size-4" />
                 <span>Skills &amp; Automations</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -321,7 +340,7 @@ function MemorySidebar({
 
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem data-tour="readiness-button">
             <SidebarMenuButton
               onClick={() => setViewMode("status")}
               tooltip="Open memory readiness"
@@ -341,14 +360,14 @@ function MemorySidebar({
 
 /* ---------- Main Shell ---------- */
 export function AppShell() {
-  const [summary, setSummary] = useState<any>(null);
-  const [feed, setFeed] = useState<any[]>([]);
+  const [summary, setSummary] = useState<MemorySummary | null>(null);
+  const [feed, setFeed] = useState<MemoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("stream");
-  const [activeItem, setActiveItem] = useState<any | null>(null);
+  const [activeItem, setActiveItem] = useState<MemoryItem | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -370,13 +389,45 @@ export function AppShell() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
+  const {
+    welcomeOpen,
+    setWelcomeOpen,
+    spotlightActive,
+    spotlightStep,
+    startSpotlight,
+    setSpotlightStep,
+    closeSpotlight,
+    tasks,
+    progress,
+    toggleTask,
+    completeTask,
+    isBeaconSeen,
+    markBeaconSeen,
+    restartOnboarding,
+    resetOnboarding,
+  } = useOnboarding();
+
   const notifRef = useRef<HTMLDivElement>(null);
+  const feedAbortRef = useRef<AbortController | null>(null);
+  const deferredQuery = useDeferredValue(filterState.query);
+
+  const filterCriteria = React.useMemo(
+    () => ({
+      query: deferredQuery,
+      type: filterState.type,
+      project: filterState.project,
+      from: filterState.dateRange.from?.getTime() ?? null,
+      to: filterState.dateRange.to?.getTime() ?? null,
+      density: filterState.density,
+    }),
+    [deferredQuery, filterState.type, filterState.project, filterState.dateRange.from, filterState.dateRange.to, filterState.density]
+  );
 
   const filteredFeed = React.useMemo(() => {
     return feed.filter((item) => {
-      // 1. Text Query
-      if (filterState.query.trim()) {
-        const q = filterState.query.toLowerCase().trim();
+      // 1. Text Query (deferred — keeps typing responsive)
+      if (filterCriteria.query.trim()) {
+        const q = filterCriteria.query.toLowerCase().trim();
         const matchTitle = item.title?.toLowerCase().includes(q);
         const matchSummary =
           item.summary?.toLowerCase().includes(q) ||
@@ -387,30 +438,28 @@ export function AppShell() {
       }
 
       // 2. Type Filter
-      if (filterState.type !== "all" && item.type !== filterState.type) {
+      if (filterCriteria.type !== "all" && item.type !== filterCriteria.type) {
         return false;
       }
 
       // 3. Project Filter
-      if (filterState.project !== "all" && item.project !== filterState.project) {
+      if (filterCriteria.project !== "all" && item.project !== filterCriteria.project) {
         return false;
       }
 
       // 4. Date Range Filter
-      if (filterState.dateRange.from && item.timestamp) {
+      if (filterCriteria.from && item.timestamp) {
         const itemTime = new Date(item.timestamp).getTime();
-        const fromTime = filterState.dateRange.from.getTime();
-        if (itemTime < fromTime) return false;
-        if (filterState.dateRange.to) {
-          const toDate = new Date(filterState.dateRange.to);
-          toDate.setHours(23, 59, 59, 999);
-          if (itemTime > toDate.getTime()) return false;
+        if (itemTime < filterCriteria.from) return false;
+        if (filterCriteria.to) {
+          const toEnd = filterCriteria.to + 86399999; // end of day
+          if (itemTime > toEnd) return false;
         }
       }
 
       return true;
     });
-  }, [feed, filterState]);
+  }, [feed, filterCriteria]);
 
   const fetchSummary = () => {
     fetch("/api/memory?action=summary")
@@ -420,23 +469,27 @@ export function AppShell() {
   };
 
   const fetchFeed = () => {
+    feedAbortRef.current?.abort();
+    const controller = new AbortController();
+    feedAbortRef.current = controller;
     setLoading(true);
     let url = "/api/memory?action=feed&limit=60";
     if (selectedProject) url += `&project=${encodeURIComponent(selectedProject)}`;
     if (selectedType) url += `&type=${encodeURIComponent(selectedType)}`;
     if (selectedTag) url += `&tag=${encodeURIComponent(selectedTag)}`;
 
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
-        const items = Array.isArray(data) ? data : [];
+        const items = Array.isArray(data) ? (data as MemoryItem[]) : [];
         setFeed(items);
         setLoading(false);
-        if (items.length > 0 && !activeItem) {
-          setActiveItem(items[0]);
+        if (items.length > 0) {
+          setActiveItem((prev) => prev ?? items[0]);
         }
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error(err);
         setLoading(false);
       });
@@ -452,6 +505,7 @@ export function AppShell() {
 
   useEffect(() => {
     fetchFeed();
+    return () => feedAbortRef.current?.abort();
   }, [selectedProject, selectedType, selectedTag]);
 
   // Click outside to close notification popover
@@ -474,11 +528,13 @@ export function AppShell() {
         if (diffModalState.open) setDiffModalState({ open: false });
         if (onboardingOpen) setOnboardingOpen(false);
         if (notifOpen) setNotifOpen(false);
+        if (welcomeOpen) setWelcomeOpen(false);
+        if (spotlightActive) closeSpotlight();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [diffModalState.open, onboardingOpen, notifOpen]);
+  }, [diffModalState.open, onboardingOpen, notifOpen, welcomeOpen, spotlightActive, setWelcomeOpen, closeSpotlight]);
 
   const handleSelectNeighbor = (id: string, type: "adr" | "commit" | "grill") => {
     const numId = parseInt(id.split("-")[1]);
@@ -535,16 +591,22 @@ export function AppShell() {
               )}
             </div>
             <Separator orientation="vertical" className="h-4 opacity-40 hidden sm:block" />
-            <button
-              onClick={() => setPaletteOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground w-40 sm:w-48 lg:w-60 cursor-pointer"
+            <Button
+              variant="outline"
+              size="sm"
+              data-tour="search-palette"
+              onClick={() => {
+                setPaletteOpen(true);
+                completeTask("task_palette_search");
+              }}
+              className="w-40 sm:w-48 lg:w-60 justify-start text-xs text-muted-foreground font-normal hover:text-foreground h-8"
             >
               <Search className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">Search memory...</span>
               <kbd className="ml-auto rounded border border-border bg-secondary px-1.5 text-[10px] font-mono text-muted-foreground">
                 ⌘K
               </kbd>
-            </button>
+            </Button>
           </div>
 
           {/* View Switcher & Controls */}
@@ -594,7 +656,10 @@ export function AppShell() {
               </button>
 
               <button
-                onClick={() => setViewMode("graph")}
+                onClick={() => {
+                  setViewMode("graph");
+                  completeTask("task_explore_graph");
+                }}
                 className={cn(
                   "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
                   viewMode === "graph"
@@ -607,19 +672,31 @@ export function AppShell() {
                 <span className="hidden md:inline">Graph</span>
               </button>
 
-              <button
-                onClick={() => setViewMode("galaxy")}
-                className={cn(
-                  "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
-                  viewMode === "galaxy"
-                    ? "bg-card text-primary shadow-xs font-semibold border border-primary/30"
-                    : "text-muted-foreground hover:text-primary"
-                )}
-                title="3D vector galaxy"
+              <FeatureBeacon
+                id="beacon_galaxy_3d"
+                title="3D Vector Galaxy"
+                body="Explore multi-dimensional vector embeddings clustered in real-time WebGL 3D space."
+                seen={isBeaconSeen("beacon_galaxy_3d")}
+                onAcknowledge={markBeaconSeen}
+                align="bottom"
               >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span className="hidden md:inline">3D</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setViewMode("galaxy");
+                    completeTask("task_explore_graph");
+                  }}
+                  className={cn(
+                    "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
+                    viewMode === "galaxy"
+                      ? "bg-card text-primary shadow-xs font-semibold border border-primary/30"
+                      : "text-muted-foreground hover:text-primary"
+                  )}
+                  title="3D vector galaxy"
+                >
+                  <Boxes className="h-3.5 w-3.5" />
+                  <span className="hidden md:inline">3D</span>
+                </button>
+              </FeatureBeacon>
 
               <button
                 onClick={() => setViewMode("status")}
@@ -635,19 +712,28 @@ export function AppShell() {
                 <span className="hidden md:inline">Status</span>
               </button>
 
-              <button
-                onClick={() => setViewMode("skills")}
-                className={cn(
-                  "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
-                  viewMode === "skills"
-                    ? "bg-card text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                title="Skills & Automations"
+              <FeatureBeacon
+                id="beacon_skills_workspace"
+                title="Skills Workspace"
+                body="Run offline Claude workflows, commit digests, and automated skills locally."
+                seen={isBeaconSeen("beacon_skills_workspace")}
+                onAcknowledge={markBeaconSeen}
+                align="bottom"
               >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span className="hidden md:inline">Skills</span>
-              </button>
+                <button
+                  onClick={() => setViewMode("skills")}
+                  className={cn(
+                    "flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors text-xs cursor-pointer",
+                    viewMode === "skills"
+                      ? "bg-card text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Skills & Automations"
+                >
+                  <Cpu className="h-3.5 w-3.5" />
+                  <span className="hidden md:inline">Skills</span>
+                </button>
+              </FeatureBeacon>
 
               <button
                 onClick={() => setViewMode("logs")}
@@ -666,11 +752,14 @@ export function AppShell() {
 
             {/* Notification Bell with Popover */}
             <div className="relative" ref={notifRef}>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="icon-sm"
                 onClick={() => setNotifOpen(!notifOpen)}
-                className="relative rounded-md border border-border/70 bg-secondary/40 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
+                className="relative"
                 title="Notifications"
+                aria-label="Notifications"
               >
                 <Bell className="h-3.5 w-3.5" />
                 {unreadCount > 0 && (
@@ -678,7 +767,7 @@ export function AppShell() {
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
-              </button>
+              </Button>
 
               {notifOpen && (
                 <div className="absolute right-0 top-full mt-2 z-50 w-80 sm:w-96 shadow-2xl animate-in fade-in-0 slide-in-from-top-2 duration-150">
@@ -708,27 +797,45 @@ export function AppShell() {
 
             <DesignTokenController />
 
+            {/* Onboarding Tour Re-trigger */}
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => restartOnboarding()}
+              title="Repository onboarding checklist"
+              className="gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <Compass className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Onboarding</span>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {progress.percentage}%
+              </span>
+            </Button>
+
             {summary?.is_demo && (
-              <button
+              <Button
+                variant="odysseyui"
+                size="xs"
                 onClick={() => setOnboardingOpen(true)}
-                className="flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
                 title="Connect real repositories & vector memory"
+                className="gap-1 font-medium"
               >
-                <Sparkles className="h-3 w-3" />
                 <span>Setup</span>
-              </button>
+              </Button>
             )}
 
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={() => {
                 fetchSummary();
                 fetchFeed();
               }}
-              className="rounded-md border border-border/70 bg-secondary/40 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
               title="Refresh"
+              aria-label="Refresh dashboard data"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -736,25 +843,28 @@ export function AppShell() {
         {summary?.is_demo && !bannerDismissed && (
           <div className="flex items-center justify-between border-b border-primary/25 bg-primary/10 px-4 py-1.5 text-xs backdrop-blur shrink-0 animate-in fade-in-0 duration-150">
             <div className="flex items-center gap-2 text-foreground">
-              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+              <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
               <span>
-                <strong className="font-semibold text-primary">Demo Mode:</strong> You are exploring built-in sample memory. Run <code className="font-mono bg-black/40 px-1.5 py-0.5 rounded text-primary text-[11px]">pnpm setup</code> to connect your local repositories & vector engine.
+                <strong className="font-semibold text-foreground">Demo Mode:</strong> You are exploring built-in sample memory. Run <code className="font-mono bg-black/40 px-1.5 py-0.5 rounded text-foreground text-[11px]">pnpm setup</code> to connect your local repositories & vector engine.
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
+              <Button
+                variant="odysseyui"
+                size="xs"
                 onClick={() => setOnboardingOpen(true)}
-                className="rounded border border-primary/50 bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/30 transition-colors cursor-pointer"
               >
                 Setup Guide
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setBannerDismissed(true)}
-                className="text-muted-foreground hover:text-foreground px-1.5 py-0.5 text-xs transition-colors cursor-pointer"
                 title="Dismiss notice"
+                aria-label="Dismiss notice"
               >
                 ✕
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -787,6 +897,7 @@ export function AppShell() {
                     project: proj,
                     commitHash: sha,
                   });
+                  completeTask("task_inspect_diff");
                 }}
               />
             </div>
@@ -822,7 +933,7 @@ export function AppShell() {
             /* Standard List / Stream View */
             <div className="flex flex-1 overflow-hidden">
               {/* Feed column */}
-              <div className="flex flex-1 flex-col overflow-y-auto p-3.5 sm:p-5 space-y-4">
+              <div className="@container/feed flex flex-1 flex-col overflow-y-auto p-4 sm:p-5 space-y-4">
                 {/* View Header (H1) */}
                 <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 border-b border-border/50 pb-3">
                   <div>
@@ -877,25 +988,27 @@ export function AppShell() {
                 </div>
 
                 {/* Filter Toolbar (devl.dev toolbar + date-range) */}
-                <FilterToolbar
-                  projects={summary?.projects || []}
-                  totalCount={feed.length}
-                  filteredCount={filteredFeed.length}
-                  state={filterState}
-                  onChange={setFilterState}
-                  onReset={() => {
-                    setSelectedProject(null);
-                    setSelectedType(null);
-                    setSelectedTag(null);
-                    setFilterState({
-                      query: "",
-                      type: "all",
-                      project: "all",
-                      dateRange: { preset: "Last 30 days" },
-                      density: filterState.density,
-                    });
-                  }}
-                />
+                <div data-tour="filter-toolbar">
+                  <FilterToolbar
+                    projects={summary?.projects || []}
+                    totalCount={feed.length}
+                    filteredCount={filteredFeed.length}
+                    state={filterState}
+                    onChange={setFilterState}
+                    onReset={() => {
+                      setSelectedProject(null);
+                      setSelectedType(null);
+                      setSelectedTag(null);
+                      setFilterState({
+                        query: "",
+                        type: "all",
+                        project: "all",
+                        dateRange: { preset: "Last 30 days" },
+                        density: filterState.density,
+                      });
+                    }}
+                  />
+                </div>
 
                 {/* Activity Feed */}
                 <div className="space-y-2.5">
@@ -984,8 +1097,8 @@ export function AppShell() {
                       })}
                     </div>
                   ) : (
-                    /* Rich Bento Grid View */
-                    <div className="space-y-2">
+                    /* Rich Bento Grid View (Adaptive Desktop Min-Max Breakpoint Column System) */
+                    <div className="grid grid-cols-1 @[640px]/feed:grid-cols-2 @[1120px]/feed:grid-cols-3 @[1580px]/feed:grid-cols-4 gap-3.5">
                       {filteredFeed.map((item) => {
                         const isSelected = activeItem?.id === item.id;
                         return (
@@ -1001,55 +1114,62 @@ export function AppShell() {
                               }
                             }}
                             className={cn(
-                              "group flex cursor-pointer flex-col gap-2 rounded-xl border p-3.5 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                              "group flex cursor-pointer flex-col justify-between gap-2.5 rounded-xl border p-4 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[170px]",
                               isSelected
-                                ? "border-primary/50 bg-secondary/35 ring-1 ring-primary/40 shadow-xs"
-                                : "border-border/70 bg-card hover:border-primary/40 hover:bg-secondary/20 shadow-2xs"
+                                ? "border-primary/60 bg-secondary/40 ring-1 ring-primary/40 shadow-xs"
+                                : "border-border/80 bg-card hover:border-primary/50 hover:bg-secondary/20 shadow-2xs"
                             )}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="inline-flex items-center rounded border border-border/80 bg-secondary px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground">
-                                  {formatItemType(item.type)}
-                                </span>
-                                <span className="rounded bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                  {item.project}
-                                </span>
-                                {item.commit_hash && (
-                                  <span className="font-mono text-[11px] text-muted-foreground">
-                                    #{item.commit_hash}
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center rounded border border-border/80 bg-secondary px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-foreground">
+                                    {formatItemType(item.type)}
                                   </span>
-                                )}
-                                {item.bullets && item.bullets.length > 0 && (
-                                  <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary bg-primary/10 px-2 py-0.5 rounded font-semibold">
-                                    <Sparkles className="size-3" />
-                                    {item.bullets.length} points
+                                  <span className="rounded bg-secondary/80 px-2 py-0.5 text-[11px] font-semibold text-foreground/90 font-mono">
+                                    {item.project}
                                   </span>
-                                )}
+                                  {item.commit_hash && (
+                                    <span className="font-mono text-[11px] text-muted-foreground font-semibold">
+                                      #{item.commit_hash}
+                                    </span>
+                                  )}
+                                  {item.bullets && item.bullets.length > 0 && (
+                                    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded font-medium">
+                                      <Layers className="size-3" />
+                                      {item.bullets.length} points
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[11px] font-mono text-muted-foreground shrink-0 tabular-nums">
+                                  {formatDate(item.timestamp)}
+                                </span>
                               </div>
-                              <span className="text-[11px] font-mono text-muted-foreground shrink-0">
-                                {formatDate(item.timestamp)}
-                              </span>
+
+                              <h3 className="font-heading text-sm sm:text-[15px] font-bold text-foreground group-hover:text-primary leading-snug transition-colors line-clamp-2">
+                                {item.title}
+                              </h3>
+
+                              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                                {item.summary || item.rationale}
+                              </p>
                             </div>
 
-                            <h3 className="font-heading text-sm sm:text-[15px] font-bold text-foreground group-hover:text-primary leading-snug transition-colors">
-                              {item.title}
-                            </h3>
-
-                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                              {item.summary || item.rationale}
-                            </p>
-
                             {item.tags && item.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-0.5">
-                                {item.tags.slice(0, 5).map((tg: string) => (
+                              <div className="flex flex-wrap gap-1 mt-1 pt-2 border-t border-border/40">
+                                {item.tags.slice(0, 4).map((tg: string) => (
                                   <span
                                     key={tg}
-                                    className="rounded bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground font-mono font-medium"
+                                    className="rounded bg-secondary/70 border border-border/50 px-2 py-0.5 text-[10px] text-muted-foreground font-mono font-medium"
                                   >
                                     #{tg}
                                   </span>
                                 ))}
+                                {item.tags.length > 4 && (
+                                  <span className="font-mono text-[10px] text-muted-foreground/80 self-center">
+                                    +{item.tags.length - 4}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1128,6 +1248,51 @@ export function AppShell() {
         open={onboardingOpen}
         onClose={() => setOnboardingOpen(false)}
         isDemo={summary?.is_demo}
+      />
+
+      {/* Welcome Carousel Modal for Newly Imported Cloned Repo */}
+      <WelcomeCarouselModal
+        open={welcomeOpen}
+        onClose={() => setWelcomeOpen(false)}
+        onStartTour={() => startSpotlight(0)}
+        repoName={summary?.projects?.[0] || "pitmry"}
+        isDemo={summary?.is_demo}
+      />
+
+      {/* Interactive Spotlight Guided Tour */}
+      <SpotlightTour
+        active={spotlightActive}
+        step={spotlightStep}
+        onStepChange={setSpotlightStep}
+        onComplete={closeSpotlight}
+        onDismiss={closeSpotlight}
+      />
+
+      {/* Docked Floating Onboarding Checklist */}
+      <OnboardingChecklistWidget
+        tasks={tasks}
+        onToggleTask={toggleTask}
+        onTaskAction={(task) => {
+          if (task.action_type === "view" && task.target_view) {
+            setViewMode(task.target_view as ViewMode);
+          } else if (task.action_type === "open_diff") {
+            const firstCommit = feed.find((f) => f.type === "commit");
+            setDiffModalState({
+              open: true,
+              project: firstCommit?.project || selectedProject || "pitmry",
+              commitHash: firstCommit?.commit_hash,
+              itemId: firstCommit?.numeric_id,
+            });
+            completeTask("task_inspect_diff");
+          } else if (task.action_type === "open_palette") {
+            setPaletteOpen(true);
+            completeTask("task_palette_search");
+          }
+        }}
+        onRestartTour={() => restartOnboarding()}
+        onResetOnboarding={resetOnboarding}
+        progressPct={progress.percentage}
+        repoName={summary?.projects?.[0] || "pitmry"}
       />
     </SidebarProvider>
   );

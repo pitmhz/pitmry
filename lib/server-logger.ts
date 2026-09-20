@@ -23,9 +23,10 @@ export interface LogEntry {
   stack?: string[]
 }
 
-const MAX_LOGS = 200
-const LOG_DIR = path.join(process.cwd(), ".pitmry")
-const LOG_FILE = path.join(LOG_DIR, "server.log")
+const MAX_LOGS = 200;
+const MAX_LOG_BYTES = 512 * 1024; // rotate .pitmry/server.log at ~512KB
+const LOG_DIR = path.join(process.cwd(), ".pitmry");
+const LOG_FILE = path.join(LOG_DIR, "server.log");
 
 // Global in-memory ring buffer surviving hot reloads
 declare global {
@@ -83,9 +84,17 @@ export function logServerEvent(entry: Partial<LogEntry> & { message: string }): 
     logs.length = MAX_LOGS
   }
 
-  // Persist asynchronously to local log file
+  // Persist asynchronously to local log file (with rotation)
   ensureLogDir()
   try {
+    const stat = fs.existsSync(LOG_FILE) ? fs.statSync(LOG_FILE) : null
+    if (stat && stat.size > MAX_LOG_BYTES) {
+      try {
+        fs.renameSync(LOG_FILE, `${LOG_FILE}.1`)
+      } catch {
+        /* ignore rotation failure */
+      }
+    }
     fs.appendFile(LOG_FILE, JSON.stringify(fullEntry) + "\n", () => {})
   } catch {
     /* ignore */

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tours-checklist",
+  "type": "registry:component",
+  "title": "Checklist",
+  "description": "Docked onboarding checklist widget with circular SVG progress meter and actionable tasks.",
+  "files": [
+    {
+      "path": "components/tours/checklist.tsx",
+      "type": "registry:component"
+    }
+  ],
+  "registryDependencies": [
+    "button"
+  ],
+  "dependencies": [
+    "lucide-react"
+  ]
+}

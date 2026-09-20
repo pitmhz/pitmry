@@ -14,13 +14,14 @@ import {
   AlertCircle,
   Check,
   Copy,
-  Sparkles,
+  Layers,
   ChevronDown,
   ChevronUp,
   FileText,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type Status = "succeeded" | "failed" | "rolled-back" | "in-progress";
 
@@ -129,34 +130,34 @@ export function TimelinesDeploys({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Env filters */}
-          <div role="tablist" aria-label="Environment filters" className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5">
+          <div role="tablist" aria-label="Environment filters" className="flex items-center rounded-lg border border-border/70 bg-card/60 p-0.5 gap-1">
             {["all", "production", "staging", "preview"].map((env) => (
-              <button
+              <Button
                 key={env}
                 type="button"
                 role="tab"
                 aria-selected={selectedEnv === env}
+                variant={selectedEnv === env ? "odysseyui" : "ghost"}
+                size="xs"
                 onClick={() => setSelectedEnv(env)}
-                className={`rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  selectedEnv === env
-                    ? "bg-foreground text-background font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="font-mono text-[11px] uppercase tracking-wider h-7"
               >
                 {env}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => startTransition(() => fetchDeploys())}
             disabled={loading || isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card/80 px-3 py-1.5 font-mono text-xs text-foreground hover:bg-accent/50 transition-all cursor-pointer shadow-xs disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="font-mono text-xs shadow-xs"
           >
             <RefreshCw className={`size-3.5 ${loading || isPending ? "animate-spin text-primary" : ""}`} />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -288,9 +289,9 @@ export function TimelinesDeploys({
                       <button
                         type="button"
                         onClick={() => setExpandedDeploys((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-                        className="inline-flex items-center gap-1 text-primary hover:underline font-bold cursor-pointer"
+                        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline font-medium cursor-pointer"
                       >
-                        <Sparkles className="size-3" />
+                        <Layers className="size-3" />
                         {expandedDeploys[d.id] ? "Hide changes" : `${d.bullets.length} change highlights`}
                         {expandedDeploys[d.id] ? (
                           <ChevronUp className="size-3" />
@@ -304,11 +305,11 @@ export function TimelinesDeploys({
 
                 {/* Expanded What Changed Breakdown */}
                 {d.bullets && d.bullets.length > 0 && expandedDeploys[d.id] && (
-                  <div className="mt-3 rounded-lg border border-border/70 bg-secondary/40 p-3 space-y-2 animate-in fade-in-50 duration-150 shadow-2xs">
+                  <div className="mt-3 rounded-lg border border-border/70 bg-card p-3 space-y-2 animate-in fade-in-50 duration-150">
                     <div className="flex items-center justify-between text-[11px] font-mono font-medium text-foreground">
-                      <span className="flex items-center gap-1.5 text-primary">
-                        <Sparkles className="size-3" />
-                        What Changed ({d.bullets.length} points)
+                      <span className="flex items-center gap-1.5 text-foreground font-semibold">
+                        <Layers className="size-3 text-muted-foreground" />
+                        What Changed ({d.bullets.length})
                       </span>
                       {d.stat_summary && (
                         <span className="text-[10px] text-muted-foreground font-normal">
@@ -353,10 +354,12 @@ export function TimelinesDeploys({
 
               <div className="flex items-center gap-2 shrink-0 ml-auto md:ml-0 pt-2 md:pt-0 border-t md:border-t-0 border-border/30 w-full md:w-auto justify-end">
                 {d.bullets && d.bullets.length > 0 && (
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="xs"
                     onClick={() => setExpandedDeploys((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-                    className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/80 hover:bg-secondary text-foreground px-2 py-1 font-mono text-[10px] uppercase tracking-[0.15em] font-medium transition-colors cursor-pointer"
+                    className="font-mono text-[10px] uppercase tracking-[0.15em] font-medium"
                   >
                     {expandedDeploys[d.id] ? (
                       <ChevronUp className="size-3" />
@@ -364,16 +367,18 @@ export function TimelinesDeploys({
                       <ChevronDown className="size-3" />
                     )}
                     {expandedDeploys[d.id] ? "Less" : "Details"}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="odysseyui"
+                  size="xs"
                   onClick={() => onInspectCommit?.(d.project, d.sha)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 hover:bg-primary/15 text-primary px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] font-medium transition-colors cursor-pointer shadow-2xs"
+                  className="font-mono text-[10px] uppercase tracking-[0.2em] font-medium"
                 >
                   <Code2 className="size-3" />
                   View Diff
-                </button>
+                </Button>
               </div>
             </li>
           ))}

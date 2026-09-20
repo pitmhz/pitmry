@@ -35,7 +35,9 @@ export function LatestChange() {
 			<span className="text-[10px] text-muted-foreground">
 				{latestChange.description}
 			</span>
-			<Button className="w-max px-0 font-light text-xs" size="sm" variant="link" render={<a href={latestChange.readMore.href} />} nativeButton={false}>{latestChange.readMore.label}</Button>
+			<Button asChild className="w-max px-0 font-light text-xs" size="sm" variant="link">
+				<a href={latestChange.readMore.href}>{latestChange.readMore.label}</a>
+			</Button>
 			<Button
 				className="absolute top-2 right-2 z-10 size-6 rounded-full opacity-0 transition-opacity group-hover/latest-change:opacity-100"
 				onClick={() => setIsOpen(false)}

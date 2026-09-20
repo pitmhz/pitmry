@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Sparkles,
   X
 } from "lucide-react";
 import { Highlight, themes } from "prism-react-renderer";
@@ -121,8 +120,19 @@ export function CodeDiffViewer({
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDarkTheme, setIsDarkTheme] = useState(true);
   const fileTabsRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDarkTheme(!document.documentElement.classList.contains("light"));
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (activeTabRef.current) {
@@ -337,10 +347,10 @@ export function CodeDiffViewer({
         <div className="divide-y divide-border/30 font-mono text-xs">
           {activeFile.hunks.map((hunk, hIdx) => (
             <div key={hIdx} className="space-y-0">
-              <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/70 bg-secondary/80 px-3 py-1 text-[10px] text-muted-foreground font-semibold backdrop-blur">
-                <span>{hunk.header}</span>
+              <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/80 bg-secondary px-3 py-1.5 text-[11px] font-mono text-muted-foreground font-semibold backdrop-blur">
+                <span className="text-primary font-bold">{hunk.header}</span>
                 {hunk.context_hint && (
-                  <span className="truncate max-w-xs text-zinc-400 font-normal">
+                  <span className="truncate max-w-xs text-foreground/80 dark:text-zinc-300 font-medium">
                     {hunk.context_hint}
                   </span>
                 )}
@@ -356,21 +366,24 @@ export function CodeDiffViewer({
                       key={lIdx}
                       className={cn(
                         "flex items-start text-[11px] leading-snug font-mono transition-colors",
-                        isAdd && "bg-emerald-500/10 text-emerald-300",
-                        isDel && "bg-rose-500/10 text-rose-300",
-                        !isAdd && !isDel && "text-zinc-300 hover:bg-secondary/20"
+                        isAdd && "bg-emerald-500/15 text-emerald-950 dark:bg-emerald-950/45 dark:text-emerald-200 border-l-2 border-emerald-600 dark:border-emerald-500 font-medium",
+                        isDel && "bg-rose-500/15 text-rose-950 dark:bg-rose-950/45 dark:text-rose-200 border-l-2 border-rose-600 dark:border-rose-500 font-medium",
+                        !isAdd && !isDel && "text-foreground dark:text-zinc-100 hover:bg-muted/40 border-l-2 border-transparent"
                       )}
                     >
-                      <span className="w-10 shrink-0 select-none px-1 text-right text-[10px] text-muted-foreground/60">
+                      <span className="w-10 shrink-0 select-none px-1 text-right text-[11px] font-mono font-medium text-muted-foreground">
                         {line.old_num !== null ? line.old_num : ""}
                       </span>
-                      <span className="w-10 shrink-0 select-none px-1 text-right text-[10px] text-muted-foreground/60 border-r border-border/30">
+                      <span className="w-10 shrink-0 select-none px-1 text-right text-[11px] font-mono font-medium text-muted-foreground border-r border-border/40">
                         {line.new_num !== null ? line.new_num : ""}
                       </span>
-                      <span className="w-5 shrink-0 select-none text-center font-bold">
+                      <span className={cn(
+                        "w-5 shrink-0 select-none text-center font-bold",
+                        isAdd ? "text-emerald-700 dark:text-emerald-400" : isDel ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground/40"
+                      )}>
                         {isAdd ? "+" : isDel ? "-" : " "}
                       </span>
-                      <span className="flex-1 whitespace-pre pr-2 overflow-x-auto select-text font-mono">
+                      <span className="flex-1 whitespace-pre pr-2 overflow-x-auto select-text font-mono font-normal">
                         {line.content || " "}
                       </span>
                     </div>
@@ -424,10 +437,10 @@ export function CodeDiffViewer({
 
           return (
             <div key={hIdx}>
-              <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/70 bg-secondary/80 px-3 py-1 text-[10px] text-muted-foreground font-semibold backdrop-blur">
-                <span>{hunk.header}</span>
+              <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/80 bg-secondary px-3 py-1.5 text-[11px] font-mono text-muted-foreground font-semibold backdrop-blur">
+                <span className="text-primary font-bold">{hunk.header}</span>
                 {hunk.context_hint && (
-                  <span className="truncate max-w-sm text-zinc-400 font-normal">
+                  <span className="truncate max-w-sm text-foreground/80 dark:text-zinc-300 font-medium">
                     {hunk.context_hint}
                   </span>
                 )}
@@ -444,13 +457,18 @@ export function CodeDiffViewer({
                       <div
                         className={cn(
                           "flex items-start overflow-x-auto",
-                          left?.type === "deletion" ? "bg-rose-500/10 text-rose-300" : "text-zinc-300"
+                          left?.type === "deletion"
+                            ? "bg-rose-500/15 text-rose-950 dark:bg-rose-950/45 dark:text-rose-200 border-l-2 border-rose-600 dark:border-rose-500 font-medium"
+                            : "text-foreground dark:text-zinc-100 border-l-2 border-transparent"
                         )}
                       >
-                        <span className="w-10 shrink-0 select-none px-1 text-right text-[10px] text-muted-foreground/60 border-r border-border/20">
+                        <span className="w-10 shrink-0 select-none px-1 text-right text-[11px] font-mono font-medium text-muted-foreground border-r border-border/30">
                           {left?.old_num !== null && left?.old_num !== undefined ? left.old_num : ""}
                         </span>
-                        <span className="w-4 shrink-0 select-none text-center font-bold">
+                        <span className={cn(
+                          "w-4 shrink-0 select-none text-center font-bold",
+                          left?.type === "deletion" ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground/30"
+                        )}>
                           {left?.type === "deletion" ? "-" : " "}
                         </span>
                         <span className="flex-1 whitespace-pre pr-2 select-text font-mono">
@@ -461,13 +479,18 @@ export function CodeDiffViewer({
                       <div
                         className={cn(
                           "flex items-start overflow-x-auto",
-                          right?.type === "addition" ? "bg-emerald-500/10 text-emerald-300" : "text-zinc-300"
+                          right?.type === "addition"
+                            ? "bg-emerald-500/15 text-emerald-950 dark:bg-emerald-950/45 dark:text-emerald-200 border-l-2 border-emerald-600 dark:border-emerald-500 font-medium"
+                            : "text-foreground dark:text-zinc-100 border-l-2 border-transparent"
                         )}
                       >
-                        <span className="w-10 shrink-0 select-none px-1 text-right text-[10px] text-muted-foreground/60 border-r border-border/20">
+                        <span className="w-10 shrink-0 select-none px-1 text-right text-[11px] font-mono font-medium text-muted-foreground border-r border-border/30">
                           {right?.new_num !== null && right?.new_num !== undefined ? right.new_num : ""}
                         </span>
-                        <span className="w-4 shrink-0 select-none text-center font-bold">
+                        <span className={cn(
+                          "w-4 shrink-0 select-none text-center font-bold",
+                          right?.type === "addition" ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground/30"
+                        )}>
                           {right?.type === "addition" ? "+" : " "}
                         </span>
                         <span className="flex-1 whitespace-pre pr-2 select-text font-mono">
@@ -511,10 +534,10 @@ export function CodeDiffViewer({
               return <h3 key={idx} className="text-xs font-semibold text-foreground mt-2">{line.slice(4)}</h3>;
             }
             if (line.startsWith("- ") || line.startsWith("* ")) {
-              return <div key={idx} className="flex items-start gap-1.5 pl-2"><span className="text-primary">•</span><span>{line.slice(2)}</span></div>;
+              return <div key={idx} className="flex items-start gap-1.5 pl-2"><span className="text-muted-foreground">•</span><span>{line.slice(2)}</span></div>;
             }
             if (line.startsWith("> ")) {
-              return <blockquote key={idx} className="border-l-2 border-primary/60 pl-2 text-muted-foreground italic text-[11px]">{line.slice(2)}</blockquote>;
+              return <blockquote key={idx} className="border-l-2 border-border pl-2.5 text-muted-foreground italic text-[11px]">{line.slice(2)}</blockquote>;
             }
             if (!line.trim()) {
               return <div key={idx} className="h-1.5" />;
@@ -527,16 +550,16 @@ export function CodeDiffViewer({
 
     // Syntax-highlighted code preview
     return (
-      <div className="p-2">
-        <Highlight code={reconstructedCode || "// Empty file"} language={language} theme={themes.vsDark}>
+      <div className="p-2 h-full overflow-auto">
+        <Highlight code={reconstructedCode || "// Empty file"} language={language} theme={isDarkTheme ? themes.vsDark : themes.vsLight}>
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
             <pre
-              className={`m-0 p-2 font-mono text-[11px] leading-[1.65] overflow-auto ${className}`}
-              style={{ ...style, background: "transparent" }}
+              className={`m-0 p-3 font-mono text-[11px] leading-[1.65] overflow-auto rounded-lg border border-border/80 ${className}`}
+              style={{ ...style, backgroundColor: isDarkTheme ? "#0d1117" : "#f8fafc" }}
             >
               {tokens.map((line, i) => (
                 <div key={i} {...getLineProps({ line })} className="table-row">
-                  <span className="table-cell select-none pr-4 text-right font-mono text-muted-foreground/40 text-[10px] tabular-nums">
+                  <span className="table-cell select-none pr-4 text-right font-mono text-muted-foreground text-[11px] tabular-nums font-medium">
                     {i + 1}
                   </span>
                   <span className="table-cell whitespace-pre select-text">
@@ -567,8 +590,8 @@ export function CodeDiffViewer({
             #{data.commit_hash?.slice(0, 8)}
           </span>
           <div className="flex items-center gap-1.5 text-xs font-mono font-semibold">
-            <span className="text-emerald-400">+{data.total_additions}</span>
-            <span className="text-rose-400">-{data.total_deletions}</span>
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold">+{data.total_additions}</span>
+            <span className="text-rose-700 dark:text-rose-400 font-bold">-{data.total_deletions}</span>
             <span className="text-muted-foreground font-normal">• {data.total_files} files</span>
           </div>
         </div>
@@ -576,115 +599,108 @@ export function CodeDiffViewer({
         <div className="flex items-center gap-1.5">
           {/* Mode Switcher */}
           <div role="tablist" aria-label="Diff view modes" className="flex items-center rounded-lg border border-border/80 bg-secondary/60 p-0.5 text-xs">
-            <button
+            <Button
               role="tab"
               aria-selected={viewMode === "inline"}
               aria-label="Unified single column diff"
+              size="xs"
+              variant={viewMode === "inline" ? "odysseyui" : "ghost"}
               onClick={() => setViewMode("inline")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                viewMode === "inline"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="gap-1.5 text-xs font-medium"
               title="Unified single column diff"
             >
               <AlignJustify className="h-3.5 w-3.5" />
               <span>Inline</span>
-            </button>
+            </Button>
 
             {/* Split & Resizable modes shown when in modal or explicitly toggled */}
             {isModal && (
               <>
-                <button
+                <Button
                   role="tab"
                   aria-selected={viewMode === "split"}
                   aria-label="Side-by-side comparison"
+                  size="xs"
+                  variant={viewMode === "split" ? "odysseyui" : "ghost"}
                   onClick={() => setViewMode("split")}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    viewMode === "split"
-                      ? "bg-card text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
+                  className="gap-1.5 text-xs font-medium"
                   title="Side-by-side comparison"
                 >
                   <Columns className="h-3.5 w-3.5" />
                   <span>Split</span>
-                </button>
-                <button
+                </Button>
+                <Button
                   role="tab"
                   aria-selected={viewMode === "resizable"}
                   aria-label="Split resizable mode"
+                  size="xs"
+                  variant={viewMode === "resizable" ? "odysseyui" : "ghost"}
                   onClick={() => setViewMode("resizable")}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    viewMode === "resizable"
-                      ? "bg-card text-primary shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-primary"
-                  )}
+                  className="gap-1.5 text-xs font-medium"
                   title="Split Resizable: Diff & Live Preview side-by-side"
                 >
                   <SplitSquareVertical className="h-3.5 w-3.5" />
                   <span>Resizable</span>
-                </button>
+                </Button>
               </>
             )}
 
-            <button
+            <Button
               role="tab"
               aria-selected={viewMode === "preview"}
               aria-label="Post-change file preview"
+              size="xs"
+              variant={viewMode === "preview" ? "odysseyui" : "ghost"}
               onClick={() => setViewMode("preview")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                viewMode === "preview"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="gap-1.5 text-xs font-medium"
               title="Post-change file preview"
             >
               <Eye className="h-3.5 w-3.5" />
               <span>Preview</span>
-            </button>
+            </Button>
           </div>
 
           {/* Copy Patch */}
-          <button
+          <Button
+            variant="outline"
+            size="icon-sm"
             onClick={handleCopyPatch}
-            className="rounded-md border border-border bg-secondary/50 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             title="Copy diff patch"
             aria-label="Copy diff patch"
           >
             {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-          </button>
+          </Button>
 
           {/* Copy Reconstructed Code */}
-          <button
+          <Button
+            variant="outline"
+            size="icon-sm"
             onClick={handleCopyCode}
-            className="rounded-md border border-border bg-secondary/50 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             title="Copy post-commit file content"
             aria-label="Copy file content"
           >
-            {copiedCode ? <Check className="h-4 w-4 text-emerald-400" /> : <Code2 className="h-4 w-4" />}
-          </button>
+            {copiedCode ? <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <Code2 className="h-4 w-4" />}
+          </Button>
 
           {/* Expand Modal / Pop-out */}
           {onExpand && !isModal && (
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={onExpand}
-              className="rounded-md border border-border bg-secondary/50 p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title="Expand into full modal view"
               aria-label="Expand diff viewer"
             >
               <Maximize2 className="h-4 w-4" />
-            </button>
+            </Button>
           )}
 
           {isModal && onClose && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onClose}
-              className="flex items-center gap-1.5 rounded-md border border-border/80 bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-1"
+              className="gap-1.5 ml-1"
               title="Close modal (Esc)"
               aria-label="Close modal diff viewer"
             >
@@ -693,7 +709,7 @@ export function CodeDiffViewer({
               <kbd className="hidden sm:inline-block rounded border border-border bg-card px-1 text-[9px] font-mono text-muted-foreground">
                 Esc
               </kbd>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -770,8 +786,8 @@ export function CodeDiffViewer({
                 <FileCode className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
                 <span className="truncate max-w-[130px] sm:max-w-[190px]">{fName}</span>
                 <span className="shrink-0 flex items-center gap-0.5 text-[10px] font-mono font-semibold">
-                  {file.additions > 0 && <span className="text-emerald-400 font-bold">+{file.additions}</span>}
-                  {file.deletions > 0 && <span className="text-rose-400 font-bold">-{file.deletions}</span>}
+                  {file.additions > 0 && <span className="text-emerald-700 dark:text-emerald-400 font-bold">+{file.additions}</span>}
+                  {file.deletions > 0 && <span className="text-rose-700 dark:text-rose-400 font-bold">-{file.deletions}</span>}
                 </span>
               </button>
             );
@@ -814,12 +830,12 @@ export function CodeDiffViewer({
                 {activeFile.path.split("/").pop()}
               </span>
             </div>
-            <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground font-semibold shrink-0">
+            <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.5 text-[11px] font-mono uppercase text-muted-foreground font-semibold shrink-0">
               {language}
             </span>
             <span className="text-xs font-mono shrink-0">
-              {activeFile.additions > 0 && <span className="text-emerald-400 font-bold">+{activeFile.additions} </span>}
-              {activeFile.deletions > 0 && <span className="text-rose-400 font-bold">-{activeFile.deletions}</span>}
+              {activeFile.additions > 0 && <span className="text-emerald-700 dark:text-emerald-400 font-bold">+{activeFile.additions} </span>}
+              {activeFile.deletions > 0 && <span className="text-rose-700 dark:text-rose-400 font-bold">-{activeFile.deletions}</span>}
             </span>
           </div>
 

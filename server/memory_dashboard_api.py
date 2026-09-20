@@ -988,27 +988,71 @@ def cmd_diff(project: Optional[str] = None, commit_hash: Optional[str] = None, i
         else:
             return {"available": False, "error": f"Commit record #{item_id} not found"}
 
-    if not commit_hash:
-        return {"available": False, "error": "No commit hash provided"}
+    if not commit_hash or commit_hash.strip().lower() in ("manual", "none", "null"):
+        return {
+            "available": False,
+            "project": project,
+            "commit_hash": commit_hash,
+            "error": "This entry was created as a manual milestone snapshot and does not map to a Git commit."
+        }
 
-    # Resolve local repository path
-    PROJECT_MAP = {
-        "portfolio": r"C:\Users\Pieter\portfolio",
-        "daschool": r"C:\Users\Pieter\daschool",
-        "workspace-agents": r"C:\Users\Pieter",
-    }
-    repo_dir = PROJECT_MAP.get(project or "")
+    # Resolve local repository path using REPO_PATHS, ROOT_DIR, and commit discovery
+    repo_dir = None
+
+    # 1. Direct match in REPO_PATHS (resolved from pitmry.config.json, env TRACKED_REPOS, and defaults)
+    if project and project in REPO_PATHS:
+        cand = REPO_PATHS[project]
+        if os.path.exists(os.path.join(cand, ".git")):
+            repo_dir = cand
+
+    # 2. Known aliases for current workspace (pitmry / memory-dashboard / pitmhs/pitmry)
+    if not repo_dir and (project in ("pitmry", "memory-dashboard", "pitmhs/pitmry") or not project):
+        if os.path.exists(os.path.join(ROOT_DIR, ".git")):
+            repo_dir = ROOT_DIR
+
+    # 3. Check workspace locations and sibling directories
+    if not repo_dir and project:
+        user_home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(user_home, "tools", project),
+            os.path.join(user_home, project),
+            os.path.join(ROOT_DIR, project),
+            os.path.join(os.path.dirname(ROOT_DIR), project),
+        ]
+        if os.path.basename(os.path.dirname(ROOT_DIR)) == "tools":
+            candidates.append(os.path.join(os.path.dirname(os.path.dirname(ROOT_DIR)), project))
+
+        for cand in candidates:
+            if cand and os.path.exists(os.path.join(cand, ".git")):
+                repo_dir = cand
+                break
+
+    # 4. Search across all known tracked repositories if commit_hash exists in any of them
+    if not repo_dir and commit_hash:
+        test_hash = commit_hash.split("..")[0].strip()
+        # Test ROOT_DIR first
+        if os.path.exists(os.path.join(ROOT_DIR, ".git")):
+            chk = subprocess.run(["git", "-C", ROOT_DIR, "cat-file", "-e", test_hash], capture_output=True, text=True)
+            if chk.returncode == 0:
+                repo_dir = ROOT_DIR
+
+        # Test other repositories in REPO_PATHS
+        if not repo_dir:
+            for p_name, p_path in REPO_PATHS.items():
+                if os.path.exists(os.path.join(p_path, ".git")):
+                    chk = subprocess.run(["git", "-C", p_path, "cat-file", "-e", test_hash], capture_output=True, text=True)
+                    if chk.returncode == 0:
+                        repo_dir = p_path
+                        break
+
     if not repo_dir or not os.path.exists(os.path.join(repo_dir, ".git")):
-        candidate = os.path.join(r"C:\Users\Pieter", project or "")
-        if os.path.exists(os.path.join(candidate, ".git")):
-            repo_dir = candidate
-        else:
-            return {
-                "available": False,
-                "project": project,
-                "commit_hash": commit_hash,
-                "error": f"Local git repository for '{project}' not found at {repo_dir or candidate}"
-            }
+        tracked_info = ", ".join(f"{k} -> {v}" for k, v in REPO_PATHS.items())
+        return {
+            "available": False,
+            "project": project,
+            "commit_hash": commit_hash,
+            "error": f"Local git repository for '{project}' not found. Tracked repositories: [{tracked_info}]"
+        }
 
     # Prepare git command
     raw_output = ""

@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { getDemoFallback } from "./demo-data";
 import { logServerEvent } from "@/lib/server-logger";
+import { clampLimitStr } from "@/lib/request-guard";
 
 const execFileAsync = promisify(execFile);
 
@@ -61,8 +62,8 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get("query");
   const itemType = searchParams.get("item_type") || "adr";
   const itemId = searchParams.get("item_id") || "1";
-  const limit = searchParams.get("limit") || "50";
-  const hops = searchParams.get("hops") || "3";
+  const limit = clampLimitStr(searchParams.get("limit"), "50");
+  const hops = clampLimitStr(searchParams.get("hops"), "3", 10);
   const commitHash = searchParams.get("commit") || searchParams.get("commit_hash");
 
   if (action === "readiness") {

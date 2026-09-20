@@ -3,11 +3,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Search, X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { MemoryItem } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (item: any) => void;
+  onSelect: (item: MemoryItem) => void;
 }
 
 function formatItemType(type?: string): string {
@@ -25,7 +27,7 @@ function formatItemType(type?: string): string {
 
 export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<MemoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -57,18 +59,26 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
       setResults([]);
       return;
     }
+    const controller = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true);
-      fetch(`/api/memory?action=feed&query=${encodeURIComponent(query)}&limit=8`)
+      fetch(`/api/memory?action=feed&query=${encodeURIComponent(query)}&limit=8`, {
+        signal: controller.signal,
+      })
         .then((res) => res.json())
         .then((data) => {
-          setResults(Array.isArray(data) ? data : []);
+          setResults(Array.isArray(data) ? (data as MemoryItem[]) : []);
           setLoading(false);
         })
-        .catch(() => setLoading(false));
+        .catch((err) => {
+          if (err?.name !== "AbortError") setLoading(false);
+        });
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   if (!open) return null;
@@ -96,14 +106,17 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
             placeholder="Search decisions, commits, and notes..."
             className="ml-3 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="flex items-center gap-1 rounded p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="text-muted-foreground hover:text-foreground"
             title="Close (Esc)"
             aria-label="Close search"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Results List */}

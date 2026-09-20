@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerLogs, logServerEvent, clearServerLogs } from "@/lib/server-logger"
+import { requireMutationAuth, clampLimit } from "@/lib/request-guard"
 import os from "os"
 import fs from "fs"
 import path from "path"
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const severity = searchParams.get("severity") || undefined
   const service = searchParams.get("service") || undefined
   const query = searchParams.get("query") || undefined
-  const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 50
+  const limit = clampLimit(searchParams.get("limit"), 50);
 
   const logs = getServerLogs({
     severity,
@@ -46,6 +47,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   try {
     const body = await request.json()
     if (!body.message) {
@@ -59,7 +62,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const denied = requireMutationAuth(request);
+  if (denied) return denied;
   const previousLogs = [...(global.__pitmry_logs__ || [])]
   clearServerLogs()
 

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { XIcon, Sparkles } from "lucide-react"
+import { XIcon, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -25,8 +25,8 @@ export interface ToastRichProps {
 }
 
 export function ToastRich({
-  Icon = Sparkles,
-  badgeTone = "bg-primary/15 text-primary",
+  Icon = Bell,
+  badgeTone = "bg-secondary text-foreground",
   title,
   body,
   meta = "just now",
@@ -84,8 +84,8 @@ export function ToastRich({
                 {actions.map((a) => (
                   <Button
                     key={a.label}
-                    size="sm"
-                    variant={a.primary ? "default" : "ghost"}
+                    size="xs"
+                    variant={a.primary ? "odysseyui" : "ghost"}
                     type="button"
                     onClick={() => {
                       a.onClick?.()
@@ -102,14 +102,16 @@ export function ToastRich({
         </div>
 
         {onDismiss && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             type="button"
             onClick={onDismiss}
             aria-label="Dismiss notification"
-            className="-mr-1 -mt-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none cursor-pointer"
+            className="-mr-1 -mt-1 text-muted-foreground hover:text-foreground"
           >
             <XIcon className="size-3.5" />
-          </button>
+          </Button>
         )}
       </div>
     </article>

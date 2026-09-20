@@ -5,9 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(timestamp: number) {
+export function formatDate(timestamp: number | string) {
   if (!timestamp) return "";
-  const d = new Date(timestamp);
+  const d = typeof timestamp === "number" ? new Date(timestamp) : new Date(timestamp);
+  if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",

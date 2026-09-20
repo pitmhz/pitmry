@@ -8,7 +8,6 @@ import {
   Check,
   X,
   ExternalLink,
-  Sparkles,
   ArrowRight,
   Database,
   GitBranch,
@@ -59,8 +58,8 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/70 bg-secondary/30 px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="rounded-lg bg-primary/10 border border-primary/25 p-2 text-primary">
-              <Sparkles className="h-5 w-5" />
+            <div className="rounded-lg bg-secondary border border-border/80 p-2 text-foreground">
+              <Database className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <h2 className="text-base font-bold text-foreground">
@@ -73,9 +72,12 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
               </p>
             </div>
           </div>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            className="flex items-center gap-1 rounded-md border border-border/70 bg-secondary/40 hover:bg-secondary px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="text-muted-foreground hover:text-foreground gap-1.5 h-8"
             title="Close dialog (Esc)"
             aria-label="Close dialog"
           >
@@ -84,7 +86,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
             <kbd className="hidden sm:inline-block rounded border border-border bg-card px-1 text-[9px] font-mono text-muted-foreground">
               Esc
             </kbd>
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -106,22 +108,25 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                     Bootstrap Python venv & LanceDB
                   </span>
                 </div>
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => handleCopy("pnpm setup", 1)}
-                  className="flex items-center gap-1 rounded border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  className="font-mono text-[11px] gap-1 h-6 px-2"
                 >
                   {copiedStep === 1 ? (
                     <>
-                      <Check className="h-3 w-3 text-primary" />
+                      <Check className="h-3 w-3 text-emerald-500" />
                       <span>Copied</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-3 w-3 opacity-70" />
                       <span>Copy</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed pl-7">
                 Automates virtual environment creation, installs <code className="font-mono text-foreground">lancedb</code>, <code className="font-mono text-foreground">onnxruntime</code>, bootstraps the SQLite schema, and indexes your git commits.
@@ -145,22 +150,25 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                     Track Your Local Git Repositories (Optional)
                   </span>
                 </div>
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => handleCopy("cp pitmry.config.example.json pitmry.config.json", 2)}
-                  className="flex items-center gap-1 rounded border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  className="font-mono text-[11px] gap-1 h-6 px-2"
                 >
                   {copiedStep === 2 ? (
                     <>
-                      <Check className="h-3 w-3 text-primary" />
+                      <Check className="h-3 w-3 text-emerald-500" />
                       <span>Copied</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-3 w-3 opacity-70" />
                       <span>Copy</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed pl-7">
                 By default, pitmry tracks the current repository. To monitor multiple repositories, copy <code className="font-mono text-foreground">pitmry.config.example.json</code> to <code className="font-mono text-foreground">pitmry.config.json</code> and list your workspace paths.
@@ -178,22 +186,25 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                     Verify Health & Launch
                   </span>
                 </div>
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => handleCopy("pnpm doctor", 3)}
-                  className="flex items-center gap-1 rounded border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  className="font-mono text-[11px] gap-1 h-6 px-2"
                 >
                   {copiedStep === 3 ? (
                     <>
-                      <Check className="h-3 w-3 text-primary" />
+                      <Check className="h-3 w-3 text-emerald-500" />
                       <span>Copied</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-3 w-3 opacity-70" />
                       <span>Copy</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed pl-7">
                 Run <code className="font-mono text-foreground">pnpm doctor</code> anytime to verify database integrity, vector tables, and repository bindings.
@@ -227,9 +238,15 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border/70 bg-secondary/30 px-6 py-3.5 text-xs">
           <span className="text-muted-foreground text-[11px]">
-            Ready to explore? Continue viewing sample data or run setup.
+            Continue viewing sample data or run setup to connect repositories.
           </span>
-          <Button onClick={onClose} size="sm" className="gap-1.5">
+          <Button
+            type="button"
+            variant="odysseyui"
+            onClick={onClose}
+            size="sm"
+            className="gap-1.5 font-semibold"
+          >
             <span>Explore Dashboard</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>

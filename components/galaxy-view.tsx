@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
-  Sparkles,
   AlertTriangle,
   Compass,
   RotateCcw,
@@ -32,6 +31,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { JourneyStep, JourneyResponse } from "./decision-journey";
 import { CodeDiffViewer } from "./code-diff-viewer";
 
@@ -153,6 +153,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
   const [isPlayingJourney, setIsPlayingJourney] = useState(false);
   const [activeJourneyStepIndex, setActiveJourneyStepIndex] = useState<number | null>(null);
   const [diffModalNode, setDiffModalNode] = useState<GalaxyNode | null>(null);
+  const galaxyAbortRef = useRef<AbortController | null>(null);
 
   // References to Three.js internal objects for runtime mutations
   const threeRef = useRef<{
@@ -169,10 +170,13 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
     animFrameId: number;
   } | null>(null);
 
-  // 1. Fetch Galaxy Data
+  // 1. Fetch Galaxy Data (abortable)
   const fetchGalaxyData = () => {
+    galaxyAbortRef.current?.abort();
+    const controller = new AbortController();
+    galaxyAbortRef.current = controller;
     setLoading(true);
-    fetch("/api/memory?action=galaxy")
+    fetch("/api/memory?action=galaxy", { signal: controller.signal })
       .then((res) => res.json())
       .then((resData: GalaxyData) => {
         if (resData && resData.nodes) {
@@ -186,6 +190,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
         setLoading(false);
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error("Failed to load galaxy data:", err);
         setLoading(false);
       });
@@ -193,6 +198,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
 
   useEffect(() => {
     fetchGalaxyData();
+    return () => galaxyAbortRef.current?.abort();
   }, []);
 
   // Recalculate dynamic anomalies based on threshold
@@ -513,7 +519,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
 
     animate();
 
-    // Cleanup
+    // Cleanup: dispose geometries/materials for every created GPU resource
     return () => {
       if (threeRef.current) {
         cancelAnimationFrame(threeRef.current.animFrameId);
@@ -521,9 +527,34 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
           threeRef.current.scene.remove(threeRef.current.journeyLine);
           threeRef.current.journeyLine.geometry.dispose();
           (threeRef.current.journeyLine.material as THREE.Material).dispose();
+          threeRef.current.journeyLine = null;
         }
+        threeRef.current.nodeMeshes.forEach((mesh) => {
+          mesh.geometry.dispose();
+          const mat = mesh.material as THREE.Material;
+          if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+          else mat.dispose();
+        });
+        threeRef.current.nodeMeshes.clear();
+        threeRef.current.pulseRings.forEach((ring) => {
+          ring.geometry.dispose();
+          (ring.material as THREE.Material).dispose();
+        });
+        if (threeRef.current.lineSegments) {
+          threeRef.current.lineSegments.geometry.dispose();
+          (threeRef.current.lineSegments.material as THREE.Material).dispose();
+          threeRef.current.scene.remove(threeRef.current.lineSegments);
+          threeRef.current.lineSegments = null;
+        }
+        scene.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (mesh.isMesh) {
+            mesh.geometry?.dispose?.();
+          }
+        });
         threeRef.current.controls.dispose();
         threeRef.current.renderer.dispose();
+        threeRef.current = null;
       }
       container.removeEventListener("mousemove", handlePointerMove);
       container.removeEventListener("click", handleClick);
@@ -792,55 +823,47 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
 
         {/* Filter Pills & Spotlight */}
         <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-card/85 p-1.5 backdrop-blur-md pointer-events-auto">
-          <button
+          <Button
+            type="button"
+            variant={typeFilter === null && !anomaliesOnly && selectedClusterId === null ? "odysseyui" : "ghost"}
+            size="xs"
             onClick={() => {
               setTypeFilter(null);
               setAnomaliesOnly(false);
               setSelectedClusterId(null);
             }}
-            className={cn(
-              "rounded px-2.5 py-1 text-[11px] font-medium transition-all",
-              typeFilter === null && !anomaliesOnly && selectedClusterId === null
-                ? "bg-primary text-primary-foreground font-semibold shadow"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            className="h-7 text-[11px]"
           >
             All items
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant={typeFilter === "adr" ? "odysseyui" : "ghost"}
+            size="xs"
             onClick={() => setTypeFilter(typeFilter === "adr" ? null : "adr")}
-            className={cn(
-              "rounded px-2 py-1 text-[11px] font-medium transition-all",
-              typeFilter === "adr"
-                ? "bg-secondary text-foreground font-semibold border border-border"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            className="h-7 text-[11px]"
           >
             Decisions
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant={typeFilter === "commit" ? "odysseyui" : "ghost"}
+            size="xs"
             onClick={() => setTypeFilter(typeFilter === "commit" ? null : "commit")}
-            className={cn(
-              "rounded px-2 py-1 text-[11px] font-medium transition-all",
-              typeFilter === "commit"
-                ? "bg-secondary text-foreground font-semibold border border-border"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            className="h-7 text-[11px]"
           >
             Commits
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant={anomaliesOnly ? "destructive" : "outline"}
+            size="xs"
             onClick={() => setAnomaliesOnly(!anomaliesOnly)}
-            className={cn(
-              "flex items-center gap-1 rounded px-2.5 py-1 text-[11px] font-semibold transition-all ml-auto",
-              anomaliesOnly
-                ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30"
-                : "border border-rose-500/40 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
-            )}
+            className="ml-auto gap-1 h-7 text-[11px] font-semibold"
           >
             <AlertTriangle className="h-3 w-3" />
             Show outliers
-          </button>
+          </Button>
         </div>
 
         {/* Topic Groups Quick Jump */}
@@ -931,25 +954,28 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
         </div>
 
         {/* Auto-Rotate Toggle */}
-        <button
+        <Button
+          type="button"
+          variant={autoRotate ? "odysseyui" : "outline"}
+          size="icon-sm"
           onClick={() => setAutoRotate(!autoRotate)}
-          className={cn(
-            "rounded-lg border border-border bg-card/90 p-2 text-xs backdrop-blur-md transition-colors",
-            autoRotate ? "text-primary border-primary/40" : "text-muted-foreground hover:text-foreground"
-          )}
+          className="backdrop-blur-md"
           title={autoRotate ? "Pause rotation" : "Start rotation"}
         >
           <Compass className="h-3.5 w-3.5" />
-        </button>
+        </Button>
 
         {/* Reset Camera */}
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
           onClick={resetCamera}
-          className="rounded-lg border border-border bg-card/90 p-2 text-xs text-muted-foreground hover:text-foreground backdrop-blur-md transition-colors"
+          className="backdrop-blur-md"
           title="Reset view"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </div>
 
       {/* 4. Hover Micro-Tooltip */}
@@ -994,57 +1020,53 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
                 {selectedNode.title}
               </h3>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setSelectedNode(null)}
-              className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
 
           {/* Drawer Tab Switcher */}
           <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-4 py-2">
             <div className="flex items-center gap-1 rounded-md border border-border bg-secondary/60 p-0.5">
-              <button
+              <Button
+                type="button"
+                variant={drawerTab === "overview" ? "odysseyui" : "ghost"}
+                size="xs"
                 onClick={() => {
                   setDrawerTab("overview");
                   setJourneyMode(false);
                 }}
-                className={cn(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  drawerTab === "overview"
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+                className="h-7 text-xs"
               >
                 Overview
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                variant={drawerTab === "journey" ? "odysseyui" : "ghost"}
+                size="xs"
                 onClick={() => {
                   setDrawerTab("journey");
                   setJourneyMode(true);
                 }}
-                className={cn(
-                  "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  drawerTab === "journey"
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+                className="h-7 text-xs gap-1.5"
               >
                 <Route className="h-3.5 w-3.5" />
                 <span>Decision Path</span>
-              </button>
+              </Button>
             </div>
 
             {drawerTab === "journey" && journeyChain.length > 0 && (
-              <button
+              <Button
+                type="button"
+                variant={isPlayingJourney ? "secondary" : "odysseyui"}
+                size="xs"
                 onClick={togglePlayJourney}
-                className={cn(
-                  "flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold transition-all shadow-xs",
-                  isPlayingJourney
-                    ? "bg-amber-500 text-black border-amber-500 hover:bg-amber-400"
-                    : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                )}
+                className="gap-1 h-7 text-[11px] font-semibold"
                 title="Play camera tour along each step"
               >
                 {isPlayingJourney ? (
@@ -1058,7 +1080,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
                     <span>Play tour</span>
                   </>
                 )}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -1334,13 +1356,16 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
               )}
             </div>
             {onSelectNode && (
-              <button
+              <Button
+                type="button"
+                variant="odysseyui"
+                size="xs"
                 onClick={() => onSelectNode(selectedNode.id, selectedNode.type)}
-                className="flex items-center gap-1 rounded bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                className="gap-1 h-7"
               >
-                Open in list
-                <ExternalLink className="h-3 w-3 ml-1" />
-              </button>
+                <span>Open in list</span>
+                <ExternalLink className="h-3 w-3 ml-0.5" />
+              </Button>
             )}
           </div>
         </div>

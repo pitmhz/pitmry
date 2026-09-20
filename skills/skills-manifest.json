@@ -43,6 +43,14 @@
       "description": "Clear, precise technical communication using ASD-STE100 principles.",
       "version": "1.0.0",
       "entry": "skills/simple-english/SKILL.md"
+    },
+    {
+      "name": "desktop-dashboard-ui",
+      "title": "Desktop Dashboard UI Design System & Typography",
+      "category": "Design",
+      "description": "Desktop-only responsive grid column system, sidebar adaptation, system typography, and WCAG standards.",
+      "version": "1.0.0",
+      "entry": "skills/desktop-dashboard-ui/SKILL.md"
     }
   ]
 }

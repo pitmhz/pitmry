@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tours-spotlight",
+  "type": "registry:component",
+  "title": "Spotlight",
+  "description": "Dynamic SVG cutout mask spotlight with pulsing ring and step-by-step guided focus.",
+  "files": [
+    {
+      "path": "components/tours/spotlight.tsx",
+      "type": "registry:component"
+    }
+  ],
+  "registryDependencies": [
+    "button"
+  ],
+  "dependencies": [
+    "lucide-react"
+  ]
+}

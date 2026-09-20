@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Clock, Database, RefreshCw, Server, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type Check = { status: string; message?: string; [key: string]: unknown };
 type Readiness = { version: number; status: "ready" | "degraded" | "critical"; checked_at: string; checks?: Record<string, Check>; error?: string };
@@ -45,7 +46,17 @@ export function TimelinesStatusPage({ className }: { className?: string }) {
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <button type="button" onClick={() => startTransition(() => { void fetchReadiness(); })} disabled={loading || isPending} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-xs disabled:opacity-50"><RefreshCw className={`size-3.5 ${loading || isPending ? "animate-spin" : ""}`} /> Refresh</button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => startTransition(() => { void fetchReadiness(); })}
+            disabled={loading || isPending}
+            className="font-mono text-xs gap-2"
+          >
+            <RefreshCw className={`size-3.5 ${loading || isPending ? "animate-spin text-primary" : ""}`} />
+            Refresh
+          </Button>
           {data?.checked_at && <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground"><Clock className="size-3" />{new Date(data.checked_at).toLocaleString()}</span>}
         </div>
       </header>

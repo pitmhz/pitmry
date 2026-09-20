@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Sparkles,
+  Blocks,
+  BookOpen,
+  SearchX,
   Terminal,
   Cpu,
   Code2,
@@ -23,9 +25,9 @@ import {
   RefreshCw,
   Sliders,
   ChevronRight,
-  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface SkillItem {
   name: string;
@@ -384,8 +386,8 @@ export function SkillsWorkspace() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 border border-primary/25 text-primary">
-                <Sparkles className="size-4" />
+              <div className="flex size-7 items-center justify-center rounded-lg bg-secondary border border-border/80 text-foreground">
+                <Blocks className="size-4 text-muted-foreground" />
               </div>
               <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 Skills &amp; Automations Hub
@@ -397,57 +399,48 @@ export function SkillsWorkspace() {
           </div>
 
           {/* Sub-view Navigation Switcher */}
-          <div role="tablist" aria-label="Hub tabs" className="flex items-center rounded-xl border border-border/80 bg-secondary/50 p-1 text-xs">
-            <button
+          <div role="tablist" aria-label="Hub tabs" className="flex items-center rounded-xl border border-border/80 bg-secondary/50 p-1 text-xs gap-1">
+            <Button
               role="tab"
               aria-selected={activeTab === "skills"}
+              variant={activeTab === "skills" ? "odysseyui" : "ghost"}
+              size="sm"
               onClick={() => setActiveTab("skills")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors cursor-pointer",
-                activeTab === "skills"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="gap-1.5 h-8 text-xs font-semibold"
             >
-              <Sparkles className="size-3.5" />
+              <BookOpen className="size-3.5" />
               <span>Skills Catalog</span>
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-mono text-primary font-bold">
+              <span className="rounded-full bg-secondary border border-border px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground font-semibold">
                 {skills.length}
               </span>
-            </button>
+            </Button>
 
-            <button
+            <Button
               role="tab"
               aria-selected={activeTab === "automations"}
+              variant={activeTab === "automations" ? "odysseyui" : "ghost"}
+              size="sm"
               onClick={() => setActiveTab("automations")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors cursor-pointer",
-                activeTab === "automations"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="gap-1.5 h-8 text-xs font-semibold"
             >
               <Code2 className="size-3.5" />
               <span>Python Studio</span>
               <span className="rounded-full bg-secondary px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground font-bold">
                 {scripts.length}
               </span>
-            </button>
+            </Button>
 
-            <button
+            <Button
               role="tab"
               aria-selected={activeTab === "machine"}
+              variant={activeTab === "machine" ? "odysseyui" : "ghost"}
+              size="sm"
               onClick={() => setActiveTab("machine")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors cursor-pointer",
-                activeTab === "machine"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="gap-1.5 h-8 text-xs font-semibold"
             >
               <Cpu className="size-3.5" />
               <span>Machine Config</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -494,13 +487,15 @@ export function SkillsWorkspace() {
               </div>
 
               {/* Create Skill Button */}
-              <button
+              <Button
+                variant="odysseyui"
+                size="sm"
                 onClick={() => setCreateModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-3.5 py-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                className="gap-1.5"
               >
                 <Plus className="size-3.5" />
                 <span>Create Custom Skill</span>
-              </button>
+              </Button>
             </div>
 
             {/* Path Banner */}
@@ -515,12 +510,14 @@ export function SkillsWorkspace() {
                   {scope}
                 </span>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={fetchSkills}
-                className="flex items-center gap-1 text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                className="text-primary hover:text-primary gap-1 font-medium h-7"
               >
                 <RefreshCw className="size-3" /> Refresh
-              </button>
+              </Button>
             </div>
 
             {/* Skills Grid */}
@@ -531,21 +528,22 @@ export function SkillsWorkspace() {
                 ))}
               </div>
             ) : filteredSkills.length === 0 ? (
-              <div className="rounded-xl border border-border/70 bg-secondary/10 p-12 text-center space-y-3">
-                <Sparkles className="size-8 text-muted-foreground/40 mx-auto" />
+              <div className="rounded-xl border border-border/70 bg-card p-12 text-center space-y-3">
+                <SearchX className="size-8 text-muted-foreground/40 mx-auto" />
                 <div className="text-sm font-semibold text-foreground">No skills match your filter</div>
                 <p className="text-xs text-muted-foreground max-w-md mx-auto">
                   Try clearing your search or create a new custom skill for your workflow.
                 </p>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setSearchQuery("");
                     setSelectedCategory("All");
                   }}
-                  className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary cursor-pointer"
                 >
                   Reset filters
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -554,37 +552,32 @@ export function SkillsWorkspace() {
                   return (
                     <div
                       key={skill.name}
-                      className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-card p-4 shadow-xs hover:border-primary/50 hover:shadow-md transition-all duration-150"
+                      className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-card p-4 transition-all duration-150 hover:border-primary/50 hover:shadow-md"
                     >
                       <div>
-                        {/* Top Meta Badges */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
-                            {skill.category}
-                          </span>
+                        {/* Header Badge */}
+                        <div className="flex items-center justify-between">
                           <span
                             className={cn(
-                              "font-mono text-[10px] uppercase font-semibold px-2 py-0.5 rounded border",
+                              "rounded px-2 py-0.5 text-[10px] font-mono uppercase font-bold tracking-wider",
                               isActive
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                : "bg-secondary text-muted-foreground border-border"
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                : "bg-secondary text-muted-foreground"
                             )}
                           >
-                            {isActive ? "Active" : "Bundled"}
+                            {skill.category}
+                          </span>
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            {skill.source}
                           </span>
                         </div>
 
-                        {/* Title & Slug */}
-                        <h3 className="mt-3 text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                          {skill.title}
+                        {/* Title & Desc */}
+                        <h3 className="mt-2.5 text-sm font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                          {skill.title || skill.name}
                         </h3>
-                        <div className="font-mono text-[11px] text-muted-foreground mt-0.5">
-                          {skill.name}
-                        </div>
-
-                        {/* Description */}
-                        <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                          {skill.description}
+                        <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {skill.description || "No description provided."}
                         </p>
                       </div>
 
@@ -593,13 +586,15 @@ export function SkillsWorkspace() {
                         <span className="text-[10px] font-mono text-muted-foreground">
                           {skill.file_count} file(s)
                         </span>
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="xs"
                           onClick={() => handleInspectSkill(skill)}
-                          className="flex items-center gap-1 rounded-md border border-border/80 bg-secondary/40 hover:bg-secondary px-2.5 py-1 text-xs font-semibold text-foreground transition-colors cursor-pointer"
+                          className="gap-1 font-semibold"
                         >
                           <span>Inspect &amp; Edit</span>
                           <ChevronRight className="size-3" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -693,35 +688,39 @@ export function SkillsWorkspace() {
 
                       <div className="flex items-center gap-2">
                         {selectedScript.has_backup && (
-                          <button
+                          <Button
+                            variant="outline"
+                            size="xs"
                             onClick={handleRevertScript}
-                            className="flex items-center gap-1 rounded-md border border-border/80 bg-secondary/40 hover:bg-secondary px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors cursor-pointer"
+                            className="gap-1 text-[11px]"
                             title="Revert to backup"
                           >
                             <RotateCcw className="size-3" />
                             <span>Revert .bak</span>
-                          </button>
+                          </Button>
                         )}
-                        <button
+                        <Button
+                          variant="odysseyui"
+                          size="xs"
                           onClick={handleSaveScript}
                           disabled={savingScript}
-                          className="flex items-center gap-1 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1 text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                          className="gap-1 text-[11px] font-semibold"
                         >
                           <Save className="size-3" />
                           <span>{savingScript ? "Saving..." : "Save Script"}</span>
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
                     {/* Feedback Messages */}
                     {scriptSaveError && (
-                      <div className="border-b border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-start gap-2">
+                      <div className="border-b border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 font-medium flex items-start gap-2">
                         <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                         <span className="whitespace-pre-wrap">{scriptSaveError}</span>
                       </div>
                     )}
                     {scriptSaveSuccess && (
-                      <div className="border-b border-emerald-500/40 bg-emerald-500/10 p-2.5 text-xs text-emerald-300 flex items-center gap-2">
+                      <div className="border-b border-emerald-500/40 bg-emerald-500/10 p-2.5 text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-2">
                         <Check className="size-4 shrink-0" />
                         <span>Script validated and saved successfully!</span>
                       </div>
@@ -738,7 +737,7 @@ export function SkillsWorkspace() {
                           value={scriptCode}
                           onChange={(e) => setScriptCode(e.target.value)}
                           rows={14}
-                          className="w-full bg-[#0d1117] p-4 font-mono text-xs text-zinc-200 leading-relaxed resize-y focus:outline-none"
+                          className="w-full bg-zinc-950/5 dark:bg-[#0d1117] p-4 font-mono text-xs text-zinc-900 dark:text-zinc-100 leading-relaxed resize-y focus:outline-none border-b border-border/80"
                           spellCheck={false}
                         />
                       )}
@@ -770,33 +769,35 @@ export function SkillsWorkspace() {
                             className="h-9 w-full rounded-lg border border-border/80 bg-card pl-48 pr-3 text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
-                        <button
+                        <Button
+                          variant="odysseyui"
+                          size="sm"
                           onClick={handleRunScript}
                           disabled={runningScript}
-                          className="flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                          className="gap-1.5 font-semibold shrink-0 h-9"
                         >
                           <Play className="size-3.5 fill-current" />
                           <span>{runningScript ? "Running..." : "Execute"}</span>
-                        </button>
+                        </Button>
                       </div>
 
                       {/* Console Output */}
                       {runResult && (
-                        <div className="rounded-lg border border-border bg-[#0d1117] p-3 space-y-2 text-xs font-mono">
-                          <div className="flex items-center justify-between border-b border-border/40 pb-1.5 text-[10px] text-muted-foreground">
+                        <div className="rounded-lg border border-border/80 bg-zinc-950 dark:bg-[#0d1117] p-3.5 space-y-2 text-xs font-mono shadow-2xs">
+                          <div className="flex items-center justify-between border-b border-border/40 pb-1.5 text-[11px] text-zinc-400">
                             <span className="flex items-center gap-1.5">
                               Status:{" "}
                               <strong
                                 className={
-                                  runResult.exit_code === 0 ? "text-emerald-400" : "text-rose-400"
+                                  runResult.exit_code === 0 ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"
                                 }
                               >
                                 {runResult.exit_code === 0 ? "EXIT 0 (Success)" : `EXIT ${runResult.exit_code} (Error)`}
                               </strong>
                             </span>
-                            <span>Duration: {runResult.duration_ms}ms</span>
+                            <span className="tabular-nums">Duration: {runResult.duration_ms}ms</span>
                           </div>
-                          <pre className="max-h-60 overflow-y-auto text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                          <pre className="max-h-60 overflow-y-auto text-zinc-100 whitespace-pre-wrap leading-relaxed selection:bg-primary/30">
                             {runResult.stdout || runResult.stderr || "Process completed with no output."}
                           </pre>
                         </div>
@@ -881,14 +882,16 @@ export function SkillsWorkspace() {
                     Injects <code className="font-mono">strategic-memory</code>, <code className="font-mono">memory-navigator</code>, and core skills into your active directory.
                   </p>
                 </div>
-                <button
+                <Button
+                  variant="odysseyui"
+                  size="sm"
                   onClick={handleSyncStarterSkills}
                   disabled={syncingSkills}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                  className="gap-1.5"
                 >
                   <RefreshCw className={cn("size-3.5", syncingSkills && "animate-spin")} />
                   <span>{syncingSkills ? "Syncing..." : "Sync Starter Skills"}</span>
-                </button>
+                </Button>
               </div>
 
               {syncMessage && (
@@ -919,19 +922,20 @@ export function SkillsWorkspace() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border/80 bg-secondary/30 px-6 py-4">
               <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-primary/10 border border-primary/20 p-1.5 text-primary">
-                  <Sparkles className="size-4" />
+                <div className="rounded-lg bg-secondary border border-border/80 p-1.5 text-foreground">
+                  <Plus className="size-4 text-muted-foreground" />
                 </div>
                 <h2 className="text-sm font-bold text-foreground">Create Custom Skill</h2>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => setCreateModalOpen(false)}
-                className="flex items-center gap-1 rounded-md border border-border/70 bg-secondary/40 hover:bg-secondary px-2 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="text-muted-foreground hover:text-foreground"
                 title="Close (Esc)"
               >
-                <X className="size-3.5" />
-                <span className="text-[10px] font-mono">Esc</span>
-              </button>
+                <X className="size-4" />
+              </Button>
             </div>
 
             {/* Form */}
@@ -942,33 +946,35 @@ export function SkillsWorkspace() {
                 </div>
               )}
 
-              {/* Slug */}
-              <div>
-                <label className="text-[11px] font-semibold text-foreground">
-                  Skill Slug (Folder Name) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newSkillName}
-                  onChange={(e) => setNewSkillName(e.target.value)}
-                  placeholder="e.g. cloudflare-deploy, test-suite"
-                  className="mt-1.5 h-9 w-full rounded-lg border border-border bg-secondary/30 px-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              {/* Title */}
-              <div>
-                <label className="text-[11px] font-semibold text-foreground">
-                  Display Title
-                </label>
-                <input
-                  type="text"
-                  value={newSkillTitle}
-                  onChange={(e) => setNewSkillTitle(e.target.value)}
-                  placeholder="e.g. Cloudflare Worker Deployer"
-                  className="mt-1.5 h-9 w-full rounded-lg border border-border bg-secondary/30 px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+              {/* Title & Slug */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground">Skill Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={newSkillTitle}
+                    onChange={(e) => {
+                      setNewSkillTitle(e.target.value);
+                      if (!newSkillName) {
+                        setNewSkillName(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+                      }
+                    }}
+                    placeholder="e.g. Git Release Automator"
+                    className="mt-1.5 h-9 w-full rounded-lg border border-border bg-secondary/30 px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground">Identifier (slug)</label>
+                  <input
+                    type="text"
+                    required
+                    value={newSkillName}
+                    onChange={(e) => setNewSkillName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"))}
+                    placeholder="e.g. git-release"
+                    className="mt-1.5 h-9 w-full rounded-lg border border-border bg-secondary/30 px-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
               </div>
 
               {/* Category */}
@@ -981,11 +987,9 @@ export function SkillsWorkspace() {
                 >
                   <option value="Workflow">Workflow</option>
                   <option value="Memory">Memory</option>
-                  <option value="Retrieval">Retrieval</option>
-                  <option value="Design">Design</option>
-                  <option value="DevOps">DevOps</option>
-                  <option value="Quality">Quality</option>
-                  <option value="Custom">Custom</option>
+                  <option value="Coding">Coding</option>
+                  <option value="Testing">Testing</option>
+                  <option value="Automation">Automation</option>
                 </select>
               </div>
 
@@ -1037,20 +1041,22 @@ export function SkillsWorkspace() {
 
               {/* Footer */}
               <div className="border-t border-border/80 pt-4 flex justify-end gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setCreateModalOpen(false)}
-                  className="rounded-lg border border-border bg-secondary/40 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="odysseyui"
+                  size="sm"
                   disabled={creatingSkill}
-                  className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {creatingSkill ? "Creating..." : "Create Skill"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1092,51 +1098,57 @@ export function SkillsWorkspace() {
 
               <div className="flex items-center gap-2">
                 {/* Preview vs Edit Toggle */}
-                <div className="flex items-center rounded-lg border border-border bg-secondary/60 p-0.5 text-xs">
-                  <button
+                <div className="flex items-center rounded-lg border border-border bg-secondary/60 p-0.5 text-xs gap-1">
+                  <Button
+                    type="button"
+                    variant={!isEditingSkill ? "odysseyui" : "ghost"}
+                    size="xs"
                     onClick={() => setIsEditingSkill(false)}
-                    className={cn(
-                      "rounded px-2.5 py-1 font-medium transition-colors cursor-pointer",
-                      !isEditingSkill ? "bg-card text-foreground font-bold shadow-xs" : "text-muted-foreground"
-                    )}
+                    className="h-7 text-xs"
                   >
                     Preview
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={isEditingSkill ? "odysseyui" : "ghost"}
+                    size="xs"
                     onClick={() => setIsEditingSkill(true)}
-                    className={cn(
-                      "rounded px-2.5 py-1 font-medium transition-colors cursor-pointer",
-                      isEditingSkill ? "bg-card text-foreground font-bold shadow-xs" : "text-muted-foreground"
-                    )}
+                    className="h-7 text-xs"
                   >
                     Edit Source
-                  </button>
+                  </Button>
                 </div>
 
                 {isEditingSkill && (
-                  <button
+                  <Button
+                    type="button"
+                    variant="odysseyui"
+                    size="xs"
                     onClick={handleSaveSkill}
                     disabled={savingSkill}
-                    className="flex items-center gap-1 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    className="gap-1 font-semibold h-7"
                   >
                     <Save className="size-3.5" />
                     <span>{savingSkill ? "Saving..." : "Save"}</span>
-                  </button>
+                  </Button>
                 )}
 
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => setInspectingSkill(null)}
-                  className="flex items-center gap-1 rounded-md border border-border/70 bg-secondary/40 hover:bg-secondary px-2 py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground"
                   title="Close (Esc)"
                 >
                   <X className="size-4" />
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Success Toast Banner */}
             {skillSaveSuccess && (
-              <div className="border-b border-emerald-500/40 bg-emerald-500/10 px-6 py-2 text-xs text-emerald-300 flex items-center gap-2 shrink-0">
+              <div className="border-b border-emerald-500/40 bg-emerald-500/10 px-6 py-2 text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-2 shrink-0">
                 <Check className="size-4" />
                 <span>Skill updated successfully!</span>
               </div>
@@ -1148,12 +1160,12 @@ export function SkillsWorkspace() {
                 <textarea
                   value={editingContent}
                   onChange={(e) => setEditingContent(e.target.value)}
-                  className="w-full h-full min-h-[400px] rounded-lg border border-border bg-[#0d1117] p-4 font-mono text-xs text-zinc-200 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-full min-h-[400px] rounded-lg border border-border/80 bg-zinc-950/5 dark:bg-[#0d1117] p-4 font-mono text-xs text-zinc-900 dark:text-zinc-100 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs"
                   spellCheck={false}
                 />
               ) : (
                 <div className="prose prose-invert prose-sm max-w-none space-y-4">
-                  <pre className="rounded-xl border border-border bg-secondary/20 p-4 font-mono text-xs text-foreground whitespace-pre-wrap leading-relaxed">
+                  <pre className="rounded-xl border border-border/80 bg-secondary/35 dark:bg-[#0d1117] p-4 font-mono text-xs text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap leading-relaxed shadow-2xs">
                     {skillContent || "No content found in SKILL.md"}
                   </pre>
                 </div>
