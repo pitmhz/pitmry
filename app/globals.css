@@ -24,6 +24,22 @@
   --ring: oklch(0.68 0.195 44 / 50%);
   --radius: 0.5rem;
 
+  /* Accent-derived memory-card interaction tokens. The card keeps normal
+     readable foregrounds while its surface moves through darker OKLCH tints
+     of the active palette accent. */
+  --card-hover-bg: color-mix(in oklch, var(--primary) 14%, var(--card));
+  --card-active-bg: color-mix(in oklch, var(--primary) 26%, var(--card));
+  --card-hover-fg: var(--foreground);
+  --card-active-fg: var(--foreground);
+  --card-hover-border: var(--primary);
+  --card-active-border: color-mix(in oklch, var(--primary) 88%, var(--foreground));
+  --card-hover-muted: var(--muted-foreground);
+  --card-active-muted: var(--muted-foreground);
+  --card-initials-bg: var(--primary);
+  --card-initials-fg: var(--primary-foreground);
+  --card-disabled-bg: color-mix(in oklch, var(--card) 82%, var(--muted));
+  --card-disabled-fg: var(--muted-foreground);
+
   /* Typographic Token System (Default: Balanced Scale 1.200 Minor Third) */
   --type-ratio: 1.200;
   --font-size-base: 0.875rem; /* 14px */
@@ -77,6 +93,18 @@
   --border: oklch(0.90 0.003 48.717);
   --input: oklch(0.90 0.003 48.717);
   --ring: oklch(0.553 0.195 38.402 / 50%);
+  --card-hover-bg: color-mix(in oklch, var(--primary) 9%, var(--card));
+  --card-active-bg: color-mix(in oklch, var(--primary) 18%, var(--card));
+  --card-hover-fg: var(--foreground);
+  --card-active-fg: var(--foreground);
+  --card-hover-border: var(--primary);
+  --card-active-border: color-mix(in oklch, var(--primary) 88%, var(--foreground));
+  --card-hover-muted: var(--muted-foreground);
+  --card-active-muted: var(--muted-foreground);
+  --card-initials-bg: var(--primary);
+  --card-initials-fg: var(--primary-foreground);
+  --card-disabled-bg: color-mix(in oklch, var(--card) 82%, var(--muted));
+  --card-disabled-fg: var(--muted-foreground);
   --sidebar: oklch(0.97 0.002 85);
   --sidebar-foreground: oklch(0.147 0.004 49.25);
   --sidebar-primary: oklch(0.553 0.195 38.402);
@@ -254,6 +282,85 @@ html[data-text-rendering="grayscale"] body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
     gap: 0.875rem;
+  }
+
+  /* Interactive cards invert surface and text together. The inset border
+     remains visible when the card background changes, including keyboard focus. */
+  .memory-card {
+    --memory-card-bg: var(--card);
+    --memory-card-fg: var(--card-foreground);
+    --memory-card-muted: var(--muted-foreground);
+    --memory-card-border: var(--border);
+    --memory-card-initials-bg: var(--card-initials-bg);
+    --memory-card-initials-fg: var(--card-initials-fg);
+    background-color: var(--memory-card-bg);
+    color: var(--memory-card-fg);
+    border-color: var(--memory-card-border);
+  }
+
+  .memory-card:hover,
+  .memory-card:focus-visible {
+    --memory-card-bg: var(--card-hover-bg);
+    --memory-card-fg: var(--card-hover-fg);
+    --memory-card-muted: var(--card-hover-muted);
+    --memory-card-border: var(--card-hover-border);
+    background-color: var(--memory-card-bg);
+    color: var(--memory-card-fg);
+    border-color: var(--memory-card-border);
+    box-shadow: inset 0 0 0 1px var(--memory-card-border), 0 8px 24px color-mix(in oklch, var(--primary) 12%, transparent);
+  }
+
+  .memory-card[data-active="true"],
+  .memory-card:active {
+    --memory-card-bg: var(--card-active-bg);
+    --memory-card-fg: var(--card-active-fg);
+    --memory-card-muted: var(--card-active-muted);
+    --memory-card-border: var(--card-active-border);
+    background-color: var(--memory-card-bg);
+    color: var(--memory-card-fg);
+    border-color: var(--memory-card-border);
+    box-shadow: inset 0 0 0 1px var(--memory-card-border), 0 8px 24px color-mix(in oklch, var(--primary) 18%, transparent);
+  }
+
+  .memory-card[aria-disabled="true"],
+  .memory-card[data-inactive="true"] {
+    --memory-card-bg: var(--card-disabled-bg);
+    --memory-card-fg: var(--card-disabled-fg);
+    --memory-card-muted: var(--card-disabled-fg);
+    --memory-card-border: color-mix(in oklch, var(--border) 72%, transparent);
+    --memory-card-initials-bg: color-mix(in oklch, var(--muted-foreground) 24%, var(--card));
+    --memory-card-initials-fg: var(--muted-foreground);
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+
+  .memory-card[aria-disabled="true"]:hover,
+  .memory-card[data-inactive="true"]:hover {
+    box-shadow: none;
+  }
+
+  .memory-card__muted {
+    color: var(--memory-card-muted);
+  }
+
+  .memory-card__initials {
+    background-color: var(--memory-card-initials-bg);
+    color: var(--memory-card-initials-fg);
+  }
+
+  .memory-card__subtle {
+    background-color: color-mix(in oklch, var(--memory-card-bg) 88%, var(--memory-card-fg));
+    color: var(--memory-card-fg);
+  }
+
+  .memory-card__divider {
+    border-color: color-mix(in oklch, var(--memory-card-fg) 24%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .memory-card {
+      transition: none !important;
+    }
   }
 }
 

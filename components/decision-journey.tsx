@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import type { MemoryItemType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
 export interface JourneyNode {
@@ -61,11 +62,11 @@ interface DecisionJourneyProps {
   item: {
     id: string;
     numeric_id: number;
-    type: "adr" | "commit" | "grill";
+    type: MemoryItemType;
     title?: string;
     project?: string;
   };
-  onSelectNode: (id: string, type: "adr" | "commit" | "grill") => void;
+  onSelectNode: (id: string, type: MemoryItemType) => void;
 }
 
 export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {

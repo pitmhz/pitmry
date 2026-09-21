@@ -14,6 +14,11 @@ export interface BackendNotification {
   unread: boolean
   createdAt: number
   undoActionId?: string
+  // Optional deep-link to a memory record for Inspect actions
+  item_id?: number
+  itemId?: number
+  item_type?: "adr" | "commit" | "grill"
+  project?: string
 }
 
 // Global notification queue surviving hot reloads

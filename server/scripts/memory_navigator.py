@@ -31,6 +31,15 @@ DEFAULT_LANCE_DIR = os.getenv("LANCEDB_DIR", os.path.expanduser(r"~\.strategic_m
 DEFAULT_GIT_FLOW_DIR = os.path.expanduser(r"~\.agents\skills\cavemem\memory\git-flow")
 DEFAULT_SESSIONS_DIR = os.path.expanduser(r"~\docs\sessions")
 
+# LanceDB nearest-neighbour search always returns the closest rows, even when
+# nothing is related. On this corpus, unrelated questions score about 0.61 in
+# normalized similarity (raw cosine ~0.22) while genuine matches score 0.68 and
+# above. Without a floor the navigator answers every question with confident
+# looking noise, so "no result" is impossible. Vector-only hits below the floor
+# are dropped; lexical hits are kept because a substring match is real evidence.
+# Set MEMORY_MIN_SIMILARITY=0 (or pass --min-score 0) to disable the floor.
+DEFAULT_MIN_SIMILARITY = float(os.getenv("MEMORY_MIN_SIMILARITY", "0.66"))
+
 # Re-use existing local embedder
 SCRIPTS_DIR = Path(__file__).resolve().parent
 SERVER_DIR = SCRIPTS_DIR.parent
@@ -146,8 +155,22 @@ def cmd_status(as_json: bool = False) -> Dict[str, Any]:
     except Exception:
         embedder_ok = False
 
+    # The worker embeds new observations. When it stops, memory still gets
+    # written but can no longer be found by semantic search, so status reports
+    # it instead of silently reporting success.
+    worker_info = None
+    try:
+        import ensure_worker as watchdog
+        worker_info = watchdog.check()
+    except Exception as exc:
+        worker_info = {"healthy": False, "error": str(exc), "unhealthy_reasons": [str(exc)]}
+
+    status_ok = sqlite_ok and lance_ok and integrity_status == "ok"
+    if worker_info is not None and not worker_info.get("healthy"):
+        status_ok = False
+
     data = {
-        "status": "operational" if (sqlite_ok and lance_ok and integrity_status == "ok") else "degraded",
+        "status": "operational" if status_ok else "degraded",
         "embedder": {
             "model": embedder_model,
             "operational": embedder_ok,
@@ -171,6 +194,12 @@ def cmd_status(as_json: bool = False) -> Dict[str, Any]:
         "storage_dirs": {
             "git_flow_logs": DEFAULT_GIT_FLOW_DIR,
             "session_docs": DEFAULT_SESSIONS_DIR
+        },
+        "embedding_worker": worker_info,
+        "retrieval": {
+            "relevance_floor": DEFAULT_MIN_SIMILARITY,
+            "note": ("Vector hits below the floor are discarded so an unrelated "
+                     "question can return no results.")
         }
     }
 
@@ -182,6 +211,19 @@ def cmd_status(as_json: bool = False) -> Dict[str, Any]:
     print("================================================================================")
     print(f"Overall Status   : {data['status'].upper()}")
     print(f"Local Embedder   : {embedder_model} (Available: {embedder_ok})")
+    if worker_info is not None:
+        worker_age = worker_info.get("heartbeat_age_ms")
+        worker_age_text = (f"{round(worker_age / 1000)}s" if worker_age is not None
+                           else "never recorded")
+        print(f"Embedding Worker : {'HEALTHY' if worker_info.get('healthy') else 'DEGRADED'}"
+              f" (heartbeat {worker_age_text} ago)")
+        unembedded = worker_info.get("unembedded_observations")
+        if unembedded:
+            print(f"  ! {unembedded} observation(s) have no embedding and cannot be found "
+                  f"semantically. Run: python ensure_worker.py --ensure")
+        for reason in worker_info.get("unhealthy_reasons") or []:
+            print(f"  ! worker: {reason}")
+    print(f"Relevance Floor  : {DEFAULT_MIN_SIMILARITY:.2f} (vector hits below it are discarded)")
     print(f"LanceDB Path     : {DEFAULT_LANCE_DIR}")
     print(f"LanceDB Vectors  : {total_vectors} vectors across {len(lance_tables)} table(s)")
     for t, cnt in lance_tables.items():
@@ -251,10 +293,14 @@ def cmd_search(
     project: Optional[str] = None,
     record_type: Optional[str] = None,
     limit: int = 5,
-    as_json: bool = False
+    as_json: bool = False,
+    min_similarity: Optional[float] = None
 ) -> List[Dict[str, Any]]:
     """Performs hybrid semantic and keyword search with progressive ranking."""
     cleaned_query = distill_query(query)
+    floor = DEFAULT_MIN_SIMILARITY if min_similarity is None else min_similarity
+    filtered_below_floor = 0
+    best_filtered_similarity = 0.0
     
     embedder = LocalEmbedder() if LocalEmbedder else None
     query_vec = embedder.embed(cleaned_query) if embedder else None
@@ -268,10 +314,11 @@ def cmd_search(
             table_map = [
                 ("adrs", "adr", "title", "decision", "rationale"),
                 ("git_digests", "commit", "summary", "summary", "rationale"),
-                ("grill_me_logs", "grill", "topic", "resolved_direction", "key_takeaways")
+                ("grill_me_logs", "grill", "topic", "resolved_direction", "key_takeaways"),
+                ("recovery_records", None, "title", "content", "content")
             ]
             for tbl_name, itype, title_col, primary_col, rationale_col in table_map:
-                if record_type and record_type != itype:
+                if record_type and itype and record_type != itype:
                     continue
                 if tbl_name in get_lance_table_names(ldb):
                     tbl = ldb.open_table(tbl_name)
@@ -281,13 +328,23 @@ def cmd_search(
                             q = q.where(f"project = '{project}'")
                         hits = q.limit(limit * 2).to_list()
                         for h in hits:
+                            hit_type = h.get("record_type") or itype
+                            if record_type and record_type != hit_type:
+                                continue
                             dist = float(h.get("_distance", 1.0))
                             sim = max(0.01, min(1.0, 1.0 - (dist / 2.0)))
-                            rec_id = f"{itype}-{h.get('id')}"
+                            if sim < floor:
+                                # Nearest neighbour is not relevance. Drop it.
+                                filtered_below_floor += 1
+                                best_filtered_similarity = max(best_filtered_similarity, sim)
+                                continue
+                            rec_id = h.get("id") if tbl_name == "recovery_records" else f"{hit_type}-{h.get('id')}"
+                            raw_id = str(h.get("id"))
+                            numeric_id = int(raw_id.rsplit("-", 1)[-1]) if raw_id.rsplit("-", 1)[-1].isdigit() else None
                             results[rec_id] = {
                                 "id": rec_id,
-                                "numeric_id": h.get("id"),
-                                "type": itype,
+                                "numeric_id": numeric_id if tbl_name == "recovery_records" else h.get("id"),
+                                "type": hit_type,
                                 "project": h.get("project", "workspace"),
                                 "title": h.get(title_col, ""),
                                 "primary_text": h.get(primary_col, ""),
@@ -295,10 +352,13 @@ def cmd_search(
                                 "tags": h.get("tags", "") or h.get("files_changed", ""),
                                 "timestamp": h.get("timestamp", ""),
                                 "score": round(sim, 4),
-                                "source": "vector"
+                                "source": "vector",
+                                "score_components": {"semantic": round(sim, 4), "keyword": 0.0},
+                                "indexed_at": h.get("indexed_at", h.get("timestamp", "")),
+                                "related_ids": [x for x in (h.get("related_ids", "") or "").split(",") if x]
                             }
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"LanceDB vector search failed: {exc}", file=sys.stderr)
 
     # 2. SQLite Keyword Search (FTS5 / LIKE fallback)
     if os.path.exists(DEFAULT_CAVEMEM_DB):
@@ -306,6 +366,19 @@ def cmd_search(
             conn = get_sqlite_conn()
             cur = conn.cursor()
             words = [w for w in cleaned_query.split() if len(w) > 2]
+
+            def merge_keyword(item: Dict[str, Any], keyword_score: float = 0.65):
+                existing = results.get(item["id"])
+                if not existing:
+                    item["score"] = keyword_score
+                    item["source"] = "keyword"
+                    item["score_components"] = {"semantic": 0.0, "keyword": keyword_score}
+                    results[item["id"]] = item
+                    return
+                semantic_score = existing.get("score_components", {}).get("semantic", existing["score"])
+                existing["score"] = round((semantic_score * 0.7) + (keyword_score * 0.3), 4)
+                existing["source"] = "hybrid"
+                existing["score_components"] = {"semantic": round(semantic_score, 4), "keyword": keyword_score}
 
             # Search ADRs
             if not record_type or record_type == "adr":
@@ -398,7 +471,7 @@ def cmd_search(
                     params.append(limit)
                     for r in cur.execute(sql, params).fetchall():
                         rid = f"summary-{r['id']}"
-                        results[rid] = {"id": rid, "numeric_id": r["id"], "type": "summary", "project": r["project_key"], "title": f"{r['scope'].title()} summary", "primary_text": r["content"], "rationale": "Automatically captured session summary", "tags": r["session_id"], "timestamp": str(r["ts"]), "score": 0.72, "source": "keyword"}
+                        merge_keyword({"id": rid, "numeric_id": r["id"], "type": "summary", "project": r["project_key"], "title": f"{r['scope'].title()} summary", "primary_text": r["content"], "rationale": "Automatically captured session summary", "tags": r["session_id"], "timestamp": str(r["ts"])}, 0.65)
                 if table_exists(conn, "checkpoints") and (not record_type or record_type == "checkpoint"):
                     sql = f"SELECT id,session_id,project_key,trigger,content,ts FROM checkpoints WHERE ({match_any})"
                     params = list(word_params)
@@ -409,7 +482,7 @@ def cmd_search(
                     params.append(limit)
                     for r in cur.execute(sql, params).fetchall():
                         rid = f"checkpoint-{r['id']}"
-                        results[rid] = {"id": rid, "numeric_id": r["id"], "type": "checkpoint", "project": r["project_key"], "title": f"Compaction checkpoint ({r['trigger']})", "primary_text": r["content"], "rationale": "Deterministic context recovery capsule", "tags": r["session_id"], "timestamp": str(r["ts"]), "score": 0.82, "source": "keyword"}
+                        merge_keyword({"id": rid, "numeric_id": r["id"], "type": "checkpoint", "project": r["project_key"], "title": f"Compaction checkpoint ({r['trigger']})", "primary_text": r["content"], "rationale": "Deterministic context recovery capsule", "tags": r["session_id"], "timestamp": str(r["ts"])}, 0.65)
                 if table_exists(conn, "memory_items") and (not record_type or record_type == "memory"):
                     sql = f"SELECT id,project_key,kind,title,content,updated_at FROM memory_items WHERE ({match_any})"
                     params = list(word_params)
@@ -420,13 +493,22 @@ def cmd_search(
                     params.append(limit)
                     for r in cur.execute(sql, params).fetchall():
                         rid = f"memory-{r['id']}"
-                        results[rid] = {"id": rid, "numeric_id": r["id"], "type": "memory", "project": r["project_key"], "title": r["title"], "primary_text": r["content"], "rationale": f"Promoted {r['kind']}", "tags": r["kind"], "timestamp": str(r["updated_at"]), "score": 0.85, "source": "keyword"}
+                        merge_keyword({"id": rid, "numeric_id": r["id"], "type": "memory", "project": r["project_key"], "title": r["title"], "primary_text": r["content"], "rationale": f"Promoted {r['kind']}", "tags": r["kind"], "timestamp": str(r["updated_at"])}, 0.65)
 
             conn.close()
         except Exception:
             pass
 
     # Sort descending by score
+    # A promoted checkpoint memory is a related representation of the same
+    # recovery capsule. Keep the checkpoint as the canonical result.
+    for item in list(results.values()):
+        for related_id in item.get("related_ids", []):
+            related = results.get(related_id)
+            if related:
+                item["score"] = max(item["score"], related["score"])
+                item["source"] = "hybrid" if item["source"] != related["source"] else item["source"]
+                results.pop(related_id, None)
     sorted_items = sorted(results.values(), key=lambda x: x["score"], reverse=True)[:limit]
 
     if as_json:
@@ -437,10 +519,23 @@ def cmd_search(
     if cleaned_query != query:
         print(f" Distilled Query    : '{cleaned_query}'")
     print(f" Matches Found      : {len(sorted_items)}")
+    if floor > 0:
+        dropped = (f" ({filtered_below_floor} vector hit(s) dropped below it)"
+                   if filtered_below_floor else "")
+        print(f" Relevance Floor    : {floor:.2f}{dropped}")
     print("================================================================================")
 
     if not sorted_items:
-        print("No matching records found. Try broader technical keywords or check --status.")
+        if filtered_below_floor:
+            message = (
+                f"No relevant memory found. {filtered_below_floor} vector hit(s) were "
+                f"dropped: the best scored {best_filtered_similarity:.3f}, below the "
+                f"{floor:.2f} relevance floor. Lower it with --min-score if you expect "
+                f"a weak match."
+            )
+        else:
+            message = "No matching records found. Try broader technical keywords or check --status."
+        print(message, file=sys.stderr if as_json else sys.stdout)
         return []
 
     for item in sorted_items:
@@ -622,6 +717,16 @@ def main():
     # Status
     p_status = subparsers.add_parser("status", help="Inspect database paths, health, and counts")
     p_status.add_argument("--json", action="store_true", help="Output JSON")
+    p_status.add_argument("--fix", action="store_true",
+                          help="Start the embedding worker when its heartbeat is stale")
+
+    # Worker watchdog
+    p_worker = subparsers.add_parser("worker", help="Check or start the Cavemem embedding worker")
+    p_worker.add_argument("--ensure", action="store_true",
+                          help="Start the worker when the heartbeat is stale")
+    p_worker.add_argument("--wait", type=float, default=12.0,
+                          help="Seconds to wait for a fresh heartbeat")
+    p_worker.add_argument("--json", action="store_true", help="Output JSON")
 
     # Schema
     p_schema = subparsers.add_parser("schema", help="Inspect dynamic database table schemas")
@@ -633,6 +738,8 @@ def main():
     p_search.add_argument("--project", "-p", default=None, help="Filter by project name")
     p_search.add_argument("--type", "-t", choices=["adr", "commit", "grill", "observation", "summary", "checkpoint", "memory"], default=None, help="Filter by type")
     p_search.add_argument("--limit", "-l", type=int, default=5, help="Max results (default 5)")
+    p_search.add_argument("--min-score", type=float, default=None,
+                          help=f"Relevance floor for vector hits (default {DEFAULT_MIN_SIMILARITY}); 0 disables")
     p_search.add_argument("--json", action="store_true", help="Output JSON")
 
     # Inspect
@@ -654,9 +761,34 @@ def main():
     args = parser.parse_args()
 
     if args.command == "status" or args.status:
+        if getattr(args, "fix", False):
+            try:
+                import ensure_worker as watchdog
+                worker_report = watchdog.ensure(wait_s=12)
+                if not args.json:
+                    print(watchdog.format_text(worker_report))
+                    print()
+            except Exception as exc:
+                print(f"Worker watchdog unavailable: {exc}", file=sys.stderr)
         res = cmd_status(as_json=args.json)
         if args.json:
             print(json.dumps(res, indent=2))
+    elif args.command == "worker":
+        try:
+            import ensure_worker as watchdog
+            report = (watchdog.ensure(wait_s=getattr(args, "wait", 12.0))
+                      if getattr(args, "ensure", False) else watchdog.check())
+            if args.json:
+                print(json.dumps(report, indent=2))
+            else:
+                print(watchdog.format_text(report))
+            if not report.get("healthy"):
+                sys.exit(1 if report.get("action") not in ("recovered",) else 0)
+        except SystemExit:
+            raise
+        except Exception as exc:
+            print(f"Worker watchdog failed: {exc}", file=sys.stderr)
+            sys.exit(2)
     elif args.command == "schema" or args.schema:
         res = cmd_schema(as_json=args.json)
         if args.json:
@@ -667,7 +799,8 @@ def main():
             project=args.project,
             record_type=args.type,
             limit=args.limit,
-            as_json=args.json
+            as_json=args.json,
+            min_similarity=getattr(args, "min_score", None)
         )
         if args.json:
             print(json.dumps(res, indent=2))

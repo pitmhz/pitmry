@@ -84,6 +84,7 @@ export function SkillsWorkspace() {
   const [scripts, setScripts] = useState<AutomationScript[]>([]);
   const [scriptsLoading, setScriptsLoading] = useState(false);
   const [selectedScript, setSelectedScript] = useState<AutomationScript | null>(null);
+  const selectedScriptRef = React.useRef<AutomationScript | null>(null);
   const [scriptCode, setScriptCode] = useState<string>("");
   const [codeLoading, setCodeLoading] = useState(false);
   const [savingScript, setSavingScript] = useState(false);
@@ -122,8 +123,33 @@ export function SkillsWorkspace() {
     }
   };
 
+  // Select Automation Script
+  const handleSelectScript = async (script: AutomationScript) => {
+    setSelectedScript(script);
+    selectedScriptRef.current = script;
+    await loadScriptCode(script);
+  };
+
+  const loadScriptCode = async (script: AutomationScript) => {
+    setCodeLoading(true);
+    setScriptSaveError(null);
+    setScriptSaveSuccess(false);
+    setRunResult(null);
+    try {
+      const res = await fetch(`/api/automations?script=${encodeURIComponent(script.name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setScriptCode(data.code || "");
+      }
+    } catch (e) {
+      console.error("Error reading script:", e);
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
   // Fetch Automations
-  const fetchScripts = async () => {
+  const fetchScripts = async (preselect = true) => {
     setScriptsLoading(true);
     try {
       const res = await fetch("/api/automations");
@@ -131,8 +157,12 @@ export function SkillsWorkspace() {
         const data = await res.json();
         const scriptList: AutomationScript[] = data.scripts || [];
         setScripts(scriptList);
-        if (scriptList.length > 0 && !selectedScript) {
-          handleSelectScript(scriptList[0]);
+        if (preselect && scriptList.length > 0) {
+          setSelectedScript((prev) => prev ?? scriptList[0]);
+          if (!selectedScriptRef.current) {
+            selectedScriptRef.current = scriptList[0];
+            void loadScriptCode(scriptList[0]);
+          }
         }
       }
     } catch (err) {
@@ -240,26 +270,6 @@ export function SkillsWorkspace() {
     }
   };
 
-  // Select Automation Script
-  const handleSelectScript = async (script: AutomationScript) => {
-    setSelectedScript(script);
-    setCodeLoading(true);
-    setScriptSaveError(null);
-    setScriptSaveSuccess(false);
-    setRunResult(null);
-    try {
-      const res = await fetch(`/api/automations?script=${encodeURIComponent(script.name)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setScriptCode(data.code || "");
-      }
-    } catch (e) {
-      console.error("Error reading script:", e);
-    } finally {
-      setCodeLoading(false);
-    }
-  };
-
   // Save Automation Script
   const handleSaveScript = async () => {
     if (!selectedScript) return;
@@ -281,7 +291,7 @@ export function SkillsWorkspace() {
       } else {
         setScriptSaveSuccess(true);
         setTimeout(() => setScriptSaveSuccess(false), 3000);
-        fetchScripts();
+        void fetchScripts(false);
       }
     } catch (err: any) {
       setScriptSaveError(err.message || "Failed to save script");
@@ -304,7 +314,7 @@ export function SkillsWorkspace() {
       });
       if (res.ok) {
         handleSelectScript(selectedScript);
-        fetchScripts();
+        void fetchScripts(false);
       }
     } catch (e) {
       console.error("Error reverting script:", e);

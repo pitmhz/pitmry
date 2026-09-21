@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import React, { useDeferredValue, useEffect, useState, useRef } from "react";
-import type { MemoryItem, MemorySummary, TagCount } from "@/lib/types";
+import type { MemoryItem, MemorySummary, TagCount, MemoryItemType } from "@/lib/types";
+import { formatItemType } from "@/lib/types";
 import {
   Search,
   Network,
@@ -89,17 +90,42 @@ export type ViewMode =
   | "skills"
   | "logs";
 
-function formatItemType(type?: string): string {
-  switch (type) {
-    case "adr":
-      return "Decision";
-    case "commit":
-      return "Commit";
-    case "grill":
-      return "Discussion";
-    default:
-      return type || "Item";
-  }
+const VIEW_META: Record<ViewMode, { label: string; title: string; description: string }> = {
+  stream: {
+    label: "all-projects",
+    title: "Operational memory stream",
+    description: "Unified architectural decision records, semantic git digests, and discussions.",
+  },
+  deploys: {
+    label: "deploys",
+    title: "Deploy and commit history",
+    description: "Track git commits, active branches, and code changes across your projects.",
+  },
+  activity: {
+    label: "activity",
+    title: "Recent activity",
+    description: "A timeline of saved decisions, git commits, and design discussions.",
+  },
+  status: {
+    label: "status",
+    title: "Memory readiness",
+    description: "Live evidence that memories are stored, embedded, recoverable, and available.",
+  },
+  graph: { label: "graph", title: "Knowledge graph", description: "Explore relationships across your memory records." },
+  galaxy: { label: "galaxy", title: "3D vector galaxy", description: "Explore multi-dimensional memory embeddings." },
+  skills: { label: "skills", title: "Skills workspace", description: "Run offline workflows and automations." },
+  logs: { label: "logs", title: "System logs", description: "Inspect local service and runtime events." },
+};
+
+function getItemInitials(item: MemoryItem) {
+  const source = item.project?.trim() || formatItemType(item.type);
+  return source
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 /* ---------- Memory Sidebar ---------- */
@@ -311,11 +337,11 @@ function MemorySidebar({
         </SidebarGroup>
 
         {/* Tags */}
-        {summary?.tags?.length > 0 && (
+        {summary && (summary.tags?.length ?? 0) > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Tags</SidebarGroupLabel>
             <SidebarMenu>
-              {summary.tags.slice(0, 10).map((t: any) => (
+              {(summary.tags ?? []).slice(0, 10).map((t: TagCount) => (
                 <SidebarMenuItem key={t.tag}>
                   <SidebarMenuButton
                     isActive={selectedTag === t.tag}
@@ -536,12 +562,20 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [diffModalState.open, onboardingOpen, notifOpen, welcomeOpen, spotlightActive, setWelcomeOpen, closeSpotlight]);
 
-  const handleSelectNeighbor = (id: string, type: "adr" | "commit" | "grill") => {
+  const handleSelectNeighbor = (id: string, type: MemoryItemType) => {
     const numId = parseInt(id.split("-")[1]);
+    if (type !== "adr" && type !== "commit" && type !== "grill") {
+      // Recovery records (checkpoint/memory/summary) carry no neighbor graph;
+      // select from the already-loaded feed instead.
+      const local = feed.find((it) => it.id === id);
+      if (local) setActiveItem(local);
+      return;
+    }
     fetch(`/api/memory?action=feed&type=${type}&limit=60`)
       .then((res) => res.json())
       .then((data) => {
-        const found = data.find((it: any) => it.id === id || it.numeric_id === numId);
+        const list = Array.isArray(data) ? (data as MemoryItem[]) : [];
+        const found = list.find((it) => it.id === id || it.numeric_id === numId);
         if (found) {
           setActiveItem(found);
         }
@@ -581,7 +615,7 @@ export function AppShell() {
               <span className="font-semibold text-foreground">pitmry</span>
               <span>/</span>
               <span className="text-primary font-medium capitalize">
-                {viewMode === "stream" ? (selectedProject || "all-projects") : viewMode}
+                {viewMode === "stream" ? (selectedProject || VIEW_META.stream.label) : VIEW_META[viewMode].label}
               </span>
               {selectedType && viewMode === "stream" && (
                 <>
@@ -846,6 +880,11 @@ export function AppShell() {
               <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
               <span>
                 <strong className="font-semibold text-foreground">Demo Mode:</strong> You are exploring built-in sample memory. Run <code className="font-mono bg-black/40 px-1.5 py-0.5 rounded text-foreground text-[11px]">pnpm setup</code> to connect your local repositories & vector engine.
+                {summary?.fallback && summary?.fallback_reason && (
+                  <span className="block text-muted-foreground mt-0.5">
+                    Reason: {summary.fallback_reason}
+                  </span>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -938,10 +977,10 @@ export function AppShell() {
                 <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 border-b border-border/50 pb-3">
                   <div>
                     <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                      Operational Memory Stream
+                      {VIEW_META.stream.title}
                     </h1>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Unified architectural decision records, semantic git digests, and discussions.
+                      {VIEW_META.stream.description}
                     </p>
                   </div>
                   {feed.length > 0 && (
@@ -1114,59 +1153,61 @@ export function AppShell() {
                               }
                             }}
                             className={cn(
-                              "group flex cursor-pointer flex-col justify-between gap-2.5 rounded-xl border p-4 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[170px]",
-                              isSelected
-                                ? "border-primary/60 bg-secondary/40 ring-1 ring-primary/40 shadow-xs"
-                                : "border-border/80 bg-card hover:border-primary/50 hover:bg-secondary/20 shadow-2xs"
+                              "memory-card group flex cursor-pointer flex-col justify-between gap-2.5 rounded-xl border p-4 transition-[background-color,border-color,box-shadow,color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[170px] shadow-2xs",
+                              isSelected && "ring-1 ring-primary"
                             )}
+                            data-active={isSelected}
                           >
                             <div className="space-y-2">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center rounded border border-border/80 bg-secondary px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-foreground">
+                                  <span className="memory-card__initials inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-current/20 font-mono text-[10px] font-bold tracking-wider transition-colors" aria-hidden="true">
+                                    {getItemInitials(item)}
+                                  </span>
+                                  <span className="memory-card__subtle inline-flex items-center rounded border border-current/20 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors">
                                     {formatItemType(item.type)}
                                   </span>
-                                  <span className="rounded bg-secondary/80 px-2 py-0.5 text-[11px] font-semibold text-foreground/90 font-mono">
+                                  <span className="memory-card__subtle rounded px-2 py-0.5 text-[11px] font-semibold font-mono transition-colors">
                                     {item.project}
                                   </span>
                                   {item.commit_hash && (
-                                    <span className="font-mono text-[11px] text-muted-foreground font-semibold">
+                                    <span className="memory-card__muted font-mono text-[11px] font-semibold transition-colors">
                                       #{item.commit_hash}
                                     </span>
                                   )}
                                   {item.bullets && item.bullets.length > 0 && (
-                                    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded font-medium">
+                                    <span className="memory-card__subtle inline-flex items-center gap-1 font-mono text-[11px] px-2 py-0.5 rounded font-medium transition-colors">
                                       <Layers className="size-3" />
                                       {item.bullets.length} points
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[11px] font-mono text-muted-foreground shrink-0 tabular-nums">
+                                <span className="memory-card__muted text-[11px] font-mono shrink-0 tabular-nums transition-colors">
                                   {formatDate(item.timestamp)}
                                 </span>
                               </div>
 
-                              <h3 className="font-heading text-sm sm:text-[15px] font-bold text-foreground group-hover:text-primary leading-snug transition-colors line-clamp-2">
+                              <h3 className="font-heading text-sm sm:text-[15px] font-bold leading-snug transition-colors line-clamp-2">
                                 {item.title}
                               </h3>
 
-                              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                              <p className="memory-card__muted text-xs line-clamp-3 leading-relaxed transition-colors">
                                 {item.summary || item.rationale}
                               </p>
                             </div>
 
                             {item.tags && item.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1 pt-2 border-t border-border/40">
+                              <div className="flex flex-wrap gap-1 mt-1 pt-2 border-t memory-card__divider">
                                 {item.tags.slice(0, 4).map((tg: string) => (
                                   <span
                                     key={tg}
-                                    className="rounded bg-secondary/70 border border-border/50 px-2 py-0.5 text-[10px] text-muted-foreground font-mono font-medium"
+                                    className="memory-card__subtle rounded border border-current/15 px-2 py-0.5 text-[10px] font-mono font-medium transition-colors"
                                   >
                                     #{tg}
                                   </span>
                                 ))}
                                 {item.tags.length > 4 && (
-                                  <span className="font-mono text-[10px] text-muted-foreground/80 self-center">
+                                    <span className="memory-card__muted font-mono text-[10px] self-center transition-colors">
                                     +{item.tags.length - 4}
                                   </span>
                                 )}
@@ -1220,14 +1261,14 @@ export function AppShell() {
       {/* Real-time Toast Notifications */}
       <NotificationToastContainer
         onInspectNotification={(item) => {
-          if (item.item_type === "commit" && item.item_id) {
+          if ("item_type" in item && "item_id" in item && item.item_type === "commit" && item.item_id) {
             setDiffModalState({
               open: true,
               project: item.project,
               itemId: item.item_id,
             });
-          } else if (item.item_id) {
-            handleSelectNeighbor(`${item.item_type}-${item.item_id}`, item.item_type);
+          } else if ("item_id" in item && "item_type" in item && item.item_id) {
+            handleSelectNeighbor(`${item.item_type}-${item.item_id}`, item.item_type as MemoryItemType);
             setViewMode("stream");
           }
         }}

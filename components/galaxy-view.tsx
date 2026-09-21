@@ -247,6 +247,21 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [diffModalNode, selectedNode]);
 
+  const isDynamicAnomaly = (n: GalaxyNode) => {
+    return n.mean_similarity < anomalyThreshold;
+  };
+
+  // Fly Camera to Node
+  const flyToNode = (node: GalaxyNode) => {
+    if (!threeRef.current) return;
+    const target = new THREE.Vector3(node.x, node.y, node.z);
+    // Camera position offset slightly back and above
+    const camOffset = new THREE.Vector3(node.x + 25, node.y + 18, node.z + 55);
+
+    threeRef.current.targetCamPos = camOffset;
+    threeRef.current.targetLookAt = target;
+  };
+
   // 2. Initialize Three.js Scene
   useEffect(() => {
     if (!mountRef.current || !data) return;
@@ -746,21 +761,6 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
       threeRef.current.controls.autoRotate = autoRotate;
     }
   }, [autoRotate]);
-
-  const isDynamicAnomaly = (n: GalaxyNode) => {
-    return n.mean_similarity < anomalyThreshold;
-  };
-
-  // Fly Camera to Node
-  const flyToNode = (node: GalaxyNode) => {
-    if (!threeRef.current) return;
-    const target = new THREE.Vector3(node.x, node.y, node.z);
-    // Camera position offset slightly back and above
-    const camOffset = new THREE.Vector3(node.x + 25, node.y + 18, node.z + 55);
-
-    threeRef.current.targetCamPos = camOffset;
-    threeRef.current.targetLookAt = target;
-  };
 
   // Fly Camera to Cluster Centroid
   const flyToCluster = (cluster: GalaxyCluster) => {

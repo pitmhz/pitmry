@@ -11,13 +11,14 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import type { MemoryItemType } from "@/lib/types";
 import { DecisionJourney } from "./decision-journey";
 import { CodeDiffViewer } from "./code-diff-viewer";
 import { Button } from "@/components/ui/button";
 
 interface Neighbor {
   id: string;
-  type: "adr" | "commit" | "grill";
+  type: MemoryItemType;
   title: string;
   project: string;
   similarity: number;
@@ -27,10 +28,10 @@ interface Neighbor {
 interface ItemDetail {
   id: string;
   numeric_id: number;
-  type: "adr" | "commit" | "grill";
+  type: MemoryItemType;
   project: string;
   title: string;
-  summary: string;
+  summary?: string;
   body?: string;
   bullets?: string[];
   session_file?: string;
@@ -44,7 +45,7 @@ interface ItemDetail {
   architectural_impact?: string;
   questions?: string;
   answers?: string;
-  timestamp: number;
+  timestamp: number | string;
   tags?: string[];
   status?: string;
 }
@@ -52,7 +53,7 @@ interface ItemDetail {
 interface RelationalInspectorProps {
   item: ItemDetail | null;
   onClose: () => void;
-  onSelectNeighbor: (id: string, type: "adr" | "commit" | "grill") => void;
+  onSelectNeighbor: (id: string, type: MemoryItemType) => void;
 }
 
 export function RelationalInspector({

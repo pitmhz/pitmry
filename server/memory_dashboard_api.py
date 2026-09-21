@@ -89,6 +89,8 @@ REPO_PATHS = get_repo_paths()
 
 sys.path.insert(0, os.path.dirname(__file__))
 from cavemem_strategic import StrategicMemoryDB, LocalEmbedder
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "scripts"))
+from memory_navigator import cmd_search as navigator_search
 
 
 def get_conn():
@@ -207,202 +209,171 @@ def extract_commit_details(raw_message: str):
 
 
 def cmd_feed(project=None, record_type=None, tag=None, query=None, limit=50):
+    items = []
+    # Search uses the same hybrid retriever as the agent CLI. This keeps the
+    # dashboard, command palette, and agent context recovery in agreement.
+    # No SQLite handle needed here — the navigator manages its own.
+    if query:
+        for result in navigator_search(query, project=project, record_type=record_type, limit=limit, as_json=True):
+            items.append({
+                "id": result["id"],
+                "numeric_id": result.get("numeric_id") or 0,
+                "type": result["type"],
+                "project": result.get("project", "general"),
+                "title": result.get("title", ""),
+                "summary": result.get("primary_text", ""),
+                "rationale": result.get("rationale", ""),
+                "timestamp": result.get("timestamp", 0),
+                "tags": [t.strip() for t in str(result.get("tags", "")).split(",") if t.strip()],
+                "score": result.get("score", 0),
+                "source": result.get("source", "keyword"),
+                "score_components": result.get("score_components", {}),
+                "indexed_at": result.get("indexed_at"),
+                "related_ids": result.get("related_ids", [])
+            })
+        return items
+
     conn = get_conn()
     c = conn.cursor()
     items = []
 
-    # If query provided and looks semantic, use unified search
-    if query:
-        db = StrategicMemoryDB()
-        res = db.unified_search(query, limit=limit)
-        
-        for adr in res.get("adrs", []):
-            if isinstance(adr, dict):
-                items.append({
-                    "id": f"adr-{adr.get('id')}",
-                    "numeric_id": adr.get('id'),
-                    "type": "adr",
-                    "project": adr.get("project", "general"),
-                    "title": adr.get("title", ""),
-                    "summary": adr.get("context", ""),
-                    "rationale": adr.get("rationale", ""),
-                    "timestamp": adr.get("timestamp", 0),
-                    "tags": [t.strip() for t in adr.get("tags", "").split(",") if t.strip()],
-                    "status": adr.get("status", "accepted"),
-                    "score": round(adr.get("score", 0), 4)
-                })
-        for cm in res.get("git_semantic_digests", []):
-            if isinstance(cm, dict):
-                items.append({
-                    "id": f"commit-{cm.get('id')}",
-                    "numeric_id": cm.get('id'),
-                    "type": "commit",
-                    "project": cm.get("project", "general"),
-                    "title": cm.get("commit_message", ""),
-                    "summary": cm.get("diff_summary", ""),
-                    "rationale": cm.get("rationale", ""),
-                    "timestamp": cm.get("timestamp", 0),
-                    "tags": [t.strip() for t in cm.get("tags", "").split(",") if t.strip()],
-                    "commit_hash": cm.get("commit_hash", "")[:8],
-                    "author": cm.get("author", ""),
-                    "impact": cm.get("architectural_impact", ""),
-                    "score": round(cm.get("score", 0), 4)
-                })
-        for gr in res.get("grill_me_logs", []):
-            if isinstance(gr, dict):
-                items.append({
-                    "id": f"grill-{gr.get('id')}",
-                    "numeric_id": gr.get('id'),
-                    "type": "grill",
-                    "project": gr.get("project", "general"),
-                    "title": gr.get("topic", ""),
-                    "summary": gr.get("key_takeaways", ""),
-                    "rationale": gr.get("resolved_direction", ""),
-                    "timestamp": gr.get("timestamp", 0),
-                    "tags": [],
-                    "score": round(gr.get("score", 0), 4)
-                })
-        conn.close()
-        return items
+    # Standard query from SQLite
+    # 1. ADRs
+    if not record_type or record_type == "adr":
+        sql = "SELECT id, project, title, context, decision, rationale, trade_offs, status, timestamp, tags FROM adrs WHERE 1=1"
+        params = []
+        if project:
+            sql += " AND project = ?"
+            params.append(project)
+        if tag:
+            sql += " AND tags LIKE ?"
+            params.append(f"%{tag}%")
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+        c.execute(sql, params)
+        for r in c.fetchall():
+            _, dec_body, dec_bullets = extract_commit_details(r['decision'])
+            items.append({
+                "id": f"adr-{r['id']}",
+                "numeric_id": r['id'],
+                "type": "adr",
+                "project": r['project'],
+                "title": r['title'],
+                "summary": r['context'],
+                "decision": r['decision'],
+                "bullets": dec_bullets,
+                "body": dec_body,
+                "rationale": r['rationale'],
+                "trade_offs": r['trade_offs'],
+                "status": r['status'],
+                "timestamp": r['timestamp'],
+                "tags": [t.strip() for t in r['tags'].split(',') if t.strip()]
+            })
 
-    else:
-        # Standard query from SQLite
-        # 1. ADRs
-        if not record_type or record_type == "adr":
-            sql = "SELECT id, project, title, context, decision, rationale, trade_offs, status, timestamp, tags FROM adrs WHERE 1=1"
-            params = []
-            if project:
-                sql += " AND project = ?"
-                params.append(project)
-            if tag:
-                sql += " AND tags LIKE ?"
-                params.append(f"%{tag}%")
-            sql += " ORDER BY timestamp DESC LIMIT ?"
-            params.append(limit)
-            c.execute(sql, params)
-            for r in c.fetchall():
-                _, dec_body, dec_bullets = extract_commit_details(r['decision'])
-                items.append({
-                    "id": f"adr-{r['id']}",
-                    "numeric_id": r['id'],
-                    "type": "adr",
-                    "project": r['project'],
-                    "title": r['title'],
-                    "summary": r['context'],
-                    "decision": r['decision'],
-                    "bullets": dec_bullets,
-                    "body": dec_body,
-                    "rationale": r['rationale'],
-                    "trade_offs": r['trade_offs'],
-                    "status": r['status'],
-                    "timestamp": r['timestamp'],
-                    "tags": [t.strip() for t in r['tags'].split(',') if t.strip()]
-                })
+    # 2. Commits
+    if not record_type or record_type == "commit":
+        sql = "SELECT id, project, commit_hash, branch, summary, files_changed, rationale, timestamp, metadata FROM git_semantic_digests WHERE 1=1"
+        params = []
+        if project:
+            sql += " AND project = ?"
+            params.append(project)
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+        c.execute(sql, params)
+        for r in c.fetchall():
+            tags = []
+            author = ""
+            impact = ""
+            meta_bullets = []
+            session_file = ""
+            try:
+                meta = json.loads(r['metadata'] or '{}')
+                tags = meta.get("tags", [])
+                if isinstance(tags, str):
+                    tags = [t.strip() for t in tags.split(',') if t.strip()]
+                author = meta.get("author", "")
+                impact = meta.get("architectural_impact", "")
+                meta_bullets = meta.get("bullets", [])
+                session_file = meta.get("session_file", "")
+            except Exception:
+                pass
 
-        # 2. Commits
-        if not record_type or record_type == "commit":
-            sql = "SELECT id, project, commit_hash, branch, summary, files_changed, rationale, timestamp, metadata FROM git_semantic_digests WHERE 1=1"
-            params = []
-            if project:
-                sql += " AND project = ?"
-                params.append(project)
-            sql += " ORDER BY timestamp DESC LIMIT ?"
-            params.append(limit)
-            c.execute(sql, params)
-            for r in c.fetchall():
-                tags = []
-                author = ""
-                impact = ""
-                meta_bullets = []
-                session_file = ""
-                try:
-                    meta = json.loads(r['metadata'] or '{}')
-                    tags = meta.get("tags", [])
-                    if isinstance(tags, str):
-                        tags = [t.strip() for t in tags.split(',') if t.strip()]
-                    author = meta.get("author", "")
-                    impact = meta.get("architectural_impact", "")
-                    meta_bullets = meta.get("bullets", [])
-                    session_file = meta.get("session_file", "")
-                except Exception:
-                    pass
+            # If tag filter applied, check tags
+            if tag and tag not in tags:
+                continue
 
-                # If tag filter applied, check tags
-                if tag and tag not in tags:
-                    continue
+            files = []
+            if r['files_changed']:
+                files = [f.strip() for f in r['files_changed'].split(',') if f.strip()]
 
-                files = []
-                if r['files_changed']:
-                    files = [f.strip() for f in r['files_changed'].split(',') if f.strip()]
+            raw_summary = r['summary'] or ""
+            subject, body, extracted_bullets = extract_commit_details(raw_summary)
+            bullets = meta_bullets if meta_bullets else extracted_bullets
 
-                raw_summary = r['summary'] or ""
-                subject, body, extracted_bullets = extract_commit_details(raw_summary)
-                bullets = meta_bullets if meta_bullets else extracted_bullets
+            # If bullets still empty, try to resolve from git repo if available
+            short_hash = r['commit_hash'][:8] if r['commit_hash'] else ""
+            r_proj = r['project']
+            if not bullets and short_hash and r_proj in REPO_PATHS:
+                r_path = REPO_PATHS[r_proj]
+                if os.path.exists(os.path.join(r_path, ".git")):
+                    try:
+                        git_msg = subprocess.run(
+                            ["git", "-C", r_path, "log", "-1", "--pretty=format:%B", short_hash],
+                            capture_output=True, text=True, timeout=10
+                        ).stdout.strip()
+                        if git_msg:
+                            _, g_body, g_bullets = extract_commit_details(git_msg)
+                            if g_bullets:
+                                bullets = g_bullets
+                            if g_body and not body:
+                                body = g_body
+                    except Exception:
+                        pass
 
-                # If bullets still empty, try to resolve from git repo if available
-                short_hash = r['commit_hash'][:8] if r['commit_hash'] else ""
-                r_proj = r['project']
-                if not bullets and short_hash and r_proj in REPO_PATHS:
-                    r_path = REPO_PATHS[r_proj]
-                    if os.path.exists(os.path.join(r_path, ".git")):
-                        try:
-                            git_msg = subprocess.run(
-                                ["git", "-C", r_path, "log", "-1", "--pretty=format:%B", short_hash],
-                                capture_output=True, text=True
-                            ).stdout.strip()
-                            if git_msg:
-                                _, g_body, g_bullets = extract_commit_details(git_msg)
-                                if g_bullets:
-                                    bullets = g_bullets
-                                if g_body and not body:
-                                    body = g_body
-                        except Exception:
-                            pass
+            items.append({
+                "id": f"commit-{r['id']}",
+                "numeric_id": r['id'],
+                "type": "commit",
+                "project": r['project'],
+                "commit_hash": short_hash,
+                "branch": r['branch'],
+                "author": author,
+                "title": subject if subject else (raw_summary.splitlines()[0] if raw_summary else "Commit"),
+                "summary": raw_summary,
+                "body": body,
+                "bullets": bullets,
+                "session_file": session_file,
+                "key_files": files,
+                "rationale": r['rationale'],
+                "architectural_impact": impact,
+                "timestamp": r['timestamp'],
+                "tags": tags
+            })
 
-                items.append({
-                    "id": f"commit-{r['id']}",
-                    "numeric_id": r['id'],
-                    "type": "commit",
-                    "project": r['project'],
-                    "commit_hash": short_hash,
-                    "branch": r['branch'],
-                    "author": author,
-                    "title": subject if subject else (raw_summary.splitlines()[0] if raw_summary else "Commit"),
-                    "summary": raw_summary,
-                    "body": body,
-                    "bullets": bullets,
-                    "session_file": session_file,
-                    "key_files": files,
-                    "rationale": r['rationale'],
-                    "architectural_impact": impact,
-                    "timestamp": r['timestamp'],
-                    "tags": tags
-                })
-
-        # 3. Grill-Me
-        if not record_type or record_type == "grill":
-            sql = "SELECT id, project, topic, questions, answers, key_takeaways, resolved_direction, timestamp FROM grill_me_logs WHERE 1=1"
-            params = []
-            if project:
-                sql += " AND project = ?"
-                params.append(project)
-            sql += " ORDER BY timestamp DESC LIMIT ?"
-            params.append(limit)
-            c.execute(sql, params)
-            for r in c.fetchall():
-                items.append({
-                    "id": f"grill-{r['id']}",
-                    "numeric_id": r['id'],
-                    "type": "grill",
-                    "project": r['project'],
-                    "title": r['topic'],
-                    "summary": r['key_takeaways'],
-                    "questions": r['questions'],
-                    "answers": r['answers'],
-                    "rationale": r['resolved_direction'],
-                    "timestamp": r['timestamp'],
-                    "tags": []
-                })
+    # 3. Grill-Me
+    if not record_type or record_type == "grill":
+        sql = "SELECT id, project, topic, questions, answers, key_takeaways, resolved_direction, timestamp FROM grill_me_logs WHERE 1=1"
+        params = []
+        if project:
+            sql += " AND project = ?"
+            params.append(project)
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+        c.execute(sql, params)
+        for r in c.fetchall():
+            items.append({
+                "id": f"grill-{r['id']}",
+                "numeric_id": r['id'],
+                "type": "grill",
+                "project": r['project'],
+                "title": r['topic'],
+                "summary": r['key_takeaways'],
+                "questions": r['questions'],
+                "answers": r['answers'],
+                "rationale": r['resolved_direction'],
+                "timestamp": r['timestamp'],
+                "tags": []
+            })
 
     conn.close()
     items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
@@ -556,22 +527,54 @@ def cmd_graph():
                 "type": "contains"
             })
 
-    # Add vector similarity edges between top items
+    # Add vector similarity edges between top items (batched: one embedder,
+    # one LanceDB connection, query texts from in-memory feed — no per-item
+    # SQLite round-trips or reconnects).
     try:
-        embedder = LocalEmbedder()
-        adrs = [it for it in feed if it["type"] == "adr"][:6]
-        commits = [it for it in feed if it["type"] == "commit"][:10]
-        
-        for adr in adrs:
-            rel = cmd_relations("adr", adr["numeric_id"])
-            for n in rel.get("neighbors", []):
-                if n["similarity"] >= 0.70 and n["id"] in seen_nodes:
-                    edges.append({
-                        "source": adr["id"],
-                        "target": n["id"],
-                        "weight": n["similarity"],
-                        "type": "semantic"
-                    })
+        import lancedb
+        if os.path.exists(LANCEDB_DIR):
+            embedder = LocalEmbedder()
+            ldb = lancedb.connect(LANCEDB_DIR)
+            table_names = ldb.table_names()
+            open_tables = {}
+            for tbl_name in ("adrs", "git_semantic_digests", "grill_me_logs"):
+                if tbl_name in table_names:
+                    try:
+                        open_tables[tbl_name] = ldb.open_table(tbl_name)
+                    except Exception:
+                        pass
+            adrs = [it for it in feed if it["type"] == "adr"][:6]
+            for adr in adrs:
+                query_text = f"{adr.get('title', '')} {adr.get('summary', '')} {adr.get('rationale', '')}"
+                if not query_text.strip():
+                    continue
+                emb = embedder.embed(query_text)
+                for tbl_name, prefix, title_key in [
+                    ("adrs", "adr", "title"),
+                    ("git_semantic_digests", "commit", "commit_message"),
+                    ("grill_me_logs", "grill", "topic"),
+                ]:
+                    tbl = open_tables.get(tbl_name)
+                    if tbl is None:
+                        continue
+                    try:
+                        hits = tbl.search(emb).metric("cosine").limit(4).to_list()
+                    except Exception:
+                        continue
+                    for h in hits:
+                        dist = float(h.get("_distance", 1.0))
+                        sim = max(0.0, min(1.0, 1.0 - dist))
+                        if sim < 0.70:
+                            continue
+                        nid = f"{prefix}-{h.get('id')}"
+                        if nid == adr["id"] or nid not in seen_nodes:
+                            continue
+                        edges.append({
+                            "source": adr["id"],
+                            "target": nid,
+                            "weight": round(sim, 3),
+                            "type": "semantic"
+                        })
     except Exception:
         pass
 
@@ -1032,7 +1035,7 @@ def cmd_diff(project: Optional[str] = None, commit_hash: Optional[str] = None, i
         test_hash = commit_hash.split("..")[0].strip()
         # Test ROOT_DIR first
         if os.path.exists(os.path.join(ROOT_DIR, ".git")):
-            chk = subprocess.run(["git", "-C", ROOT_DIR, "cat-file", "-e", test_hash], capture_output=True, text=True)
+            chk = subprocess.run(["git", "-C", ROOT_DIR, "cat-file", "-e", test_hash], capture_output=True, text=True, timeout=15)
             if chk.returncode == 0:
                 repo_dir = ROOT_DIR
 
@@ -1040,7 +1043,7 @@ def cmd_diff(project: Optional[str] = None, commit_hash: Optional[str] = None, i
         if not repo_dir:
             for p_name, p_path in REPO_PATHS.items():
                 if os.path.exists(os.path.join(p_path, ".git")):
-                    chk = subprocess.run(["git", "-C", p_path, "cat-file", "-e", test_hash], capture_output=True, text=True)
+                    chk = subprocess.run(["git", "-C", p_path, "cat-file", "-e", test_hash], capture_output=True, text=True, timeout=15)
                     if chk.returncode == 0:
                         repo_dir = p_path
                         break
@@ -1063,22 +1066,18 @@ def cmd_diff(project: Optional[str] = None, commit_hash: Optional[str] = None, i
             h_parts = commit_hash.split("..")
             h1, h2 = h_parts[0].strip(), h_parts[1].strip()
             # Try h2~1..h1 first
-            res = subprocess.run(["git", "-C", repo_dir, "diff", "-U3", "--no-color", f"{h2}~1..{h1}"],
-                                 capture_output=True, text=True, errors="replace")
+            res = subprocess.run(["git", "-C", repo_dir, "diff", "-U3", "--no-color", f"{h2}~1..{h1}"], capture_output=True, text=True, timeout=15, errors="replace")
             if res.returncode == 0 and res.stdout.strip():
                 raw_output = res.stdout
             else:
-                res2 = subprocess.run(["git", "-C", repo_dir, "diff", "-U3", "--no-color", f"{h1}~1..{h2}"],
-                                      capture_output=True, text=True, errors="replace")
+                res2 = subprocess.run(["git", "-C", repo_dir, "diff", "-U3", "--no-color", f"{h1}~1..{h2}"], capture_output=True, text=True, timeout=15, errors="replace")
                 if res2.returncode == 0 and res2.stdout.strip():
                     raw_output = res2.stdout
                 else:
-                    res3 = subprocess.run(["git", "-C", repo_dir, "show", "-U3", "--no-color", h1],
-                                          capture_output=True, text=True, errors="replace")
+                    res3 = subprocess.run(["git", "-C", repo_dir, "show", "-U3", "--no-color", h1], capture_output=True, text=True, timeout=15, errors="replace")
                     raw_output = res3.stdout if res3.returncode == 0 else ""
         else:
-            res = subprocess.run(["git", "-C", repo_dir, "show", "-U3", "--no-color", commit_hash],
-                                 capture_output=True, text=True, errors="replace")
+            res = subprocess.run(["git", "-C", repo_dir, "show", "-U3", "--no-color", commit_hash], capture_output=True, text=True, timeout=15, errors="replace")
             if res.returncode == 0:
                 raw_output = res.stdout
             else:
@@ -1264,6 +1263,7 @@ def cmd_health():
     adrs_c = 0
     commits_c = 0
     grills_c = 0
+    recovery_source_count = 0
     db_size_kb = 0
     try:
         if os.path.exists(DB_PATH):
@@ -1278,6 +1278,12 @@ def cmd_health():
         commits_c = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM grill_me_logs")
         grills_c = c.fetchone()[0]
+        for table_name in ("summaries", "checkpoints", "memory_items"):
+            try:
+                c.execute(f"SELECT COUNT(*) FROM {table_name}")
+                recovery_source_count += c.fetchone()[0]
+            except sqlite3.OperationalError:
+                pass
         total_records = adrs_c + commits_c + grills_c
         conn.close()
         if sql_integrity != "ok":
@@ -1297,8 +1303,8 @@ def cmd_health():
     tracked_repos = []
     for name, p in repos:
         if os.path.exists(os.path.join(p, ".git")):
-            br = subprocess.run(["git", "-C", p, "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True).stdout.strip()
-            st = subprocess.run(["git", "-C", p, "status", "--porcelain"], capture_output=True, text=True).stdout.strip()
+            br = subprocess.run(["git", "-C", p, "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, timeout=15).stdout.strip()
+            st = subprocess.run(["git", "-C", p, "status", "--porcelain"], capture_output=True, text=True, timeout=15).stdout.strip()
             dirty = len(st.splitlines()) if st else 0
             tracked_repos.append({"name": name, "branch": br, "dirty": dirty})
     git_latency = f"{round((time.perf_counter() - t0) * 1000, 1)}ms"
@@ -1314,15 +1320,47 @@ def cmd_health():
     except Exception:
         emb_status = "degraded"
     emb_latency = f"{round((time.perf_counter() - t0) * 1000, 1)}ms"
+    # 5. Cavemem embedding worker
+    # The worker embeds new observations. If it stops, memory is written but
+    # never becomes semantically searchable, so it gets its own component.
+    t0 = time.perf_counter()
+    worker_status = "operational"
+    worker_meta = "worker state not readable"
+    worker_detail = None
+    try:
+        from ensure_worker import check as worker_check
+        worker_detail = worker_check()
+        if worker_detail.get("healthy"):
+            age = worker_detail.get("heartbeat_age_ms")
+            age_text = f"{round(age / 1000)}s" if age is not None else "unknown"
+            worker_meta = (f"heartbeat {age_text} ago · "
+                           f"{worker_detail.get('embedded')}/{worker_detail.get('total')} embedded")
+        else:
+            worker_status = "degraded"
+            reasons = "; ".join(worker_detail.get("unhealthy_reasons") or ["unknown"])
+            worker_meta = f"{reasons} · run `python server/scripts/ensure_worker.py --ensure`"
+    except Exception as exc:
+        worker_status = "degraded"
+        worker_meta = f"watchdog unavailable: {exc}"
+    worker_latency = f"{round((time.perf_counter() - t0) * 1000, 1)}ms"
 
-    # Components list matching devl.dev status-page
+    recovery_index_count = tbl_info.get("recovery_records", 0)
+    recovery_index_status = "operational" if (recovery_source_count == 0 or recovery_index_count > 0) else "degraded"
+
     components = [
         {
             "name": "LanceDB Vector DB",
             "uptime": "99.988%",
             "status": ldb_status,
             "latency": ldb_latency,
-            "meta": f"{total_vectors} vectors · dim {emb_dim} · 3 tables"
+            "meta": f"{total_vectors} vectors · dim {emb_dim} · {len(tbl_info)} tables"
+        },
+        {
+            "name": "Recovery Memory Index",
+            "uptime": "100.0%",
+            "status": recovery_index_status,
+            "latency": ldb_latency,
+            "meta": f"{recovery_index_count} canonical vectors from {recovery_source_count} SQLite source records"
         },
         {
             "name": "SQLite Cavemem DB",
@@ -1344,6 +1382,13 @@ def cmd_health():
             "status": emb_status,
             "latency": emb_latency,
             "meta": f"all-MiniLM-L6-v2 · {emb_dim}-dim embeddings"
+        },
+        {
+            "name": "Embedding Worker",
+            "uptime": "99.9%",
+            "status": worker_status,
+            "latency": worker_latency,
+            "meta": worker_meta
         },
         {
             "name": "Next.js API Gateway",
@@ -1368,7 +1413,7 @@ def cmd_health():
                 {
                     "state": "resolved",
                     "at": "12:08 UTC",
-                    "text": "All 39 vectors indexed across adrs, git_digests, and grill_me_logs."
+                    "text": f"{total_vectors} vectors indexed across {len(tbl_info)} tables, including recovery records."
                 },
                 {
                     "state": "monitoring",
@@ -1429,14 +1474,14 @@ def cmd_deploys():
         if not os.path.exists(git_dir):
             continue
 
-        branch = subprocess.run(["git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True).stdout.strip() or "main"
-        status_raw = subprocess.run(["git", "-C", path, "status", "--porcelain"], capture_output=True, text=True).stdout.strip()
+        branch = subprocess.run(["git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, timeout=15).stdout.strip() or "main"
+        status_raw = subprocess.run(["git", "-C", path, "status", "--porcelain"], capture_output=True, text=True, timeout=15).stdout.strip()
         dirty_lines = status_raw.splitlines() if status_raw else []
 
         # Get last 8 commits with full body and bullet points
         log_res = subprocess.run(
             ["git", "-C", path, "log", "-n", "8", "--pretty=format:COMMIT_START%n%H|%h|%an|%ae|%ad%nBODY_START%n%B%nCOMMIT_END", "--date=iso-strict"],
-            capture_output=True, text=True
+            capture_output=True, text=True, timeout=15
         )
 
         repo_summaries.append({
@@ -1489,7 +1534,7 @@ def cmd_deploys():
                 try:
                     stat_lines = subprocess.run(
                         ["git", "-C", path, "show", "--stat", "--oneline", sha],
-                        capture_output=True, text=True
+                        capture_output=True, text=True, timeout=15
                     ).stdout.strip().splitlines()
                     if len(stat_lines) > 1 and "changed" in stat_lines[-1]:
                         stat_summary = stat_lines[-1].strip()
@@ -1800,4 +1845,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

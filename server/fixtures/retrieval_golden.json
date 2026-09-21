@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 1,
+  "name": "pitmry live retrieval golden set",
+  "notes": [
+    "Queries are written the way an agent would ask, not the way the record is stored.",
+    "expected_any accepts any of the listed IDs because several records are mirrored",
+    "(for example an ADR and the git digest that produced it carry the same text).",
+    "require_source asserts the answer came from semantic memory (vector or hybrid).",
+    "A keyword-only hit on a paraphrased question is a miss, not a pass.",
+    "thresholds are regression floors kept just below the recorded baseline."
+  ],
+  "thresholds": {
+    "recall_at_1": 0.88,
+    "recall_at_3": 0.92,
+    "mean_reciprocal_rank": 0.88,
+    "no_result_precision": 1.0,
+    "semantic_source_share": 0.9,
+    "p95_latency_ms": 1500,
+    "index_freshness": 1.0,
+    "unembedded_observations": 0
+  },
+  "cases": [
+    {
+      "id": "adr-memory-engine",
+      "query": "offline strategic memory engine with cavemem sqlite and lancedb",
+      "expected_any": ["adr-13", "commit-5", "commit-32"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Semantic layer can explain its own architecture."
+    },
+    {
+      "id": "adr-memory-reliability",
+      "query": "memory reliability recovery of context after compaction",
+      "expected_any": ["adr-37", "commit-24", "commit-36"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-pitmry-layout",
+      "query": "pitmry layout revamp split resizable diff viewer and timeline subsystem",
+      "expected_any": ["adr-24", "commit-16", "adr-25"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-claude-isolation",
+      "query": "claude provider environment isolation and authentication reference",
+      "expected_any": ["adr-4", "adr-44"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-codex-isolation",
+      "query": "codex provider isolation openai versus bynara authentication",
+      "expected_any": ["adr-5", "adr-45"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-daschool-security",
+      "query": "daschool security architecture and access control model",
+      "expected_any": ["adr-6", "adr-46"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-dashboard-revamp-plan",
+      "query": "dashboard revamp architecture offline execution plan",
+      "expected_any": ["adr-12", "adr-52"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-cloudflare-runbook",
+      "query": "cloudflare integration dashboard guide and runbook",
+      "expected_any": ["adr-10", "adr-50"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-luma-migration",
+      "query": "luma style component architecture migration and branding",
+      "expected_any": ["adr-11", "adr-51"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "adr-skills-library",
+      "query": "164 design taste and anti-slop skills library refactor with zed active catalog",
+      "expected_any": ["adr-1", "commit-1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-full-sweep-audit",
+      "query": "full sweep audit mutation auth guard localhost bind deferred filtering",
+      "expected_any": ["commit-27", "commit-38", "adr-40"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-skills-hub",
+      "query": "skills management hub with bundled starter skills and python automations",
+      "expected_any": ["commit-25", "commit-33", "adr-38"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-observability-suite",
+      "query": "observability suite devl.dev calendars filter toolbar table logs and toasts",
+      "expected_any": ["commit-26", "adr-39", "commit-35"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-typegen-corruption",
+      "query": "nextjs typegen corruption from the setup-pin route",
+      "expected_any": ["commit-29", "adr-2", "adr-42"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-profile-editor-crash",
+      "query": "unified profile editor crash gradeLevel stakeholder errors",
+      "expected_any": ["commit-30", "commit-3", "adr-3"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-onnx-embeddings",
+      "query": "local onnx all-MiniLM-L6 model producing 384 dimension embeddings",
+      "expected_any": ["commit-32", "adr-13", "adr-37"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-checkout-palette",
+      "query": "checkout summary sync with palette on the maehservice shop",
+      "expected_any": ["commit-6", "adr-14", "commit-7"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "commit-turnstile-token",
+      "query": "warm turnstile token early before the chat stream",
+      "expected_any": ["commit-12", "adr-20"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "grill-zed-budget",
+      "query": "zed skills catalog budget of 50 KB and on-demand routing tradeoffs",
+      "expected_any": ["grill-1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "The only grill record. It must stay reachable by paraphrase."
+    },
+    {
+      "id": "recovery-checkpoint-resume",
+      "query": "resume the session checkpoint for the memory dashboard project",
+      "expected_any": ["checkpoint-1", "memory-1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Assessment P1: recovery records must be vector searchable."
+    },
+    {
+      "id": "recovery-pitmry-scoped",
+      "query": "pitmry project scoped checkpoint and recent pitmry commits",
+      "project": "pitmry",
+      "expected_any": ["commit-16", "adr-24", "adr-40", "commit-27", "commit-37"],
+      "target_rank": 4,
+      "require_source": ["vector", "hybrid"],
+      "note": "Exercises the project filter path."
+    },
+    {
+      "id": "hard-paraphrase-compaction",
+      "query": "how do agents restore reliable context after conversation compaction",
+      "expected_any": ["adr-37", "commit-24", "checkpoint-1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "No shared keywords with the record. Pure semantic recall."
+    },
+    {
+      "id": "hard-paraphrase-skills-budget",
+      "query": "two tier progressive skills architecture with strict on demand loading",
+      "expected_any": ["grill-1", "adr-1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"]
+    },
+    {
+      "id": "hard-paraphrase-mutation-guard",
+      "query": "which change added a guard to state changing routes and bound the server to localhost",
+      "expected_any": ["commit-27", "commit-38", "adr-40"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Passed at similarity 0.662, only just above the 0.66 floor."
+    },
+    {
+      "id": "hard-paraphrase-wrapper-layout",
+      "query": "why did we need only one wrapper container to stop double borders",
+      "expected_any": ["adr-24"],
+      "target_rank": 5,
+      "require_source": ["vector", "hybrid"],
+      "known_gap": true,
+      "note": "Known gap: no shared keywords, so a generic turn summary outranks the layout ADR. Recorded to keep the gap visible."
+    }
+  ],
+  "no_result_cases": [
+    "xyzzy plugh frobnicate quokka",
+    "glyptodont xertzband quingumbo flarnak",
+    "kraflax vimzorp thrumblewocket"
+  ]
+}

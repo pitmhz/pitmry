@@ -6,7 +6,7 @@
  * Allows new users to explore the dashboard immediately without errors.
  */
 
-export function getDemoFallback(action: string, params: URLSearchParams): any {
+export function getDemoFallback(action: string, params: URLSearchParams): Record<string, unknown> | unknown[] {
   const isDemoNotice = "Running in Demo Mode. Connect real memory via 'pnpm setup'.";
 
   if (action === "summary") {

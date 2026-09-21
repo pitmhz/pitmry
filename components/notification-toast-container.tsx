@@ -2,6 +2,9 @@
 
 import * as React from "react"
 import { useToast, type ToastItem } from "@/lib/notification-toast-context"
+import type { BackendNotification } from "@/app/api/notifications/route"
+import type { NotificationItem } from "@/components/timelines-notifications"
+import type { MemoryItem } from "@/lib/types"
 import { ToastSuccess } from "@/components/toasts/toast-success"
 import { ToastErrorRetry } from "@/components/toasts/toast-error-retry"
 import { ToastInfoBanner } from "@/components/toasts/toast-info-banner"
@@ -11,7 +14,7 @@ import { ToastRich } from "@/components/toasts/toast-rich"
 export function NotificationToastContainer({
   onInspectNotification,
 }: {
-  onInspectNotification?: (item: any) => void
+  onInspectNotification?: (item: NotificationItem | MemoryItem) => void
 } = {}) {
   const { toasts, dismissToast, toast } = useToast()
   const lastProcessedIdRef = React.useRef<string | null>(null)
@@ -37,7 +40,7 @@ export function NotificationToastContainer({
         const res = await fetch("/api/notifications?unread=true&limit=5", { cache: "no-store" })
         if (!res.ok) return
         const data = await res.json()
-        const items = data.notifications || []
+        const items = (data.notifications || []) as BackendNotification[]
 
         if (items.length > 0 && active) {
           const newest = items[0]
@@ -50,25 +53,25 @@ export function NotificationToastContainer({
               if (item.id === lastProcessedIdRef.current) break
               // Dispatch to appropriate toast variant
               if (item.type === "success") {
-                toast.success(item.title, item.message)
+                toast.success(item.title, item.message ?? undefined)
               } else if (item.type === "error_retry") {
-                toast.error(item.title, item.message, { status: item.status })
+                toast.error(item.title, item.message ?? undefined, { status: item.status })
               } else if (item.type === "info_banner") {
-                toast.info(item.title, item.message, { banner: item.banner })
+                toast.info(item.title, item.message ?? undefined, { banner: item.banner })
               } else if (item.type === "undo") {
-                toast.undo(item.title, item.message, {
+                toast.undo(item.title, item.message ?? "", {
                   durationSeconds: item.durationSeconds || 8,
                   onUndo: async () => {
                     await fetch(`/api/notifications?undo=${item.id}`, { method: "PUT" })
                   },
                 })
               } else {
-                const actions = []
-                if ((item.item_id || item.itemId) && onInspectNotification) {
+                const actions: Array<{ label: string; primary?: boolean; onClick: () => void }> = []
+                if (item.item_id && onInspectNotification) {
                   actions.push({
                     label: "Inspect",
                     primary: true,
-                    onClick: () => onInspectNotification(item),
+                    onClick: () => onInspectNotification(item as unknown as NotificationItem),
                   })
                 }
                 toast.rich(item.title, item.message || "", {
@@ -91,14 +94,14 @@ export function NotificationToastContainer({
         const res = await fetch("/api/memory?action=notifications", { cache: "no-store" })
         if (!res.ok) return
         const data = await res.json()
-        const items = data.notifications || []
+        const items = (data.notifications || []) as MemoryItem[]
 
         if (items.length > 0 && active) {
           const newest = items[0]
           if (!lastMemoryIdRef.current) {
             lastMemoryIdRef.current = newest.id
           } else if (newest.id !== lastMemoryIdRef.current) {
-            const newItems: any[] = []
+            const newItems: MemoryItem[] = []
             for (const it of items) {
               if (it.id === lastMemoryIdRef.current) break
               newItems.push(it)
@@ -117,7 +120,7 @@ export function NotificationToastContainer({
                         {
                           label: "Inspect",
                           primary: true,
-                          onClick: () => onInspectNotification(it),
+                          onClick: () => onInspectNotification(it as NotificationItem | MemoryItem),
                         },
                       ]
                     : undefined,

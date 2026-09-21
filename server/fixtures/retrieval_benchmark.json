@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "records": [
+    {"type": "adr", "key": "fixture-adr-1"}, {"type": "adr", "key": "fixture-adr-2"}, {"type": "adr", "key": "fixture-adr-3"},
+    {"type": "commit", "key": "fixture-commit-1"}, {"type": "commit", "key": "fixture-commit-2"}, {"type": "commit", "key": "fixture-commit-3"},
+    {"type": "grill", "key": "fixture-grill-1"}, {"type": "grill", "key": "fixture-grill-2"}, {"type": "grill", "key": "fixture-grill-3"},
+    {"type": "summary", "key": "fixture-summary-1"}, {"type": "summary", "key": "fixture-summary-2"}, {"type": "summary", "key": "fixture-summary-3"},
+    {"type": "checkpoint", "key": "fixture-checkpoint-1"}, {"type": "checkpoint", "key": "fixture-checkpoint-2"}, {"type": "checkpoint", "key": "fixture-checkpoint-3"},
+    {"type": "memory", "key": "fixture-memory-1"}, {"type": "memory", "key": "fixture-memory-2"}, {"type": "memory", "key": "fixture-memory-3"}
+  ],
+  "queries": [
+    {"query": "fixture-adr-1", "expected_id": "adr-1"}, {"query": "fixture-adr-2", "expected_id": "adr-2"}, {"query": "fixture-adr-3", "expected_id": "adr-3"},
+    {"query": "fixture-commit-1", "expected_id": "commit-1"}, {"query": "fixture-commit-2", "expected_id": "commit-2"}, {"query": "fixture-commit-3", "expected_id": "commit-3"},
+    {"query": "fixture-grill-1", "expected_id": "grill-1"}, {"query": "fixture-grill-2", "expected_id": "grill-2"}, {"query": "fixture-grill-3", "expected_id": "grill-3"},
+    {"query": "fixture-summary-1", "expected_id": "summary-1"}, {"query": "fixture-summary-2", "expected_id": "summary-2"}, {"query": "fixture-summary-3", "expected_id": "summary-3"},
+    {"query": "fixture-checkpoint-1", "expected_id": "checkpoint-1"}, {"query": "fixture-checkpoint-2", "expected_id": "checkpoint-2"}, {"query": "fixture-checkpoint-3", "expected_id": "checkpoint-3"},
+    {"query": "fixture-memory-1", "expected_id": "memory-1"}, {"query": "fixture-memory-2", "expected_id": "memory-2"}, {"query": "fixture-memory-3", "expected_id": "memory-3"}
+  ],
+  "no_result_queries": ["fixture-missing-record"]
+}

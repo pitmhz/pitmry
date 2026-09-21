@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "mode": "live",
+  "recorded_at": "2026-09-20T14:57:10",
+  "golden_version": 1,
+  "metrics": {
+    "recall_at_1": 0.96,
+    "recall_at_3": 0.96,
+    "mean_reciprocal_rank": 0.96,
+    "no_result_precision": 1.0,
+    "semantic_source_share": 1.0,
+    "p95_latency_ms": 239.107,
+    "index_freshness": 1.0,
+    "unembedded_observations": 0,
+    "worker_healthy": 1.0
+  }
+}

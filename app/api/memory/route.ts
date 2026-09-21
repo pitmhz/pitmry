@@ -53,6 +53,25 @@ function parseLastJson(stdout: string) {
   throw new Error("Empty JSON from backend");
 }
 
+/**
+ * Mark a response as sample data. Without this, a backend failure is
+ * indistinguishable from real memory: the dashboard would render demo records
+ * with no indication that the answers are not from the user's database.
+ */
+function withFallbackMarker(payload: unknown, reason: string) {
+  const marker = {
+    fallback: true,
+    fallback_reason: reason
+  };
+  if (Array.isArray(payload)) {
+    return { ...marker, items: payload };
+  }
+  if (payload && typeof payload === "object") {
+    return { ...(payload as Record<string, unknown>), ...marker };
+  }
+  return { ...marker, value: payload };
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action") || "summary";
@@ -81,7 +100,12 @@ export async function GET(request: NextRequest) {
   const scriptPath = resolvePythonScript();
   if (!scriptPath) {
     // Fall back gracefully to built-in sample data
-    return NextResponse.json(getDemoFallback(action, searchParams));
+    return NextResponse.json(
+      withFallbackMarker(
+        getDemoFallback(action, searchParams),
+        "Local memory backend not found. Run `pnpm setup` to connect your databases."
+      )
+    );
   }
 
   const pythonBin = resolvePythonBinary();
@@ -165,6 +189,11 @@ export async function GET(request: NextRequest) {
       ]
     });
     console.warn(`[API: ${action}] Backend query failed, serving demo fallback:`, error?.message);
-    return NextResponse.json(getDemoFallback(action, searchParams));
+    return NextResponse.json(
+      withFallbackMarker(
+        getDemoFallback(action, searchParams),
+        `Backend query failed: ${error?.message || "unknown error"}`
+      )
+    );
   }
 }

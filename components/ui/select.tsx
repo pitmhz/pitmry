@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils"
 
 interface SelectProps {
   items?: Array<{ label: string; value: string }>
-  value?: any
-  defaultValue?: any
-  onValueChange?: (value: any) => void
+  value?: string
+  defaultValue?: string
+  onValueChange?: (value: string | null) => void
   disabled?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Search, X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MemoryItem } from "@/lib/types";
+import { formatItemType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
 interface CommandPaletteProps {
@@ -12,17 +13,15 @@ interface CommandPaletteProps {
   onSelect: (item: MemoryItem) => void;
 }
 
-function formatItemType(type?: string): string {
-  switch (type) {
-    case "adr":
-      return "Decision";
-    case "commit":
-      return "Commit";
-    case "grill":
-      return "Discussion";
-    default:
-      return type || "Item";
-  }
+function formatIndexedAt(value?: number | string): string | null {
+  const timestamp = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 1) return "indexed now";
+  if (minutes < 60) return `indexed ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `indexed ${hours}h ago`;
+  return `indexed ${Math.floor(hours / 24)}d ago`;
 }
 
 export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps) {
@@ -123,15 +122,17 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
         <div className="max-h-96 overflow-y-auto p-2">
           {loading ? (
             <div className="py-6 text-center text-xs text-muted-foreground animate-pulse">
-              Searching...
+              Searching local memory...
             </div>
           ) : results.length === 0 ? (
             <div className="py-8 text-center text-xs text-muted-foreground">
-              {query ? "No results found." : "Type to search..."}
+              {query ? "No matching memory. Try a project, file, or decision term." : "Type to search..."}
             </div>
           ) : (
             <div className="space-y-1">
-              {results.map((item) => (
+              {results.map((item) => {
+                const indexedLabel = formatIndexedAt(item.indexed_at);
+                return (
                 <div
                   key={item.id}
                   onClick={() => {
@@ -140,7 +141,7 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
                   }}
                   className="group flex cursor-pointer items-center justify-between rounded-lg p-2.5 hover:bg-secondary transition-colors"
                 >
-                  <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="flex min-w-0 items-center gap-3 overflow-hidden">
                     <span className="shrink-0 rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground">
                       {formatItemType(item.type)}
                     </span>
@@ -153,9 +154,29 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
                       </div>
                     </div>
                   </div>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all shrink-0 ml-2" />
+                  <div className="ml-2 flex shrink-0 items-center gap-2">
+                    {item.source && item.score !== undefined && (
+                      <div className="hidden text-right sm:block">
+                        <div className="font-mono text-[10px] text-foreground/80">
+                          {item.source} · {Math.round(item.score * 100)}%
+                        </div>
+                        {indexedLabel && (
+                          <div className="font-mono text-[9px] text-muted-foreground">
+                            {indexedLabel}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {item.related_ids?.length ? (
+                      <span className="hidden rounded border border-border/70 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground md:inline">
+                        {item.related_ids.length} linked
+                      </span>
+                    ) : null}
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all" />
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

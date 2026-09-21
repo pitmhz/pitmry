@@ -15,6 +15,7 @@ import json
 import time
 import sqlite3
 import argparse
+import hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -28,6 +29,7 @@ DEFAULT_CAVEMEM_DB = os.path.expanduser(r"~\.cavemem\data.db")
 DEFAULT_MODEL_PATH = os.path.expanduser(r"~\.cavemem\models\Xenova\all-MiniLM-L6-v2\onnx\model_quantized.onnx")
 DEFAULT_TOKENIZER_PATH = os.path.expanduser(r"~\.cavemem\models\Xenova\all-MiniLM-L6-v2\tokenizer.json")
 EMBED_DIM = 384
+RECOVERY_TABLE = "recovery_records"
 
 
 class LocalEmbedder:
@@ -155,13 +157,32 @@ def init_tables(db):
         ])
         db.create_table("git_digests", schema=schema)
 
+    # Recovery records are the compact, high-signal memories that agents need
+    # after compaction. Raw observations deliberately remain SQLite-only.
+    if RECOVERY_TABLE not in table_names:
+        schema = pa.schema([
+            pa.field("id", pa.string()),
+            pa.field("stable_key", pa.string()),
+            pa.field("record_type", pa.string()),
+            pa.field("project", pa.string()),
+            pa.field("title", pa.string()),
+            pa.field("content", pa.string()),
+            pa.field("tags", pa.string()),
+            pa.field("timestamp", pa.string()),
+            pa.field("indexed_at", pa.string()),
+            pa.field("related_ids", pa.string()),
+            pa.field("vector", pa.list_(pa.float32(), EMBED_DIM))
+        ])
+        db.create_table(RECOVERY_TABLE, schema=schema)
 
-def sync_from_cavemem():
-    db = get_db()
+
+def sync_from_cavemem(db_dir: str = DEFAULT_LANCE_DIR, cavemem_db: str = DEFAULT_CAVEMEM_DB,
+                      embedder: Optional[LocalEmbedder] = None):
+    db = get_db(db_dir)
     init_tables(db)
-    embedder = LocalEmbedder()
+    embedder = embedder or LocalEmbedder()
     
-    conn = sqlite3.connect(DEFAULT_CAVEMEM_DB)
+    conn = sqlite3.connect(cavemem_db)
     cur = conn.cursor()
     
     # Sync ADRs
@@ -216,35 +237,118 @@ def sync_from_cavemem():
         tbl.add(records, mode="overwrite")
         print(f"✓ Synced {len(records)} Git digest(s) to LanceDB")
 
+    # Sync compact recovery records. A durable memory promoted from a checkpoint
+    # has the stable key checkpoint:<sha256(content)> and is linked to, rather
+    # than duplicated beside, the original checkpoint.
+    recovery_records = []
+    checkpoint_index = {}
+    indexed_at = str(int(time.time() * 1000))
+
+    def content_hash(content: str) -> str:
+        return hashlib.sha256((content or "").encode("utf-8")).hexdigest()
+
+    def add_recovery(record_id: str, stable_key: str, record_type: str, project: str,
+                     title: str, content: str, tags: str, timestamp: Any,
+                     related_ids: str = ""):
+        recovery_records.append({
+            "id": record_id,
+            "stable_key": stable_key,
+            "record_type": record_type,
+            "project": project or "",
+            "title": title or "",
+            "content": content or "",
+            "tags": tags or "",
+            "timestamp": str(timestamp or ""),
+            "indexed_at": indexed_at,
+            "related_ids": related_ids,
+            "vector": embedder.embed(f"Title: {title}\nContent: {content}\nTags: {tags}")
+        })
+
+    if _table_exists(cur, "summaries") and _table_exists(cur, "sessions"):
+        cur.execute("""
+            SELECT x.id, x.scope, x.content, x.ts, COALESCE(s.project_key,s.cwd,'global'), x.session_id
+            FROM summaries x JOIN sessions s ON s.id = x.session_id
+        """)
+        for row in cur.fetchall():
+            add_recovery(f"summary-{row[0]}", f"summary:{row[0]}", "summary", row[4],
+                         f"{(row[1] or 'session').title()} summary", row[2], row[5], row[3])
+
+    if _table_exists(cur, "checkpoints"):
+        cur.execute("SELECT id, session_id, project_key, trigger, content, ts FROM checkpoints")
+        for row in cur.fetchall():
+            stable_key = f"checkpoint:{content_hash(row[4])}"
+            record_id = f"checkpoint-{row[0]}"
+            checkpoint_index[stable_key] = len(recovery_records)
+            add_recovery(record_id, stable_key, "checkpoint", row[2],
+                         f"Compaction checkpoint ({row[3]})", row[4], row[1], row[5])
+
+    if _table_exists(cur, "memory_items"):
+        cur.execute("SELECT id, stable_key, project_key, kind, title, content, updated_at FROM memory_items")
+        for row in cur.fetchall():
+            record_id = f"memory-{row[0]}"
+            checkpoint_key = row[1] if row[1] in checkpoint_index else f"checkpoint:{content_hash(row[5])}"
+            if checkpoint_key in checkpoint_index:
+                existing = recovery_records[checkpoint_index[checkpoint_key]]
+                existing["related_ids"] = ",".join(filter(None, [existing["related_ids"], record_id]))
+                continue
+            add_recovery(record_id, row[1], "memory", row[2], row[4], row[5], row[3], row[6])
+
+    recovery_table = db.open_table(RECOVERY_TABLE)
+    if recovery_records:
+        recovery_table.add(recovery_records, mode="overwrite")
+    print(f"✓ Synced {len(recovery_records)} recovery record(s) to LanceDB")
+
     conn.close()
 
 
-def search(query: str, limit: int = 5):
-    db = get_db()
+def _table_exists(cursor, name: str) -> bool:
+    return cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def search(query: str, limit: int = 5, db_dir: str = DEFAULT_LANCE_DIR,
+           embedder: Optional[LocalEmbedder] = None, as_json: bool = False) -> List[Dict[str, Any]]:
+    db = get_db(db_dir)
     init_tables(db)
-    embedder = LocalEmbedder()
+    embedder = embedder or LocalEmbedder()
     query_vec = embedder.embed(query)
-
-    print(f"\n==================================================")
-    print(f" LanceDB Vector Search (Disk Columnar): '{query}'")
-    print(f"==================================================")
-
+    output = []
     table_names = get_table_names(db)
     for tbl_name, title_key, desc_key in [
         ("adrs", "title", "rationale"),
         ("grill_me_logs", "topic", "resolved_direction"),
-        ("git_digests", "summary", "rationale")
+        ("git_digests", "summary", "rationale"),
+        (RECOVERY_TABLE, "title", "content")
     ]:
         if tbl_name in table_names:
             tbl = db.open_table(tbl_name)
             if len(tbl) > 0:
-                results = tbl.search(query_vec).limit(limit).to_list()
-                print(f"\n[{tbl_name.upper()}] ({len(results)} matches):")
+                results = tbl.search(query_vec).metric("cosine").limit(limit).to_list()
                 for r in results:
-                    dist = r.get("_distance", 0.0)
-                    sim = max(0.0, 1.0 - dist)
-                    print(f"  • [#{r.get('id')}] {r.get(title_key)} (score: {sim:.4f})")
-                    print(f"    {r.get(desc_key)[:130]}...")
+                    dist = float(r.get("_distance", 2.0))
+                    similarity = max(0.0, min(1.0, 1.0 - (dist / 2.0)))
+                    output.append({
+                        "table": tbl_name,
+                        "id": r.get("id"),
+                        "record_type": r.get("record_type"),
+                        "title": r.get(title_key, ""),
+                        "preview": (r.get(desc_key, "") or "")[:130],
+                        "distance": round(dist, 6),
+                        "similarity": round(similarity, 6),
+                        "indexed_at": r.get("indexed_at", ""),
+                        "related_ids": r.get("related_ids", "")
+                    })
+
+    if as_json:
+        return output
+
+    print(f"\n==================================================")
+    print(f" LanceDB Vector Search (Disk Columnar): '{query}'")
+    print(f"==================================================")
+    for item in output:
+        label = item["record_type"] or item["table"]
+        print(f"\n[{label.upper()}] {item['title']} (similarity: {item['similarity']:.4f}, distance: {item['distance']:.4f})")
+        print(f"  • [{item['id']}] {item['preview']}...")
+    return output
 
 
 def status():
@@ -271,12 +375,15 @@ def main():
     s_parser = sub.add_parser("search", help="Perform vector search across LanceDB")
     s_parser.add_argument("query", help="Search query string")
     s_parser.add_argument("--limit", type=int, default=3, help="Max results per table")
+    s_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     args = parser.parse_args()
     if args.cmd == "sync":
         sync_from_cavemem()
     elif args.cmd == "search":
-        search(args.query, args.limit)
+        results = search(args.query, args.limit, as_json=args.json)
+        if args.json:
+            print(json.dumps(results, indent=2))
     elif args.cmd == "status":
         status()
     else:

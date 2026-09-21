@@ -36,6 +36,8 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // Vendored template primitives; tracked upstream, not type-clean under strict.
+    "components/odysseyui/primitives"
   ]
 }
