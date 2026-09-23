@@ -13,13 +13,13 @@ import {
   Filter,
   Layers,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import type { MemoryItemType } from "@/lib/types";
 
 interface Event {
   id: string;
-  raw_id: number;
-  type: "adr" | "commit" | "grill";
+  raw_id: string;
+  type: MemoryItemType;
   who: string;
   initials: string;
   what: string;
@@ -85,13 +85,14 @@ export function TimelinesActivityFeed({
   onSelectItem,
   className,
 }: {
-  onSelectItem?: (type: "adr" | "commit" | "grill", id: number) => void;
+  onSelectItem?: (type: MemoryItemType, id: string) => void;
   className?: string;
 }) {
   const [data, setData] = useState<ActivityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("all");
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const fetchActivity = async () => {
     try {
@@ -100,9 +101,13 @@ export function TimelinesActivityFeed({
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        setError(null);
+      } else {
+        setError("The canonical activity feed could not be loaded. Refresh to try again.");
       }
     } catch (err) {
       console.error("Failed to fetch activity:", err);
+      setError("The canonical activity feed could not be reached. Refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -134,7 +139,7 @@ export function TimelinesActivityFeed({
             Recent Activity
           </h1>
           <p className="mt-1 text-xs md:text-sm text-muted-foreground">
-            A timeline of saved decisions, git commits, and design discussions.
+            A timeline of canonical records and their recorded sources.
           </p>
         </div>
 
@@ -178,6 +183,8 @@ export function TimelinesActivityFeed({
 
       {/* Grouped Day Sections */}
       <div className="space-y-6">
+        {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">{error}</div>}
+        {loading && <div role="status" className="py-8 text-center text-sm text-muted-foreground">Loading canonical activity…</div>}
         {todayFiltered.length > 0 && (
           <DaySection
             label="Today"
@@ -208,7 +215,7 @@ export function TimelinesActivityFeed({
         {todayFiltered.length === 0 && yesterdayFiltered.length === 0 && earlierFiltered.length === 0 && !loading && (
           <div className="py-12 text-center rounded-xl border border-dashed border-border/60 bg-card/20">
             <Layers className="size-8 mx-auto text-muted-foreground/50 mb-2" />
-            <p className="text-sm text-muted-foreground">No events found matching this filter.</p>
+            <p className="text-sm text-muted-foreground">{filterType === "all" ? "No canonical records have been captured yet." : "No records match this filter."}</p>
           </div>
         )}
       </div>
@@ -225,7 +232,7 @@ function DaySection({
   label: string;
   count: number;
   events: Event[];
-  onSelectItem?: (type: "adr" | "commit" | "grill", id: number) => void;
+  onSelectItem?: (type: MemoryItemType, id: string) => void;
 }) {
   return (
     <section className="mt-6">
@@ -267,11 +274,6 @@ function DaySection({
                 className="group flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-xl border border-border/60 bg-card/40 hover:border-primary/40 hover:bg-card/70 px-4 py-3 shadow-2xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <div className="flex items-start gap-3 min-w-0">
-                  <Avatar className="size-7 mt-0.5 shrink-0">
-                    <AvatarFallback className="text-[11px] font-bold bg-muted text-foreground">
-                      {e.initials}
-                    </AvatarFallback>
-                  </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs md:text-sm text-foreground leading-snug">
                       <span className="font-bold text-foreground">{e.who}</span>{" "}

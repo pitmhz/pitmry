@@ -1,0 +1,2 @@
+# Optional read-only MCP transport. The core engine and CLI do not depend on it.
+mcp>=1.9,<2

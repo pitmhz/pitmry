@@ -85,18 +85,6 @@ export async function GET(request: NextRequest) {
   const hops = clampLimitStr(searchParams.get("hops"), "3", 10);
   const commitHash = searchParams.get("commit") || searchParams.get("commit_hash");
 
-  if (action === "readiness") {
-    // Quick readiness probe
-    const scriptPath = resolvePythonScript();
-    const isVenvPresent = fs.existsSync(path.join(process.cwd(), ".venv"));
-    return NextResponse.json({
-      status: scriptPath ? "ready" : "unconfigured",
-      script_path: scriptPath,
-      venv_present: isVenvPresent,
-      python_bin: resolvePythonBinary()
-    });
-  }
-
   const scriptPath = resolvePythonScript();
   if (!scriptPath) {
     // Fall back gracefully to built-in sample data
@@ -111,7 +99,9 @@ export async function GET(request: NextRequest) {
   const pythonBin = resolvePythonBinary();
   const args = [scriptPath];
 
-  if (action === "summary") {
+  if (action === "readiness" || action === "health") {
+    args.push("--health");
+  } else if (action === "summary") {
     args.push("--summary");
   } else if (action === "feed") {
     args.push("--feed");
@@ -174,6 +164,20 @@ export async function GET(request: NextRequest) {
       ]
     });
 
+    if (action === "readiness") {
+      const checks = Object.fromEntries(
+        ["canonical", "sqlite", "fts", "vectors", "git"].map((key) => [
+          key,
+          { status: parsed[key] || "unavailable", message: (parsed.warnings || []).join("; ") },
+        ]),
+      );
+      return NextResponse.json({
+        version: 1,
+        status: parsed.status === "healthy" ? "ready" : parsed.status === "unhealthy" ? "critical" : "degraded",
+        checked_at: new Date().toISOString(),
+        checks,
+      });
+    }
     return NextResponse.json(parsed);
   } catch (error: any) {
     const duration = Math.round(performance.now() - startTime);

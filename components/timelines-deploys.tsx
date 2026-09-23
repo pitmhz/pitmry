@@ -75,6 +75,7 @@ export function TimelinesDeploys({
 }) {
   const [data, setData] = useState<DeploysData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedEnv, setSelectedEnv] = useState<string>("all");
   const [selectedRepo, setSelectedRepo] = useState<string>("all");
@@ -85,12 +86,13 @@ export function TimelinesDeploys({
     try {
       setLoading(true);
       const res = await fetch("/api/memory?action=deploys");
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const json = await res.json();
+      setData(json);
+      setError(null);
     } catch (err) {
       console.error("Failed to fetch deploys:", err);
+      setError(err instanceof Error ? err.message : "Could not load deployment records.");
     } finally {
       setLoading(false);
     }
@@ -119,13 +121,13 @@ export function TimelinesDeploys({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.3em]">
-            Git & Deploy History
+            Canonical deployment records
           </div>
           <h1 className="mt-1 font-heading text-2xl md:text-3xl text-foreground font-semibold">
-            Deploy & Commit History
+            Deployments
           </h1>
           <p className="mt-1 text-xs md:text-sm text-muted-foreground">
-            Track git commits, active branches, and code changes across your projects.
+            Captured deployment records with source and evidence. Git changes are available in the activity feed.
           </p>
         </div>
 
@@ -219,7 +221,7 @@ export function TimelinesDeploys({
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card/50 backdrop-blur-md shadow-xs">
         <div className="flex items-center justify-between border-b border-border/40 px-5 py-3">
           <div className="font-mono text-xs text-muted-foreground uppercase tracking-wider font-bold">
-            Deploys · {filteredDeploys.length} commits
+            Deployments · {filteredDeploys.length}
           </div>
           {selectedRepo !== "all" && (
             <button
@@ -232,6 +234,13 @@ export function TimelinesDeploys({
         </div>
 
         <ul className="divide-y divide-border/40">
+          {loading && <li className="px-5 py-8 text-center text-sm text-muted-foreground">Loading deployment records…</li>}
+          {!loading && error && <li role="alert" className="px-5 py-8 text-center text-sm text-destructive">Could not load deployment records: {error}</li>}
+          {!loading && !error && filteredDeploys.length === 0 && (
+            <li className="px-5 py-8 text-center text-sm text-muted-foreground">
+              No canonical deployment records have been captured.
+            </li>
+          )}
           {filteredDeploys.map((d) => (
             <li
               key={d.id}

@@ -61,6 +61,13 @@ class LegacyMigrationTests(unittest.TestCase):
         self.assertFalse(any(record.provenance.source_id.startswith("adrs:portfolio:")
                              for record in records))
 
+    def test_selected_project_labels_can_be_migrated_independently(self):
+        result = migrate_legacy(self.db, root=self.root, dry_run=True,
+                                project_labels=("portfolio",))
+        self.assertEqual(result["selected_projects"], ["portfolio"])
+        self.assertEqual(result["total"], 1)
+        self.assertFalse((self.root / ".pitmry").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

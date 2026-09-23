@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import re
 import subprocess
 
 from .canonical_store import CanonicalStore
@@ -97,6 +98,7 @@ def capture_relation(store, source_record_id, target_record_id, relation, eviden
         raise ValueError("both relation targets must exist in the canonical store")
     if source.project_id != target.project_id or source.project_id != store.project_id:
         raise ValueError("relation targets must belong to this project")
+    evidence_refs = _verify_relation_evidence(store, evidence_refs)
     kind = RelationType.coerce(relation)
     edge = RelationRecord(
         schema_version=SCHEMA_VERSION,
@@ -107,6 +109,39 @@ def capture_relation(store, source_record_id, target_record_id, relation, eviden
         evidence_refs=tuple(evidence_refs), metadata={})
     store.write(edge)
     return edge
+
+
+def _verify_relation_evidence(store, evidence_refs):
+    verified = []
+    for evidence in evidence_refs:
+        if isinstance(evidence, str):
+            if re.fullmatch(r"[0-9a-fA-F]{40}", evidence):
+                evidence = {"type": "git_commit", "source_id": evidence.lower()}
+            else:
+                evidence = {"type": "canonical_record", "record_id": evidence}
+        if not isinstance(evidence, dict):
+            raise ValueError("evidence must reference a canonical record or full Git SHA")
+        record_id = evidence.get("record_id")
+        if evidence.get("type") == "canonical_record" and not record_id:
+            record_id = evidence.get("source_id")
+        if record_id:
+            supporting = store.get(record_id)
+            if supporting is None or supporting.project_id != store.project_id:
+                raise ValueError(f"evidence record {record_id!r} is not in this canonical project")
+            verified.append({"type": "canonical_record", "record_id": record_id})
+            continue
+        if evidence.get("type") == "git_commit":
+            sha = str(evidence.get("source_id") or evidence.get("sha") or "").lower()
+            if not re.fullmatch(r"[0-9a-f]{40}", sha):
+                raise ValueError("Git relation evidence must use a full 40-character SHA")
+            result = subprocess.run(["git", "-C", str(store.paths.root), "cat-file", "-e", f"{sha}^{{commit}}"],
+                                    capture_output=True, text=True)
+            if result.returncode:
+                raise ValueError(f"Git evidence commit {sha} cannot be resolved in this project")
+            verified.append({"type": "git_commit", "source_id": sha})
+            continue
+        raise ValueError("evidence must reference a canonical record or verified Git commit")
+    return tuple(verified)
 
 
 def _git(root, *args, input_text=None, check=True):

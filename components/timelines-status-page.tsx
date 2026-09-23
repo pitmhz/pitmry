@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 type Check = { status: string; message?: string; [key: string]: unknown };
 type Readiness = { version: number; status: "ready" | "degraded" | "critical"; checked_at: string; checks?: Record<string, Check>; error?: string };
-const labels: Record<string, string> = { database: "SQLite database", embeddings: "Observation embeddings", worker: "Embedding worker", integrations: "Agent integrations", summaries: "Session continuity", duplicates: "Duplicate records" };
+const labels: Record<string, string> = { canonical: "Canonical records", sqlite: "SQLite projection", fts: "Full-text search", vectors: "Vector projection", git: "Git" };
 
 function detail(value: Check) {
   if (value.message) return value.message;
@@ -40,9 +40,9 @@ export function TimelinesStatusPage({ className }: { className?: string }) {
       <header className="rounded-xl border border-border/60 bg-card/50 p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Memory Reliability v1</div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">PITMRY storage</div>
             <h1 className="mt-2 font-heading text-2xl tracking-tight">Readiness</h1>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">Live evidence that memories are stored, embedded, recoverable after compaction, and available to configured agents.</p>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">Independent status for canonical records and rebuildable local indexes.</p>
           </div>
           <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-xs font-semibold uppercase ${statusColor}`}>
             {status === "ready" ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}{loading ? "checking" : status}
@@ -66,15 +66,15 @@ export function TimelinesStatusPage({ className }: { className?: string }) {
       {data?.error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-600">{data.error}</div>}
       <section className="grid gap-3 md:grid-cols-2" aria-label="Readiness checks">
         {checks.map(([name, value]) => {
-          const healthy = value.status === "ready" || value.status === "ok";
-          const Icon = name === "database" ? Database : name === "worker" ? Server : ShieldCheck;
+          const healthy = value.status === "ready" || value.status === "ok" || value.status === "healthy";
+          const Icon = name === "sqlite" || name === "fts" ? Database : name === "git" ? Server : ShieldCheck;
           return <article key={name} className="rounded-xl border border-border/60 bg-card/50 p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><Icon className="size-4 text-primary" /><h2 className="text-sm font-semibold">{labels[name] || name.replaceAll("_", " ")}</h2></div><span className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase ${healthy ? "bg-emerald-500/10 text-emerald-600" : value.status === "critical" ? "bg-rose-500/10 text-rose-600" : "bg-amber-500/10 text-amber-600"}`}>{value.status}</span></div>
             <p className="mt-3 break-words font-mono text-[11px] leading-relaxed text-muted-foreground">{detail(value) || "No detail reported"}</p>
           </article>;
         })}
       </section>
-      {!loading && checks.length === 0 && !data?.error && <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No readiness checks were returned.</div>}
+      {!loading && checks.length === 0 && !data?.error && <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No store checks were returned. Run the backend doctor from the project root.</div>}
     </div>
   );
 }

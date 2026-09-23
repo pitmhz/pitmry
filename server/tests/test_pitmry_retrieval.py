@@ -95,11 +95,11 @@ class StateResolverTests(RetrievalTestCase):
         new = self.decision("cms.primary", "Use Sanity", "sanity",
                             created_at="2026-09-23T00:00:00+00:00")
         capture_relation(self.store, new.id, old.id, RelationType.supersedes,
-                         [{"type": "session", "source_id": "decision-record"}])
+                         [{"type": "canonical_record", "record_id": new.id}])
         reverted = self.decision("cache.provider", "Use Redis", "redis")
         reverter = self.decision("cache.revert", "Revert Redis", "revert")
         capture_relation(self.store, reverter.id, reverted.id, RelationType.reverts,
-                         [{"type": "git_commit", "source_id": "abc1234"}])
+                         [{"type": "canonical_record", "record_id": reverter.id}])
         records = self.store.load_all()
         states = resolve_states(records, records)
         self.assertEqual(states[old.id], SUPERSEDED)
@@ -245,7 +245,7 @@ class FtsRetrievalTests(RetrievalTestCase):
         new = self.decision("cms.primary", "Sanity CMS", "sanity",
                             created_at="2026-09-23T00:00:00+00:00")
         capture_relation(self.store, new.id, old.id, RelationType.supersedes,
-                         [{"type": "session", "source_id": "phase-3-test"}])
+                         [{"type": "canonical_record", "record_id": new.id}])
         self.project()
         current = context("CMS current", root=self.root, include_vectors=False)
         historical = context("CMS before", root=self.root, include_vectors=False)
@@ -279,7 +279,7 @@ class ExplicitLineageTests(RetrievalTestCase):
             content={"commit_sha": "a" * 40, "semantic_summary": "token middleware"})
         self.store.write(git_record)
         capture_relation(self.store, git_record.id, decision.id, RelationType.implements,
-                         [{"type": "git_commit", "source_id": "a" * 40}])
+                         [{"type": "canonical_record", "record_id": git_record.id}])
         self.project()
         result = context("signed API tokens", root=self.root, include_vectors=False)
         self.assertEqual(result["evidence"][0]["id"], git_record.id)

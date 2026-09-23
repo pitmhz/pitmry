@@ -1,12 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "pitmry-config",
-  "description": "Pitmry Personal Memory Dashboard Configuration",
-  "cavemem_db_path": "~/.cavemem/data.db",
-  "lancedb_dir": "~/.strategic_memory/lancedb",
-  "skills_path": "auto",
-  "skills_scope": "global",
+  "description": "PITMRY project registry for the local dashboard",
   "tracked_repos": {
-    "pitmry": "."
+    "current-project": "."
   }
 }

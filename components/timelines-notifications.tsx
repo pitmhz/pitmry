@@ -185,7 +185,7 @@ export function TimelinesNotifications({
           ))
         ) : (
           <div className="py-8 text-center text-xs text-muted-foreground">
-            No notifications in this tab.
+            No canonical notification records have been captured for this tab.
           </div>
         )}
       </div>

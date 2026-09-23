@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import React, { useDeferredValue, useEffect, useState, useRef } from "react";
 import type { MemoryItem, MemorySummary, TagCount, MemoryItemType } from "@/lib/types";
-import { formatItemType } from "@/lib/types";
+import { formatAuthority, formatItemType } from "@/lib/types";
 import {
   Search,
   Network,
@@ -94,25 +94,25 @@ const VIEW_META: Record<ViewMode, { label: string; title: string; description: s
   stream: {
     label: "all-projects",
     title: "Operational memory stream",
-    description: "Unified architectural decision records, semantic git digests, and discussions.",
+    description: "Canonical project records with source, authority, and resolved state.",
   },
   deploys: {
     label: "deploys",
     title: "Deploy and commit history",
-    description: "Track git commits, active branches, and code changes across your projects.",
+    description: "Browse captured Git changes. Deployment data appears only when recorded.",
   },
   activity: {
     label: "activity",
     title: "Recent activity",
-    description: "A timeline of saved decisions, git commits, and design discussions.",
+    description: "A timeline of canonical records and their recorded sources.",
   },
   status: {
     label: "status",
     title: "Memory readiness",
-    description: "Live evidence that memories are stored, embedded, recoverable, and available.",
+    description: "Independent status for canonical records and rebuildable indexes.",
   },
   graph: { label: "graph", title: "Knowledge graph", description: "Explore relationships across your memory records." },
-  galaxy: { label: "galaxy", title: "3D vector galaxy", description: "Explore multi-dimensional memory embeddings." },
+  galaxy: { label: "galaxy", title: "3D vector view", description: "Explore the vector projection when its layout is available." },
   skills: { label: "skills", title: "Skills workspace", description: "Run offline workflows and automations." },
   logs: { label: "logs", title: "System logs", description: "Inspect local service and runtime events." },
 };
@@ -401,7 +401,7 @@ export function AppShell() {
     open: boolean;
     project?: string;
     commitHash?: string;
-    itemId?: number;
+    itemId?: number | string | null;
   }>({ open: false });
 
   const [filterState, setFilterState] = useState<FilterToolbarState>({
@@ -566,7 +566,6 @@ export function AppShell() {
   }, [diffModalState.open, onboardingOpen, notifOpen, welcomeOpen, spotlightActive, setWelcomeOpen, closeSpotlight]);
 
   const handleSelectNeighbor = (id: string, type: MemoryItemType) => {
-    const numId = parseInt(id.split("-")[1]);
     if (type !== "adr" && type !== "commit" && type !== "grill") {
       // Recovery records (checkpoint/memory/summary) carry no neighbor graph;
       // select from the already-loaded feed instead.
@@ -578,7 +577,7 @@ export function AppShell() {
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data) ? (data as MemoryItem[]) : [];
-        const found = list.find((it) => it.id === id || it.numeric_id === numId);
+        const found = list.find((it) => it.id === id);
         if (found) {
           setActiveItem(found);
         }
@@ -712,7 +711,7 @@ export function AppShell() {
               <FeatureBeacon
                 id="beacon_galaxy_3d"
                 title="3D Vector Galaxy"
-                body="Explore multi-dimensional vector embeddings clustered in real-time WebGL 3D space."
+                body="A spatial embedding projection is not available from the canonical store yet."
                 seen={isBeaconSeen("beacon_galaxy_3d")}
                 onAcknowledge={markBeaconSeen}
                 align="bottom"
@@ -959,13 +958,13 @@ export function AppShell() {
             <div className="flex-1 h-full overflow-y-auto">
               <TimelinesActivityFeed
                 onSelectItem={(type, id) => {
-                  if (type === "commit") {
-                    setDiffModalState({
-                      open: true,
-                      itemId: id,
-                    });
-                  } else {
-                    handleSelectNeighbor(`${type}-${id}`, type);
+                    if (type === "commit") {
+                      setDiffModalState({
+                        open: true,
+                        itemId: id,
+                      });
+                    } else {
+                      handleSelectNeighbor(id, type);
                     setViewMode("stream");
                   }
                 }}
@@ -1170,6 +1169,16 @@ export function AppShell() {
                                   <span className="memory-card__subtle inline-flex items-center rounded border border-current/20 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors">
                                     {formatItemType(item.type)}
                                   </span>
+                                  {item.state && item.state !== "UNKNOWN" && (
+                                    <span className="inline-flex items-center rounded border border-border px-2 py-0.5 font-mono text-[10px] uppercase text-muted-foreground" title="Resolved from explicit canonical relations">
+                                      {item.state}
+                                    </span>
+                                  )}
+                                  {formatAuthority(item.authority) && (
+                                    <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] text-muted-foreground" title={`Authority: ${item.authority}`}>
+                                      {formatAuthority(item.authority)}
+                                    </span>
+                                  )}
                                   <span className="memory-card__subtle rounded px-2 py-0.5 text-[11px] font-semibold font-mono transition-colors">
                                     {item.project}
                                   </span>
@@ -1325,7 +1334,7 @@ export function AppShell() {
               open: true,
               project: firstCommit?.project || selectedProject || "pitmry",
               commitHash: firstCommit?.commit_hash,
-              itemId: firstCommit?.numeric_id,
+              itemId: firstCommit?.id,
             });
             completeTask("task_inspect_diff");
           } else if (task.action_type === "open_palette") {

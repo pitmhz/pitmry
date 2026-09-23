@@ -10,7 +10,10 @@ interface GraphNode {
   id: string;
   label: string;
   full_title?: string;
-  type: "project" | "adr" | "commit" | "grill";
+  type: "project" | MemoryItemType;
+  canonical_type?: string;
+  authority?: string;
+  state?: string;
   project?: string;
   size: number;
   color: string;
@@ -24,7 +27,8 @@ interface GraphEdge {
   source: string;
   target: string;
   weight: number;
-  type: "contains" | "semantic";
+  type: string;
+  provenance?: "explicit" | "inferred" | "structural";
 }
 
 interface KnowledgeGraphProps {
@@ -228,7 +232,7 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
               return null;
             }
 
-            const isSemantic = edge.type === "semantic";
+            const isInferred = edge.provenance === "inferred";
 
             return (
               <line
@@ -237,11 +241,13 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
                 y1={sourceNode.y}
                 x2={targetNode.x}
                 y2={targetNode.y}
-                stroke={isSemantic ? "var(--primary)" : "var(--border)"}
-                strokeWidth={isSemantic ? Math.max(1.2, edge.weight * 2.2) : 1}
-                strokeDasharray={isSemantic ? "4,4" : undefined}
-                strokeOpacity={isSemantic ? 0.7 : 0.4}
-              />
+                stroke={isInferred ? "var(--primary)" : "var(--border)"}
+                strokeWidth={isInferred ? Math.max(1.2, edge.weight * 2.2) : 1}
+                strokeDasharray={isInferred ? "4,4" : undefined}
+                strokeOpacity={isInferred ? 0.7 : 0.55}
+              >
+                <title>{`${edge.type} (${edge.provenance || "unknown provenance"})`}</title>
+              </line>
             );
           })}
         </g>

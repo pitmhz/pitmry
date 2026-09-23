@@ -6,7 +6,6 @@ import {
   FileText,
   MessageSquare,
   ArrowDown,
-  ArrowRight,
   ExternalLink,
   ChevronDown,
   ChevronUp,
@@ -21,8 +20,9 @@ import { Button } from "@/components/ui/button";
 
 export interface JourneyNode {
   id: string;
-  numeric_id: number;
-  type: "adr" | "commit" | "grill";
+  numeric_id?: number | null;
+  type: MemoryItemType;
+  canonical_type?: string;
   project: string;
   title: string;
   summary: string;
@@ -36,18 +36,19 @@ export interface JourneyNode {
 
 export interface JourneyStep {
   step: number;
-  role: "origin" | "decision" | "focal" | "implementation" | "consequence";
+  role: "origin" | "decision" | "focal" | "implementation" | "consequence" | "related_record";
   relation: string;
   node: JourneyNode;
-  similarity: number;
-  score: number;
+  similarity?: number | null;
+  score?: number | null;
+  provenance?: "explicit" | "inferred" | "selected";
   badge: string;
   shared_files?: string[];
 }
 
 export interface JourneyResponse {
   focal_id: string;
-  focal_node: JourneyNode;
+  focal_node: JourneyNode | null;
   journey_chain: JourneyStep[];
   upstream: JourneyNode[];
   downstream: JourneyNode[];
@@ -55,13 +56,14 @@ export interface JourneyResponse {
     total_hops: number;
     upstream_count: number;
     downstream_count: number;
+    related_count?: number;
   };
 }
 
 interface DecisionJourneyProps {
   item: {
     id: string;
-    numeric_id: number;
+    numeric_id?: number | null;
     type: MemoryItemType;
     title?: string;
     project?: string;
@@ -73,8 +75,6 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
   const [hops, setHops] = useState<number>(3);
   const [data, setData] = useState<JourneyResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSecondaryUpstream, setShowSecondaryUpstream] = useState(false);
-  const [showSecondaryDownstream, setShowSecondaryDownstream] = useState(false);
   const [expandedDetails, setExpandedDetails] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
     const timer = window.setTimeout(() => {
       setLoading(true);
       fetch(
-      `/api/memory?action=journey&item_type=${item.type}&item_id=${item.numeric_id}&hops=${hops}`
+      `/api/memory?action=journey&item_type=${item.type}&item_id=${encodeURIComponent(item.id)}&hops=${hops}`
     )
       .then((res) => res.json())
       .then((resData: JourneyResponse) => {
@@ -104,7 +104,7 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
       isCancelled = true;
       window.clearTimeout(timer);
     };
-  }, [item.id, item.type, item.numeric_id, hops]);
+  }, [item.id, item.type, hops]);
 
   const toggleExpand = (stepIndex: number) => {
     setExpandedDetails((prev) => ({
@@ -181,18 +181,24 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
 
   const getRelationLabel = (relation: string) => {
     switch (relation) {
-      case "originated_from":
-        return "Started in discussion";
-      case "authorized_by":
-        return "Decided in";
-      case "focal_node":
-        return "Selected item";
-      case "implemented_by":
-        return "Built in commit";
-      case "hotfixed_by":
-        return "Fixed in commit";
-      case "followed_by":
-        return "Followed by";
+      case "implements":
+        return "Implements (explicit)";
+      case "supersedes":
+        return "Supersedes (explicit)";
+      case "reverts":
+        return "Reverts (explicit)";
+      case "validated_by":
+        return "Validated by (explicit)";
+      case "discussed_in":
+        return "Discussed in (explicit)";
+      case "derived_from":
+        return "Derived from (explicit)";
+      case "introduced_by":
+        return "Introduced by (explicit)";
+      case "fixed_by":
+        return "Fixed by (explicit)";
+      case "selected":
+        return "Selected record";
       default:
         return relation.replace(/_/g, " ");
     }
@@ -239,73 +245,25 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
         </div>
       ) : !data || data.journey_chain.length === 0 ? (
         <div className="rounded-md border border-border/60 bg-secondary/15 p-3 text-center text-xs text-muted-foreground italic">
-          No connected history found for this item.
+          No explicit linked records were found for this item.
         </div>
       ) : (
         <div className="space-y-3">
           {/* Stats bar */}
-          <div className="grid grid-cols-3 gap-1 rounded-md border border-border/60 bg-secondary/20 p-1.5 text-center text-[10px]">
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-border/60 bg-secondary/20 p-1.5 text-center text-[10px]">
             <div>
-              <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Steps</span>
+              <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Linked records</span>
               <span className="font-mono font-semibold text-foreground text-xs">
-                {data.journey_chain.length}
+                {data.stats.related_count ?? data.journey_chain.length}
               </span>
             </div>
             <div>
-              <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Started from</span>
+                <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Explicit relations</span>
               <span className="font-mono font-semibold text-foreground text-xs">
-                {data.stats.upstream_count}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Follow-ups</span>
-              <span className="font-mono font-semibold text-foreground text-xs">
-                {data.stats.downstream_count}
+                {data.journey_chain.filter((step) => step.provenance === "explicit").length}
               </span>
             </div>
           </div>
-
-          {/* Secondary Upstream Influences toggle if any */}
-          {data.upstream && data.upstream.length > 1 && (
-            <div className="rounded-lg border border-border/70 bg-secondary/10">
-              <button
-                onClick={() => setShowSecondaryUpstream(!showSecondaryUpstream)}
-                className="w-full flex items-center justify-between p-2 text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                <span>
-                  {showSecondaryUpstream ? "Hide" : "Show"}{" "}
-                  {data.upstream.length} earlier related items
-                </span>
-                {showSecondaryUpstream ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                )}
-              </button>
-
-              {showSecondaryUpstream && (
-                <div className="border-t border-border/60 p-2 space-y-1.5 bg-background/50">
-                  {data.upstream.map((up) => (
-                    <div
-                      key={up.id}
-                      onClick={() => onSelectNode(up.id, up.type)}
-                      className="cursor-pointer rounded border border-border/50 bg-secondary/30 p-2 text-xs hover:border-primary/40 hover:bg-secondary/60 transition-colors flex items-center justify-between group"
-                    >
-                      <div className="truncate pr-2">
-                        <div className="font-medium text-foreground group-hover:text-primary truncate">
-                          {up.title}
-                        </div>
-                        <div className="text-[10px] font-mono text-muted-foreground">
-                          {up.type.toUpperCase()} #{up.numeric_id} • {up.project}
-                        </div>
-                      </div>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Primary Journey Stepper (Vertical DAG) */}
           <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-3 before:bottom-3 before:w-[2px] before:bg-gradient-to-b before:from-amber-500/60 before:via-primary before:to-purple-500/60">
@@ -344,7 +302,7 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
                     <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                       {getRelationLabel(step.relation)}
                     </span>
-                    {step.similarity < 1.0 && (
+                    {typeof step.similarity === "number" && (
                       <span className="ml-auto font-mono text-[10px] text-primary">
                         {(step.similarity * 100).toFixed(0)}% match
                       </span>
@@ -365,7 +323,7 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
                       <div className="flex items-center gap-1.5">
                         <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground border border-border">
                           {getTypeIcon(step.node.type)}
-                          {step.node.type} #{step.node.numeric_id}
+                          {step.node.canonical_type || step.node.type} · {step.node.id.slice(0, 12)}
                         </span>
                         <span className="rounded bg-secondary/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                           {step.node.project}
@@ -484,47 +442,6 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
             })}
           </div>
 
-          {/* Secondary Downstream Fallout toggle if any */}
-          {data.downstream && data.downstream.length > 1 && (
-            <div className="rounded-lg border border-border/70 bg-secondary/10">
-              <button
-                onClick={() => setShowSecondaryDownstream(!showSecondaryDownstream)}
-                className="w-full flex items-center justify-between p-2 text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                <span>
-                  {showSecondaryDownstream ? "Hide" : "Show"}{" "}
-                  {data.downstream.length} later changes
-                </span>
-                {showSecondaryDownstream ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                )}
-              </button>
-
-              {showSecondaryDownstream && (
-                <div className="border-t border-border/60 p-2 space-y-1.5 bg-background/50">
-                  {data.downstream.map((down) => (
-                    <div
-                      key={down.id}
-                      onClick={() => onSelectNode(down.id, down.type)}
-                      className="cursor-pointer rounded border border-border/50 bg-secondary/30 p-2 text-xs hover:border-primary/40 hover:bg-secondary/60 transition-colors flex items-center justify-between group"
-                    >
-                      <div className="truncate pr-2">
-                        <div className="font-medium text-foreground group-hover:text-primary truncate">
-                          {down.title}
-                        </div>
-                        <div className="text-[10px] font-mono text-muted-foreground">
-                          {down.type.toUpperCase()} #{down.numeric_id} • {down.project}
-                        </div>
-                      </div>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

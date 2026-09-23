@@ -66,7 +66,7 @@ interface DiffData {
 interface CodeDiffViewerProps {
   project?: string;
   commitHash?: string;
-  itemId?: number;
+  itemId?: number | string | null;
   isModal?: boolean;
   onExpand?: () => void;
   onClose?: () => void;

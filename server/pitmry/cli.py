@@ -4,7 +4,12 @@
     python -m server.pitmry validate [--root PATH] [--json]
     python -m server.pitmry get <record-id> [--root PATH] [--json]
     python -m server.pitmry rebuild [--root PATH] [--no-vectors]
+    python -m server.pitmry doctor [--root PATH]
     python -m server.pitmry migrate-legacy --db PATH [--dry-run] [--root PATH]
+    python -m server.pitmry capture-git [--commit REF] [--decision ID]
+    python -m server.pitmry decision --title TITLE --decision TEXT
+    python -m server.pitmry supersede NEW_ID OLD_ID --evidence REF
+    python -m server.pitmry link SOURCE_ID TARGET_ID --relation TYPE --evidence REF
 
 `validate` exits 1 when any canonical record is malformed, and prints the path
 plus the reason for each problem. `get` exits 1 when the record is absent.
@@ -17,8 +22,10 @@ import json
 import sys
 
 from .canonical_store import CanonicalStore
-from .migration import migrate_legacy
+from .migration import PROJECT_LABELS, migrate_legacy
 from .rebuild import rebuild
+from .capture import (capture_decision, capture_git_change, capture_relation)
+from .enums import Authority, EXPLICIT_RELATIONS, RecordType, RelationType
 
 
 def _make_store(args) -> CanonicalStore:
@@ -140,7 +147,8 @@ def cmd_rebuild(args) -> int:
 
 def cmd_migrate_legacy(args) -> int:
     try:
-        result = migrate_legacy(args.db, root=args.root, dry_run=args.dry_run)
+        result = migrate_legacy(args.db, root=args.root, dry_run=args.dry_run,
+                                project_labels=args.project or PROJECT_LABELS)
     except (ValueError, OSError, RuntimeError) as exc:
         print(f"legacy migration failed: {exc}", file=sys.stderr)
         return 1
@@ -226,6 +234,81 @@ def cmd_lineage(args) -> int:
     return 0
 
 
+def cmd_doctor(args) -> int:
+    from .doctor import doctor
+
+    report = doctor(root=args.root)
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    return 0 if report["status"] in ("healthy", "degraded") else 1
+
+
+def cmd_diff(args) -> int:
+    from .models import MemoryRecord
+
+    store = _make_store(args)
+    record = store.get(args.record_id)
+    if not isinstance(record, MemoryRecord) or record.type is not RecordType.git_change:
+        print(f"git change '{args.record_id}' not found", file=sys.stderr)
+        return 1
+    sha = record.content.get("commit_sha") or record.provenance.source_commit
+    if not sha or len(sha) != 40:
+        print("git change has no verified full commit SHA", file=sys.stderr)
+        return 1
+    import subprocess
+    result = subprocess.run(["git", "-C", str(store.paths.root), "show", "--format=fuller", sha],
+                            capture_output=True, text=True)
+    if result.returncode:
+        print(result.stderr.strip() or "git diff is unavailable", file=sys.stderr)
+        return 1
+    payload = {"record_id": record.id, "commit_sha": sha, "diff": result.stdout}
+    print(json.dumps(payload, ensure_ascii=False) if args.json else result.stdout)
+    return 0
+
+
+def cmd_capture_git(args) -> int:
+    store = _make_store(args)
+    record, relation = capture_git_change(store, commit=args.commit, root=store.paths.root,
+                                          decision_id=args.decision)
+    payload = {"record": record.id, "relation": relation.id if relation else None}
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def cmd_decision(args) -> int:
+    store = _make_store(args)
+    authority = Authority.agent_reported
+    # CLI input alone cannot claim human authority. Evidence is retained as
+    # provenance but does not promote authority without a verified source.
+    record = capture_decision(store, args.title, args.decision, context=args.context,
+                              rationale=args.rationale, trade_offs=args.trade_offs,
+                              authority=authority, tags=args.tag or (),
+                              subject_key=args.subject_key)
+    print(json.dumps({"id": record.id, "authority": record.authority.value}, indent=2))
+    return 0
+
+
+def cmd_link(args) -> int:
+    store = _make_store(args)
+    edge = capture_relation(store, args.source_id, args.target_id, args.relation,
+                            tuple(args.evidence))
+    print(json.dumps({"id": edge.id, "relation": edge.relation.value,
+                      "provenance": edge.provenance.value}, indent=2))
+    return 0
+
+
+def cmd_supersede(args) -> int:
+    return _capture_relation_command(args, RelationType.supersedes)
+
+
+def _capture_relation_command(args, relation):
+    store = _make_store(args)
+    edge = capture_relation(store, args.new_id if hasattr(args, "new_id") else args.source_id,
+                            args.old_id if hasattr(args, "old_id") else args.target_id,
+                            relation, tuple(args.evidence))
+    print(json.dumps({"id": edge.id, "relation": edge.relation.value}, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     # Shared options. `parents=` is what makes `--root` and `--json` valid on
     # every subcommand, because a global option is only parsed *before* the
@@ -269,6 +352,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_migrate.add_argument("--db", required=True, help="legacy Cavemem SQLite file")
     p_migrate.add_argument("--dry-run", action="store_true",
                             help="report selected legacy rows without writing canonical data")
+    p_migrate.add_argument("--project", action="append", default=None,
+                            help="legacy project label to migrate (repeatable)")
     p_migrate.set_defaults(func=cmd_migrate_legacy)
 
     p_search = subparsers.add_parser("search", parents=[common],
@@ -295,12 +380,55 @@ def build_parser() -> argparse.ArgumentParser:
     p_lineage.add_argument("--hops", type=int, default=2)
     p_lineage.set_defaults(func=cmd_lineage)
 
+    p_doctor = subparsers.add_parser("doctor", parents=[common], help="inspect independent backend components")
+    p_doctor.set_defaults(func=cmd_doctor)
+
+    p_diff = subparsers.add_parser("diff", parents=[common], help="show a canonical Git change diff")
+    p_diff.add_argument("record_id")
+    p_diff.set_defaults(func=cmd_diff)
+
+    p_capture = subparsers.add_parser("capture-git", parents=[common], help="capture a verified Git commit")
+    p_capture.add_argument("--commit", default="HEAD")
+    p_capture.add_argument("--decision", default=None, help="optional evidenced decision to link")
+    p_capture.set_defaults(func=cmd_capture_git)
+
+    p_decision = subparsers.add_parser("decision", parents=[common], help="capture an agent-reported decision")
+    p_decision.add_argument("--title", required=True)
+    p_decision.add_argument("--decision", required=True)
+    p_decision.add_argument("--context", default="")
+    p_decision.add_argument("--rationale", default="")
+    p_decision.add_argument("--trade-offs", default="")
+    p_decision.add_argument("--subject-key", default=None)
+    p_decision.add_argument("--tag", action="append", default=[])
+    p_decision.set_defaults(func=cmd_decision)
+
+    p_link = subparsers.add_parser("link", parents=[common], help="create an evidence-backed explicit relation")
+    p_link.add_argument("source_id")
+    p_link.add_argument("target_id")
+    p_link.add_argument("--relation", required=True,
+                        choices=sorted(relation.value for relation in EXPLICIT_RELATIONS))
+    p_link.add_argument("--evidence", required=True, action="append")
+    p_link.set_defaults(func=cmd_link)
+
+    p_supersede = subparsers.add_parser("supersede", parents=[common], help="record evidence-backed supersession")
+    p_supersede.add_argument("new_id")
+    p_supersede.add_argument("old_id")
+    p_supersede.add_argument("--evidence", required=True, action="append")
+    p_supersede.set_defaults(func=cmd_supersede)
+
+    p_mcp = subparsers.add_parser("mcp", parents=[common], help="run the optional read-only MCP server")
+    p_mcp.set_defaults(func=lambda args: __import__("server.pitmry.mcp_server", fromlist=["run"]).run(root=args.root))
+
     return parser
 
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"{args.command} failed: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

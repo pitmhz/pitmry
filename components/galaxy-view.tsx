@@ -37,7 +37,7 @@ import { CodeDiffViewer } from "./code-diff-viewer";
 
 interface GalaxyNode {
   id: string;
-  numeric_id: number;
+  numeric_id?: number | null;
   type: "adr" | "commit" | "grill";
   project: string;
   title: string;
@@ -92,6 +92,9 @@ interface GalaxyData {
     cluster_count: number;
     dimensions: number;
   };
+  status?: string;
+  message?: string;
+  warnings?: string[];
 }
 
 interface GalaxyViewProps {
@@ -665,7 +668,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
     const timer = window.setTimeout(() => {
       setJourneyLoading(true);
       fetch(
-      `/api/memory?action=journey&item_type=${selectedNode.type}&item_id=${selectedNode.numeric_id}&hops=3`
+      `/api/memory?action=journey&item_type=${selectedNode.type}&item_id=${encodeURIComponent(selectedNode.id)}&hops=3`
     )
       .then((res) => res.json())
       .then((jData: JourneyResponse) => {
@@ -799,13 +802,18 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
     <div className="relative flex h-full w-full overflow-hidden bg-[#07090e]">
       {/* 1. Main 3D Canvas Mount */}
       <div ref={mountRef} className="h-full w-full flex-1 outline-none" />
+      {data?.message && (
+        <div role="status" className="absolute inset-x-4 bottom-4 z-20 mx-auto max-w-xl rounded-lg border border-border bg-card p-3 text-sm text-foreground shadow-sm">
+          {data.message}
+        </div>
+      )}
 
       {/* 2. Top-Left Galaxy HUD Overlay */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-2.5 max-w-sm pointer-events-none">
         {/* Title & Stats */}
         <div className="flex items-center gap-3 rounded-xl border border-border bg-card/90 p-3 shadow-2xl backdrop-blur-md pointer-events-auto">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 font-mono text-xs font-semibold">
-            384D
+              PITMRY
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -813,13 +821,13 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
                 3D Map
               </span>
               <span className="rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                384D
+                Canonical records
               </span>
             </div>
             <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span>{data?.stats?.total_nodes || 39} items</span>
+              <span>{data?.stats?.total_nodes ?? 0} items</span>
               <span>•</span>
-              <span>{data?.stats?.total_edges || 31} connections</span>
+              <span>{data?.stats?.total_edges ?? 0} links</span>
               <span>•</span>
               <span className="text-rose-400 font-medium flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
@@ -1021,7 +1029,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
                   style={{ backgroundColor: selectedNode.color }}
                 />
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                  {selectedNode.project} • {formatType(selectedNode.type)} #{selectedNode.numeric_id}
+                  {selectedNode.project} • {formatType(selectedNode.type)} · {selectedNode.id.slice(0, 12)}
                 </span>
               </div>
               <h3 className="mt-1.5 text-sm font-semibold text-foreground leading-snug">
@@ -1154,7 +1162,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
                               {formatBadge(step.badge)}
                             </span>
                           </div>
-                          {step.similarity < 1.0 && (
+                          {typeof step.similarity === "number" && (
                             <span className="font-mono text-[10px] text-primary">
                               {(step.similarity * 100).toFixed(0)}% match
                             </span>
@@ -1395,7 +1403,7 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
             <CodeDiffViewer
               project={diffModalNode.project}
               commitHash={diffModalNode.commit_hash}
-              itemId={diffModalNode.numeric_id}
+              itemId={diffModalNode.id}
               isModal={true}
               onClose={() => setDiffModalNode(null)}
             />

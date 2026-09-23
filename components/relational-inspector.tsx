@@ -21,14 +21,19 @@ interface Neighbor {
   type: MemoryItemType;
   title: string;
   project: string;
-  similarity: number;
+  similarity: number | null;
   snippet: string;
+  relation?: string;
+  provenance?: "explicit" | "inferred";
 }
 
 interface ItemDetail {
   id: string;
-  numeric_id: number;
+  numeric_id?: number | null;
   type: MemoryItemType;
+  canonical_type?: string;
+  authority?: string;
+  state?: string;
   project: string;
   title: string;
   summary?: string;
@@ -75,7 +80,7 @@ export function RelationalInspector({
     const timer = window.setTimeout(() => {
       setLoadingNeighbors(true);
       fetch(
-      `/api/memory?action=relations&item_type=${item.type}&item_id=${item.numeric_id}`
+      `/api/memory?action=relations&item_type=${item.type}&item_id=${encodeURIComponent(item.id)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -119,7 +124,7 @@ export function RelationalInspector({
       <div className="flex items-center justify-between border-b border-border/80 px-4 py-3 bg-muted/15">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-md border border-border bg-secondary px-2.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
-            {item.type}
+            {item.canonical_type || item.type}
           </span>
           <span className="text-xs text-muted-foreground font-medium">in</span>
           <span className="rounded-md bg-secondary border border-border/70 px-2.5 py-0.5 font-mono text-xs text-foreground font-semibold">
@@ -160,6 +165,10 @@ export function RelationalInspector({
           <h2 className="font-heading text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug">
             {item.title}
           </h2>
+          <div className="flex flex-wrap gap-1.5 text-[10px] font-mono uppercase">
+            {item.state && item.state !== "UNKNOWN" && <span className="rounded border border-border px-2 py-0.5 text-muted-foreground">{item.state}</span>}
+            {item.authority && <span className="rounded bg-secondary px-2 py-0.5 text-muted-foreground">{item.authority.replaceAll("_", " ")}</span>}
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="font-mono text-xs text-muted-foreground font-medium tabular-nums">
               {formatDate(item.timestamp)}
@@ -345,7 +354,7 @@ export function RelationalInspector({
             </div>
 
             <span className="font-mono text-[11px] font-medium text-muted-foreground">
-              {activeTab === "journey" ? "History" : "Similar topics"}
+              {activeTab === "journey" ? "Evidence links" : "Related records"}
             </span>
           </div>
 
@@ -380,15 +389,8 @@ export function RelationalInspector({
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          <div className="h-1.5 w-14 rounded-full bg-secondary overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-foreground/50"
-                              style={{ width: `${Math.round(nbr.similarity * 100)}%` }}
-                            />
-                          </div>
-                          <span className="font-mono text-[11px] font-medium text-muted-foreground tabular-nums">
-                            {(nbr.similarity * 100).toFixed(0)}%
-                          </span>
+                          {nbr.provenance && <span className="font-mono text-[10px] text-muted-foreground">{nbr.provenance}</span>}
+                          {nbr.similarity != null && <span className="font-mono text-[11px] font-medium text-muted-foreground tabular-nums">{(nbr.similarity * 100).toFixed(0)}%</span>}
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                         </div>
                       </div>
@@ -396,6 +398,8 @@ export function RelationalInspector({
                       <div className="text-xs font-medium text-foreground group-hover:text-foreground leading-snug line-clamp-2 transition-colors">
                         {nbr.title}
                       </div>
+
+                      {nbr.relation && <div className="text-[10px] font-mono text-muted-foreground">{nbr.relation.replaceAll("_", " ")}</div>}
 
                       {nbr.snippet && (
                         <div className="text-[11px] text-muted-foreground line-clamp-1">

@@ -42,16 +42,19 @@ def _timestamp(value):
     return "1970-01-01T00:00:00+00:00"
 
 
-def _rows(conn, table):
+def _rows(conn, table, project_labels=PROJECT_LABELS):
     names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if table not in names:
         return []
     columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if "project" not in columns:
         return []
-    placeholders = ",".join("?" for _ in PROJECT_LABELS)
+    project_labels = tuple(project_labels)
+    if not project_labels:
+        return []
+    placeholders = ",".join("?" for _ in project_labels)
     return conn.execute(f"SELECT * FROM {table} WHERE project IN ({placeholders}) ORDER BY id",
-                        PROJECT_LABELS).fetchall()
+                        project_labels).fetchall()
 
 
 def _resolve_commit(root, reference):
@@ -119,10 +122,12 @@ def _convert(store, table, row, root=None, source_id_override=None):
     return record
 
 
-def migrate_legacy(db_path, root=None, dry_run=False):
+def migrate_legacy(db_path, root=None, dry_run=False, project_labels=PROJECT_LABELS):
+    project_labels = tuple(dict.fromkeys(str(label) for label in project_labels))
     conn = _connect_readonly(db_path)
     try:
-        selected = [(table, row) for table in TABLES for row in _rows(conn, table)]
+        selected = [(table, row) for table in TABLES
+                    for row in _rows(conn, table, project_labels)]
     finally:
         conn.close()
     counts = {table: sum(1 for candidate, _ in selected if candidate == table) for table in TABLES}
@@ -145,7 +150,7 @@ def migrate_legacy(db_path, root=None, dry_run=False):
             source_ids[id(row)] = f"git_semantic_digests:{resolved or reference}:{key[0]}:legacy:{data.get('id')}"
         seen_git.add(key)
     if dry_run:
-        return {"dry_run": True, "selected_projects": list(PROJECT_LABELS),
+        return {"dry_run": True, "selected_projects": list(project_labels),
                 "counts": counts, "total": len(selected),
                 "git_verified": resolved_git, "git_unverified": unresolved_git,
                 "duplicate_git_rows_preserved": duplicate_git_rows}
@@ -155,7 +160,7 @@ def migrate_legacy(db_path, root=None, dry_run=False):
     for table, row in selected:
         imported.append(_convert(store, table, row, root=store.paths.root,
                                  source_id_override=source_ids.get(id(row))))
-    return {"dry_run": False, "selected_projects": list(PROJECT_LABELS),
+    return {"dry_run": False, "selected_projects": list(project_labels),
             "counts": counts, "total": len(imported), "git_verified": resolved_git,
             "git_unverified": unresolved_git,
             "duplicate_git_rows_preserved": duplicate_git_rows,

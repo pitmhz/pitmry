@@ -1,12 +1,13 @@
 /** Shared domain types for memory records. Replaces ad-hoc `any` usage. */
 
-export type MemoryItemType = "adr" | "commit" | "grill" | "checkpoint" | "memory" | "summary";
-export type MemorySearchSource = "vector" | "keyword" | "hybrid";
+export type MemoryItemType = "adr" | "commit" | "grill" | "checkpoint" | "memory" | "summary" | "other";
+export type MemorySearchSource = "canonical" | "vector" | "keyword" | "hybrid";
 
 export interface MemoryItem {
   id: string;
-  numeric_id: number;
+  numeric_id?: number | null;
   type: MemoryItemType;
+  canonical_type?: string;
   project: string;
   title: string;
   summary?: string;
@@ -19,12 +20,13 @@ export interface MemoryItem {
   bullets?: string[];
   body?: string;
   status?: string;
+  authority?: string;
+  truth_domain?: string;
+  state?: string;
+  provenance?: { source_type?: string; source_id?: string; evidence_refs?: unknown[] };
   score?: number;
   source?: MemorySearchSource;
-  score_components?: {
-    semantic?: number;
-    keyword?: number;
-  };
+  score_components?: Record<string, number>;
   indexed_at?: number | string;
   related_ids?: string[];
   // Feed-level activity fields used by notification toasts
@@ -70,7 +72,24 @@ export function formatItemType(type?: string): string {
       return "Memory";
     case "summary":
       return "Summary";
+    case "other":
+      return "Memory record";
     default:
       return type || "Item";
+  }
+}
+
+export function formatAuthority(authority?: string): string | undefined {
+  switch (authority) {
+    case "human_direct": return "Human";
+    case "human_evidenced": return "Human evidence";
+    case "git_verified": return "Git verified";
+    case "runtime_verified": return "Runtime verified";
+    case "code_verified": return "Code verified";
+    case "agent_observed": return "Agent observation";
+    case "agent_reported": return "Agent report";
+    case "agent_inferred": return "Agent inference";
+    case "imported_unverified": return "Imported";
+    default: return undefined;
   }
 }

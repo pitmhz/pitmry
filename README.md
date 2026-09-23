@@ -1,6 +1,6 @@
 # pitmry
 
-**pitmry** is an offline personal developer memory dashboard and git command control center built by [Pieter (pitmhs)](https://gitlab.com/pitmhs). It unifies architectural decision records (ADRs), git commit semantic digests, design discussions, and multi-repo git states into a fast, navigable local web interface.
+**PITMRY** is an offline project-memory backend with a local dashboard. It stores canonical records in each project's `.pitmry/` directory and rebuilds SQLite/FTS and optional LanceDB indexes from those records.
 
 The entire application runs locally on your machine. It requires zero cloud services and sends no telemetry.
 
@@ -37,7 +37,7 @@ The entire application runs locally on your machine. It requires zero cloud serv
 
 Modern software development generates vast amounts of context across sessions, branches, and repositories. Traditional notes, pull request comments, and git commit logs quickly fragment. When developers switch projects, context is lost.
 
-`pitmry` solves this by acting as a personal cognitive memory layer. It connects a dual-tier offline database engine with a modern Next.js 16 web interface. You can inspect architectural decisions, trace multi-hop decision chains, review code diffs across sibling repositories, monitor database health, and receive real-time notifications when new records are indexed.
+PITMRY keeps project memory portable in Git. The dashboard displays record authority, resolved state, and whether a relation is explicit or inferred. It does not treat similarity or time order as proof of cause.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -54,14 +54,14 @@ Modern software development generates vast amounts of context across sessions, b
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                     Python Memory Bridge Runtime                            │
-│         server/memory_dashboard_api.py (or custom via config)               │
-└──────────────┬───────────────────────┼───────────────────────┬──────────────┘
-               ▼                       ▼                       ▼
-    ┌──────────────────────┐┌──────────────────────┐┌──────────────────────┐
-    │    LanceDB Vector    ││    SQLite Cavemem    ││  Git Command Bridge  │
-    │ 384-dim Embeddings   ││ PRAGMA integrity_ok  ││ Multi-Repo Inspector │
-    │ k-NN & 3D Projections││ ADRs, Commits, Grill ││ Working Tree Status  │
-    └──────────────────────┘└──────────────────────┘└──────────────────────┘
+│              server/memory_dashboard_api.py compatibility CLI              │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Git-tracked .pitmry/ canonical records                                      │
+│              ↓ rebuild                                                       │
+│ SQLite + FTS5 projection · optional LanceDB vector projection               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -69,37 +69,25 @@ Modern software development generates vast amounts of context across sessions, b
 ## Why pitmry?
 
 - **100% Offline & Private**: All data stays on your local filesystem. No external cloud service or subscription is needed.
-- **Fast Sub-5ms Vector Embeddings**: Uses a local ONNX model (`all-MiniLM-L6-v2`) to produce 384-dimensional dense vectors on CPU.
-- **Unified Relational & Vector Search**: Search records using exact filters (project, type, tag) or semantic vector similarity.
-- **Multi-Repo Git Control**: Monitors sibling workspace repositories (`portfolio`, `daschool`, `pitmry`) with porcelain dirty tracking and branch pointers.
-- **Multi-Hop Decision Journeys**: Visualizes how an initial discussion led to a formal architectural decision, how that decision created commits, and what follow-up actions occurred.
+- **Portable canonical memory**: `.pitmry/` is the durable source. SQLite and LanceDB are disposable projections.
+- **Trust-aware retrieval**: FTS5 and optional vectors rank records; context reports state, authority, conflicts, and abstention.
+- **Evidence-backed lineage**: Explicit relations require evidence. Similarity and shared files remain inferred hints.
+- **Local Git capture**: Captured commits retain their full SHA and objective metadata.
 - **Zero-Daemon Python Integration**: The web server invokes Python CLI commands on demand. There is no long-running Python background service consuming memory.
 
 ---
 
 ## System Architecture
 
-### 1. Dual-Tier Storage Engine
+### 1. Canonical store and projections
 
-1. **LanceDB Columnar Vector Store (`~/.strategic_memory/lancedb`)**:
-   - Stores 384-dimensional vector embeddings across tables (`adrs`, `git_digests`, `grill_me_logs`).
-   - Powers semantic similarity queries, neighbor discovery, and 3D dimensionality reduction for the Galaxy visualization.
-   - Detects isolated or outlier records with anomaly scoring.
-
-2. **SQLite Cavemem Database (`~/.cavemem/data.db`)**:
-   - Provides relational durability and ACID guarantees.
-   - Stores structured metadata: record titles, decision texts, rationale, trade-offs, git commit hashes, branches, changed files, and tags.
-   - Health diagnostics verify database integrity via `PRAGMA integrity_check`.
-
-3. **Local ONNX SentenceTransformer Embedder**:
-   - Generates normalized dense vectors using `all-MiniLM-L6-v2`.
-   - Runs locally in Python via ONNX Runtime without GPU requirements.
+`.pitmry/records/` contains immutable canonical records and is committed with the project. `.pitmry-cache/` contains disposable SQLite/FTS and optional LanceDB projections. Run `python -m server.pitmry rebuild` to recreate the projections. Use `--no-vectors` when local embedding support is unavailable.
 
 ### 2. Python Bridge Pattern
 
 The frontend does not communicate directly with the database files. Instead, Next.js executes the bundled Python script `server/memory_dashboard_api.py` (or a custom path defined in `pitmry.config.json` or `.env`) via Node.js `execFileAsync`. The script processes arguments, queries the database or git repositories, and outputs a single JSON response to stdout.
 
-If Python is not installed or dependencies are missing, the API gateway automatically serves realistic interactive mock data with an in-app setup banner. This allows users to explore the dashboard immediately without setup errors.
+If the human dashboard cannot reach its backend, it may show clearly marked demo data. The separate agent API never returns demo records.
 
 Benefits:
 - Clean decoupling between the Python data science toolchain and the TypeScript web application.
@@ -136,27 +124,20 @@ The dashboard layout is built on `@efferd/app-shell-4`, unstyled accessible `@ba
 Pitmry integrates four specialized developer timeline components:
 
 1. **System Status Page (`timelines-status-page.tsx`)**:
-   - Real-time diagnostic panel monitoring LanceDB, SQLite Cavemem, Git Command Bridge, and the Local ONNX Embedder.
-   - Displays operational status, query latencies, vector dimensions, and database file sizes.
-   - 60-day interactive uptime history bars with pass/incident visual indicators.
-   - Historical incident logs with chronological updates.
+   - Reports checks performed by the canonical-store doctor, including SQLite integrity and optional vector-cache availability.
+   - Health describes the current check only; this page does not claim historical uptime or incident monitoring.
 
-2. **Git Command Control & Deploys (`timelines-deploys.tsx`)**:
-   - Tracks deployment and commit history across sibling workspaces: `portfolio` (production), `daschool` (preview), and `pitmry` (staging/memory).
-   - Shows active branch pointers, commit hashes, relative timestamps, author initials, and commit summaries.
-   - Detects dirty working trees (`dirty: N uncommitted files`) via porcelain git status checks.
-   - One-click "View Diff" button opens the full commit diff in the split-resizable diff viewer.
+2. **Deployments (`timelines-deploys.tsx`)**:
+   - Displays captured canonical deployment records only. It does not infer an environment or deployment from a Git commit.
+   - Git changes and their available diffs are shown through the activity and record-inspection views.
 
 3. **Activity Feed (`timelines-activity-feed.tsx`)**:
    - Groups activities under sticky date dividers: `Today`, `Yesterday`, and `Earlier this week`.
    - Category filter tabs: `All`, `Commits`, `Decisions`, and `Architecture`.
    - Direct record inspection links.
 
-4. **Notifications Engine & Floating Toasts (`timelines-notifications.tsx` & `notification-toast.tsx`)**:
-   - Bell notification trigger in the top navbar with an active unread count badge.
-   - Popover tray showing recent events, author avatars, timestamps, and target projects.
-   - Mark individual or all notifications as read.
-   - 20-second background polling engine: When new database entries or git commits are detected, an animated floating toast appears in the bottom-right corner with direct inspection actions.
+4. **Notifications (`timelines-notifications.tsx` & `notification-toast.tsx`)**:
+   - Shows notification records when captured. No unread count, polling, or toast is implied by an empty canonical store.
 
 ### Split-Resizable Code Diff Viewer
 
@@ -176,13 +157,13 @@ Integrated with the `@coss` registry and customized for pitmry:
 
 - **Stream View**: Fast, scrollable card list of all records with category tags, timestamps, and key file badges.
 - **Relational Inspector**: Slide-out right panel displaying complete record metadata:
-  - **Decision Journey Tab**: Visualizes the multi-hop decision tree. Records are classified by semantic role: `origin`, `decision`, `focal`, `implementation`, or `consequence`.
-  - **Neighbors Tab**: Displays top semantic matches computed by vector cosine similarity in LanceDB.
+- **Decision Journey Tab**: Shows the focal record and evidence-backed explicit relations. It does not assign causal roles to unlinked records.
+- **Neighbors Tab**: Separates explicit relations from inferred candidates; missing similarity values remain unavailable rather than fabricated.
 
 ### 2D Knowledge Graph & 3D Vector Space Galaxy
 
-- **2D Knowledge Graph**: HTML5 Canvas force-directed graph. Projects act as central hubs, with records connected by vector similarity weights. Supports drag, pan, zoom, and node selection.
-- **3D Vector Space Galaxy**: WebGL scene built with Three.js and OrbitControls. Records are positioned using 3D dimensionality reduction coordinates. Features auto-rotation, cluster color groupings, anomaly highlighting, and click-to-filter mechanics.
+- **2D Knowledge Graph**: HTML5 Canvas force-directed graph. Project membership is structural; explicit evidence-backed relations and inferred candidates are visually distinguished.
+- **3D Vector Space Galaxy**: A spatial projection is not currently available from the canonical store; the view reports that limitation instead of presenting fabricated coordinates.
 
 ### Command Palette & Search
 
@@ -233,78 +214,17 @@ All requests target `GET /api/memory` with the `action` query parameter.
 |---|---|---|
 | `summary` | System statistics, projects list, top tags | None |
 | `feed` | Paginated records feed with search & filters | `project`, `type`, `tag`, `query`, `limit` |
-| `relations` | Semantic neighbors for a given record | `item_type`, `item_id` |
-| `journey` | Multi-hop decision journey chain | `item_type`, `item_id`, `hops` |
-| `graph` | Nodes and edges for the 2D Knowledge Graph | None |
-| `galaxy` | 3D coordinates, clusters, anomalies for Galaxy | None |
-| `diff` | Git diff data for a commit record | `project`, `commit` (or `item_id`) |
-| `health` | Real-time health status of databases and embedder | None |
-| `deploys` | Git deploy history across tracked sibling repos | None |
-| `activity` | Grouped timeline activities with date dividers | None |
-| `notifications` | Notification queue with unread status | None |
+| `relations` | Explicit evidence-backed links and separately labeled inferred hints | `item_id` canonical ID |
+| `journey` | Canonical explicit lineage; no inferred causal chain | `item_id` canonical ID, `hops` |
+| `graph` | Project membership, explicit relations, inferred associations | None |
+| `galaxy` | Degraded response until a supported spatial projection exists | None |
+| `diff` | Git diff resolved from a canonical Git-change record | `project`, `commit` or `item_id` |
+| `health` | Independent canonical, SQLite, FTS, vector, and Git checks | None |
+| `deploys` | Empty until deployment records are captured | None |
+| `activity` | Canonical records grouped by capture date | None |
+| `notifications` | Empty until a canonical notification source is defined | None |
 
-### Example Responses
-
-#### 1. System Health (`?action=health`)
-```json
-{
-  "status": "operational",
-  "status_text": "All systems running normally",
-  "checked_at": "2026-09-18T16:41:55Z",
-  "components": [
-    {
-      "name": "LanceDB Vector DB",
-      "uptime": "99.988%",
-      "status": "operational",
-      "latency": "1349.8ms",
-      "meta": "41 vectors · dim 384 · 3 tables"
-    },
-    {
-      "name": "SQLite Cavemem DB",
-      "uptime": "100.0%",
-      "status": "operational",
-      "latency": "12.4ms",
-      "meta": "41 records · 1812.0 KB · integrity ok"
-    },
-    {
-      "name": "Git Command Bridge",
-      "uptime": "99.952%",
-      "status": "operational",
-      "latency": "516.3ms",
-      "meta": "3 tracked repos · dirty tracking active"
-    },
-    {
-      "name": "Local ONNX Embedder",
-      "uptime": "99.995%",
-      "status": "operational",
-      "latency": "237.4ms",
-      "meta": "all-MiniLM-L6-v2 · 384-dim embeddings"
-    }
-  ],
-  "incidents": []
-}
-```
-
-#### 2. Multi-Repo Deploys (`?action=deploys`)
-```json
-{
-  "deploys": [
-    {
-      "id": "deploy-pitmry-d861511",
-      "project": "pitmry",
-      "environment": "staging",
-      "status": "success",
-      "branch": "master",
-      "commit_hash": "d8615115",
-      "author": "Pieter",
-      "summary": "chore: rename to pitmry — update package name, README, page title, and gitlab remote",
-      "time": "5h ago",
-      "dirty": true,
-      "dirty_count": 9
-    }
-  ]
-}
-```
+Agent clients should use the CLI or read-only MCP tools. HTTP clients can use `POST /api/v1/memory/context`; this endpoint does not return demo data.
 
 ---
 
@@ -313,15 +233,18 @@ All requests target `GET /api/memory` with the `action` query parameter.
 ### Record
 ```typescript
 interface Record {
-  id: string;                      // e.g. "adr-24", "commit-16", "grill-1"
-  numeric_id: number;
-  type: "adr" | "commit" | "grill";
+  id: string;                      // e.g. "dec_<24 hex chars>"
+  type: string;                    // dashboard-compatible label
+  canonical_type: string;
   project: string;
   title: string;
   summary: string;
-  timestamp: number;               // Unix epoch milliseconds
+  timestamp: string;               // timezone-aware ISO-8601
   tags: string[];
-  status?: string;                 // e.g. "accepted", "superseded"
+  authority: string;
+  truth_domain: string;
+  state: string;                   // resolver output, not a manually edited flag
+  provenance: object;
   decision?: string;               // Decision body (for ADRs)
   rationale?: string;              // Architectural rationale
   trade_offs?: string;
@@ -432,22 +355,21 @@ pnpm dev
 ### CLI Diagnostic Tools
 
 - **`pnpm setup`**:
-  - Automatically creates a Python virtual environment in `.venv/`.
-  - Installs requirements from `server/requirements.txt`.
-  - Initializes the SQLite database (`data/cavemem.db`) and LanceDB vector directory (`data/lancedb/`).
-  - Scans and indexes recent local git commits.
+  - Creates a Python virtual environment when needed.
+  - Initializes `.pitmry/` if the project does not have a canonical store.
+  - Does not create global databases, download an embedding model, or write to another agent's skill directory.
 - **`pnpm doctor`**:
-  - Runs full health diagnostics on Node.js runtime, Python virtual environment, bridge script, SQLite database, LanceDB vector storage, and git repository bindings.
+  - Runs the backend's independent canonical, SQLite, FTS, vector, and Git checks.
 
 ### Custom Configuration
 
-You can customize database paths, tracked git repositories, and Python executable locations:
+You can configure repositories that the dashboard should read:
 
 1. **Via `pitmry.config.json`**:
    ```bash
    cp pitmry.config.example.json pitmry.config.json
    ```
-   Edit `pitmry.config.json` to point to your repositories and database locations.
+   Set `tracked_repos` to project roots. Paths can be absolute or relative to the configuration file. Each root must contain `.pitmry/manifest.json`.
 
 2. **Via environment variables (`.env`)**:
    ```bash
@@ -455,10 +377,9 @@ You can customize database paths, tracked git repositories, and Python executabl
    ```
    Supported variables:
    - `PYTHON_BIN`: Path to Python executable (defaults to `.venv` or system `python`).
-   - `MEMORY_API_SCRIPT`: Path to backend bridge script (defaults to `./server/memory_dashboard_api.py`).
-   - `CAVEMEM_DB_PATH`: Path to SQLite database (defaults to `data/cavemem.db`).
-   - `LANCEDB_DIR`: Path to LanceDB directory (defaults to `data/lancedb`).
-   - `TRACKED_REPOS`: Comma-separated list of repository names and paths (`name=path,name2=path2`).
+   - `PYTHON_BIN`: Optional path to a Python executable.
+   - `PITMRY_ROOT`: Optional project root for CLI use.
+   - `PITMRY_ONNX_MODEL` and `PITMRY_TOKENIZER`: Optional paths to already-installed local model files. PITMRY does not download them.
 
 ---
 

@@ -48,6 +48,7 @@ data/
 # PITMRY canonical memory is Git-tracked — this is the source of truth.
 # Only the disposable derived cache is ignored.
 .pitmry-cache/
+pitmry.config.json
 
 # Existing dashboard UI state and runtime logs that live under .pitmry/.
 # They are not canonical memory and must never be committed.

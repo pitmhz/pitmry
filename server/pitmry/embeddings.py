@@ -17,17 +17,17 @@ class LocalEmbedder:
     dimensions = 384
 
     def __init__(self, model_path=None, tokenizer_path=None):
-        default_model = Path.home() / ".cavemem" / "models" / "Xenova" / "all-MiniLM-L6-v2" / "onnx" / "model_quantized.onnx"
-        default_tokenizer = Path.home() / ".cavemem" / "models" / "Xenova" / "all-MiniLM-L6-v2" / "tokenizer.json"
-        self.model_path = Path(model_path or os.environ.get("PITMRY_ONNX_MODEL") or default_model)
-        self.tokenizer_path = Path(tokenizer_path or os.environ.get("PITMRY_TOKENIZER") or default_tokenizer)
+        configured_model = model_path or os.environ.get("PITMRY_ONNX_MODEL")
+        configured_tokenizer = tokenizer_path or os.environ.get("PITMRY_TOKENIZER")
+        self.model_path = Path(configured_model) if configured_model else None
+        self.tokenizer_path = Path(configured_tokenizer) if configured_tokenizer else None
         self._session = None
         self._tokenizer = None
 
     def _load(self):
         if self._session is not None:
             return
-        if not str(self.model_path) or not str(self.tokenizer_path):
+        if self.model_path is None or self.tokenizer_path is None:
             raise EmbeddingUnavailable("set PITMRY_ONNX_MODEL and PITMRY_TOKENIZER to local files")
         if not self.model_path.is_file() or not self.tokenizer_path.is_file():
             raise EmbeddingUnavailable("configured local embedding model files are missing")
