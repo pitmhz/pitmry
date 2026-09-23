@@ -30,69 +30,10 @@ DEFAULT_MODEL_PATH = os.path.expanduser(r"~\.cavemem\models\Xenova\all-MiniLM-L6
 DEFAULT_TOKENIZER_PATH = os.path.expanduser(r"~\.cavemem\models\Xenova\all-MiniLM-L6-v2\tokenizer.json")
 EMBED_DIM = 384
 RECOVERY_TABLE = "recovery_records"
-
-
-class LocalEmbedder:
-    def __init__(self, model_path: str = DEFAULT_MODEL_PATH, tokenizer_path: str = DEFAULT_TOKENIZER_PATH):
-        self.model_path = model_path
-        self.tokenizer_path = tokenizer_path
-        self._session = None
-        self._tokenizer = None
-
-    def _ensure_loaded(self):
-        if self._session is None or self._tokenizer is None:
-            if not os.path.exists(self.model_path) or not os.path.exists(self.tokenizer_path):
-                try:
-                    from sentence_transformers import SentenceTransformer
-                    self._st_model = SentenceTransformer("all-MiniLM-L6-v2")
-                    self._use_st = True
-                    return
-                except Exception:
-                    pass
-                self._fallback_mode = True
-                return
-
-            try:
-                import onnxruntime as ort
-                import tokenizers
-                opts = ort.SessionOptions()
-                opts.log_severity_level = 3
-                self._session = ort.InferenceSession(self.model_path, sess_options=opts)
-                self._tokenizer = tokenizers.Tokenizer.from_file(self.tokenizer_path)
-                self._tokenizer.enable_truncation(max_length=256)
-            except Exception:
-                self._fallback_mode = True
-
-    def embed(self, text: str) -> List[float]:
-        self._ensure_loaded()
-        if getattr(self, "_use_st", False):
-            emb = self._st_model.encode(text, normalize_embeddings=True)
-            return [float(x) for x in emb]
-
-        if getattr(self, "_fallback_mode", False):
-            import hashlib
-            seed = int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:8], 16)
-            rng = np.random.RandomState(seed)
-            v = rng.randn(EMBED_DIM).astype(np.float32)
-            norm = np.linalg.norm(v)
-            return [(float(x) / (float(norm) if norm > 0 else 1.0)) for x in v]
-
-        enc = self._tokenizer.encode(text)
-        feed = {
-            "input_ids": np.array([enc.ids], dtype=np.int64),
-            "attention_mask": np.array([enc.attention_mask], dtype=np.int64),
-            "token_type_ids": np.array([enc.type_ids], dtype=np.int64)
-        }
-        outputs = self._session.run(None, feed)
-        token_embeddings = outputs[0]  # [1, seq_len, 384]
-        mask = np.array([enc.attention_mask], dtype=np.float32)[:, :, np.newaxis]
-        mask_expanded = np.broadcast_to(mask, token_embeddings.shape)
-        sum_emb = np.sum(token_embeddings * mask_expanded, axis=1)
-        sum_mask = np.clip(np.sum(mask_expanded, axis=1), a_min=1e-9, a_max=None)
-        pooled = sum_emb / sum_mask
-        norm = np.linalg.norm(pooled, axis=1, keepdims=True)
-        normalized = (pooled / norm)[0]
-        return normalized.tolist()
+try:
+    from .pitmry.embeddings import EmbeddingUnavailable, LocalEmbedder
+except ImportError:  # direct `python server/lancedb_strategic.py` invocation
+    from pitmry.embeddings import EmbeddingUnavailable, LocalEmbedder
 
 
 def get_db(db_dir: str = DEFAULT_LANCE_DIR):
@@ -178,9 +119,14 @@ def init_tables(db):
 
 def sync_from_cavemem(db_dir: str = DEFAULT_LANCE_DIR, cavemem_db: str = DEFAULT_CAVEMEM_DB,
                       embedder: Optional[LocalEmbedder] = None):
+    embedder = embedder or LocalEmbedder()
+    try:
+        embedder.embed("")
+    except EmbeddingUnavailable as exc:
+        print(f"[Warning] Vector sync unavailable; canonical and lexical stores are unchanged: {exc}", file=sys.stderr)
+        return False
     db = get_db(db_dir)
     init_tables(db)
-    embedder = embedder or LocalEmbedder()
     
     conn = sqlite3.connect(cavemem_db)
     cur = conn.cursor()
@@ -307,10 +253,14 @@ def _table_exists(cursor, name: str) -> bool:
 
 def search(query: str, limit: int = 5, db_dir: str = DEFAULT_LANCE_DIR,
            embedder: Optional[LocalEmbedder] = None, as_json: bool = False) -> List[Dict[str, Any]]:
+    embedder = embedder or LocalEmbedder()
+    try:
+        query_vec = embedder.embed(query)
+    except EmbeddingUnavailable as exc:
+        print(f"[Warning] Vector search unavailable; use SQLite FTS: {exc}", file=sys.stderr)
+        return []
     db = get_db(db_dir)
     init_tables(db)
-    embedder = embedder or LocalEmbedder()
-    query_vec = embedder.embed(query)
     output = []
     table_names = get_table_names(db)
     for tbl_name, title_key, desc_key in [

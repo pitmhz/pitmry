@@ -173,8 +173,11 @@ export function SkillsWorkspace() {
   };
 
   useEffect(() => {
-    fetchSkills();
-    fetchScripts();
+    const timer = window.setTimeout(() => {
+      fetchSkills();
+      fetchScripts();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Keyboard Escape listener for modals

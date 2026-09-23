@@ -71,7 +71,8 @@ export function TimelinesNotifications({
   };
 
   useEffect(() => {
-    fetchNotifs();
+    const timer = window.setTimeout(() => { void fetchNotifs() }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleMarkAllRead = () => {

@@ -79,9 +79,10 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
 
   useEffect(() => {
     let isCancelled = false;
-    setLoading(true);
 
-    fetch(
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      fetch(
       `/api/memory?action=journey&item_type=${item.type}&item_id=${item.numeric_id}&hops=${hops}`
     )
       .then((res) => res.json())
@@ -97,9 +98,11 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
           setLoading(false);
         }
       });
+    }, 0);
 
     return () => {
       isCancelled = true;
+      window.clearTimeout(timer);
     };
   }, [item.id, item.type, item.numeric_id, hops]);
 

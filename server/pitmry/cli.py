@@ -1,8 +1,10 @@
-"""Phase 1 command line.
+"""PITMRY command line.
 
     python -m server.pitmry init [--root PATH] [--name NAME]
     python -m server.pitmry validate [--root PATH] [--json]
     python -m server.pitmry get <record-id> [--root PATH] [--json]
+    python -m server.pitmry rebuild [--root PATH] [--no-vectors]
+    python -m server.pitmry migrate-legacy --db PATH [--dry-run] [--root PATH]
 
 `validate` exits 1 when any canonical record is malformed, and prints the path
 plus the reason for each problem. `get` exits 1 when the record is absent.
@@ -15,7 +17,8 @@ import json
 import sys
 
 from .canonical_store import CanonicalStore
-from .config import find_root
+from .migration import migrate_legacy
+from .rebuild import rebuild
 
 
 def _make_store(args) -> CanonicalStore:
@@ -124,6 +127,27 @@ def cmd_get(args) -> int:
     return 0
 
 
+def cmd_rebuild(args) -> int:
+    try:
+        result = rebuild(root=args.root, no_vectors=args.no_vectors)
+    except (ValueError, OSError, RuntimeError) as exc:
+        print(f"rebuild failed: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps({key: str(value) if hasattr(value, "__fspath__") else value
+                      for key, value in result.items()}, indent=2))
+    return 0
+
+
+def cmd_migrate_legacy(args) -> int:
+    try:
+        result = migrate_legacy(args.db, root=args.root, dry_run=args.dry_run)
+    except (ValueError, OSError, RuntimeError) as exc:
+        print(f"legacy migration failed: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     # Shared options. `parents=` is what makes `--root` and `--json` valid on
     # every subcommand, because a global option is only parsed *before* the
@@ -135,7 +159,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         prog="pitmry",
-        description="PITMRY canonical memory engine (Phase 1)",
+        description="PITMRY canonical memory engine",
         parents=[common],
     )
 
@@ -155,6 +179,19 @@ def build_parser() -> argparse.ArgumentParser:
                                   help="read one canonical record by id")
     p_get.add_argument("record_id")
     p_get.set_defaults(func=cmd_get)
+
+    p_rebuild = subparsers.add_parser("rebuild", parents=[common],
+                                      help="rebuild disposable projections")
+    p_rebuild.add_argument("--no-vectors", action="store_true",
+                           help="build SQLite and FTS only")
+    p_rebuild.set_defaults(func=cmd_rebuild)
+
+    p_migrate = subparsers.add_parser("migrate-legacy", parents=[common],
+                                      help="import selected legacy Cavemem records")
+    p_migrate.add_argument("--db", required=True, help="legacy Cavemem SQLite file")
+    p_migrate.add_argument("--dry-run", action="store_true",
+                            help="report selected legacy rows without writing canonical data")
+    p_migrate.set_defaults(func=cmd_migrate_legacy)
 
     return parser
 

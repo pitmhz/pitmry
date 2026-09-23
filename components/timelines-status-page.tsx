@@ -26,7 +26,10 @@ export function TimelinesStatusPage({ className }: { className?: string }) {
       setData({ version: 1, status: "critical", checked_at: new Date().toISOString(), error: String(error) });
     } finally { setLoading(false); }
   }, []);
-  useEffect(() => { void fetchReadiness(); }, [fetchReadiness]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void fetchReadiness() }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchReadiness]);
 
   const status = data?.status ?? "degraded";
   const statusColor = status === "ready" ? "text-emerald-500" : status === "critical" ? "text-rose-500" : "text-amber-500";

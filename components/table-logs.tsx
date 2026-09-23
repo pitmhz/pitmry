@@ -86,7 +86,8 @@ export function TableLogs() {
 
   // Initial load
   React.useEffect(() => {
-    fetchLogs()
+    const timer = window.setTimeout(() => { void fetchLogs() }, 0)
+    return () => window.clearTimeout(timer)
   }, [fetchLogs])
 
   // Polling interval when live (not paused)

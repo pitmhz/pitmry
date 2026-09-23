@@ -24,82 +24,10 @@ DEFAULT_MODEL_PATH = os.path.expanduser(r"~\.cavemem\models\Xenova\all-MiniLM-L6
 DEFAULT_TOKENIZER_PATH = os.path.expanduser(r"~\.cavemem\models\Xenova\all-MiniLM-L6-v2\tokenizer.json")
 EMBEDDING_DIM = 384
 EMBEDDING_MODEL_NAME = "Xenova/all-MiniLM-L6-v2"
-
-
-class LocalEmbedder:
-    """Runs local ONNX embeddings with mean pooling and L2 normalization."""
-
-    def __init__(self, model_path: str = DEFAULT_MODEL_PATH, tokenizer_path: str = DEFAULT_TOKENIZER_PATH):
-        self.model_path = model_path
-        self.tokenizer_path = tokenizer_path
-        self._session = None
-        self._tokenizer = None
-
-    def _ensure_loaded(self):
-        if self._session is None or self._tokenizer is None:
-            if not os.path.exists(self.model_path) or not os.path.exists(self.tokenizer_path):
-                # Check for sentence-transformers fallback
-                try:
-                    from sentence_transformers import SentenceTransformer
-                    self._st_model = SentenceTransformer("all-MiniLM-L6-v2")
-                    self._use_st = True
-                    return
-                except Exception:
-                    pass
-                # Graceful deterministic pseudo-vector fallback for zero-dependency offline mode
-                self._fallback_mode = True
-                return
-
-            try:
-                import onnxruntime as ort
-                import tokenizers
-                # Suppress verbose ONNX runtime logging
-                opts = ort.SessionOptions()
-                opts.log_severity_level = 3  # Error only
-                self._session = ort.InferenceSession(self.model_path, sess_options=opts)
-                self._tokenizer = tokenizers.Tokenizer.from_file(self.tokenizer_path)
-                self._tokenizer.enable_truncation(max_length=256)
-            except Exception:
-                self._fallback_mode = True
-
-    def embed(self, text: str) -> "np.ndarray":
-        import numpy as np
-        self._ensure_loaded()
-
-        if getattr(self, "_use_st", False):
-            emb = self._st_model.encode(text, normalize_embeddings=True)
-            return np.array(emb, dtype=np.float32)
-
-        if getattr(self, "_fallback_mode", False):
-            import hashlib
-            seed = int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:8], 16)
-            rng = np.random.RandomState(seed)
-            v = rng.randn(EMBEDDING_DIM).astype(np.float32)
-            norm = np.linalg.norm(v)
-            return v / (norm if norm > 0 else 1.0)
-
-        enc = self._tokenizer.encode(text)
-        
-        feed = {
-            "input_ids": np.array([enc.ids], dtype=np.int64),
-            "attention_mask": np.array([enc.attention_mask], dtype=np.int64),
-            "token_type_ids": np.array([enc.type_ids], dtype=np.int64)
-        }
-        outputs = self._session.run(None, feed)
-        token_embeddings = outputs[0]  # [1, seq_len, 384]
-
-        # Mean pooling with attention mask
-        attention_mask = np.array([enc.attention_mask], dtype=np.float32)[:, :, np.newaxis]
-        input_mask_expanded = np.broadcast_to(attention_mask, token_embeddings.shape)
-        sum_embeddings = np.sum(token_embeddings * input_mask_expanded, axis=1)
-        sum_mask = np.clip(np.sum(input_mask_expanded, axis=1), a_min=1e-9, a_max=None)
-        embedding = sum_embeddings / sum_mask
-
-        # L2 normalize
-        norm = np.linalg.norm(embedding, axis=1, keepdims=True)
-        norm[norm == 0] = 1e-9
-        normalized = (embedding / norm)[0].astype(np.float32)
-        return normalized
+try:
+    from .pitmry.embeddings import EmbeddingUnavailable, LocalEmbedder
+except ImportError:  # direct `python server/cavemem_strategic.py` invocation
+    from pitmry.embeddings import EmbeddingUnavailable, LocalEmbedder
 
 
 def sanitize_fts_query(query: str) -> str:
@@ -342,8 +270,9 @@ class StrategicMemoryDB:
 
     def _save_embedding(self, entity_type: str, entity_id: int, text: str):
         try:
+            import numpy as np
             vec = self.embedder.embed(text)
-            vec_blob = vec.tobytes()
+            vec_blob = np.asarray(vec, dtype=np.float32).tobytes()
             with self.get_connection() as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO strategic_embeddings (entity_type, entity_id, model, dim, vec)
@@ -511,7 +440,11 @@ class StrategicMemoryDB:
     def _semantic_search(self, entity_type: str, query: str, limit: int = 10,
                          project: Optional[str] = None) -> List[Dict[str, Any]]:
         import numpy as np
-        query_vec = self.embedder.embed(query)
+        try:
+            query_vec = np.asarray(self.embedder.embed(query), dtype=np.float32)
+        except EmbeddingUnavailable as exc:
+            print(f"[Warning] Vector search unavailable; use FTS search: {exc}", file=sys.stderr)
+            return []
 
         # Retrieve vectors for target entity_type
         sql = """

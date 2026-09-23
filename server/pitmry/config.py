@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import datetime as _dt
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -138,11 +139,32 @@ class ProjectPaths:
 
     @property
     def sqlite_cache(self) -> Path:
-        return self.cache_dir / "pitmry.db"
+        """SQLite path in the active immutable cache generation."""
+        generation = self.active_generation
+        return generation / "pitmry.db" if generation else self.cache_dir / "pitmry.db"
 
     @property
     def lancedb_cache(self) -> Path:
-        return self.cache_dir / "lancedb"
+        """LanceDB path in the active immutable cache generation."""
+        generation = self.active_generation
+        return generation / "lancedb" if generation else self.cache_dir / "lancedb"
+
+    @property
+    def active_pointer(self) -> Path:
+        return self.cache_dir / "active.json"
+
+    @property
+    def active_generation(self) -> Optional[Path]:
+        try:
+            pointer = json.loads(self.active_pointer.read_text(encoding="utf-8"))
+            generation = pointer["generation"]
+            if not isinstance(generation, str) or not generation or Path(generation).name != generation:
+                return None
+            candidate = (self.cache_dir / "generations" / generation).resolve()
+            candidate.relative_to((self.cache_dir / "generations").resolve())
+            return candidate if candidate.is_dir() else None
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
 
     @property
     def logs_dir(self) -> Path:

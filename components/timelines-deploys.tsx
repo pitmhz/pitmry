@@ -97,7 +97,8 @@ export function TimelinesDeploys({
   };
 
   useEffect(() => {
-    fetchDeploys();
+    const timer = window.setTimeout(() => { void fetchDeploys() }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleCopySha = (sha: string) => {

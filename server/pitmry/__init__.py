@@ -4,9 +4,9 @@ PITMRY is a local-first, Git-portable memory and historical context engine for
 AI software agents. Canonical records under `.pitmry/` are the durable source
 of truth. Every database the engine builds is disposable and rebuildable.
 
-Phase 1 provides the canonical foundation only: initialization, immutable
-records, validation, and reading records back. There is no retrieval, no
-projection, and no vector index yet.
+Phase 2 adds rebuildable SQLite/FTS and optional LanceDB projections, local
+capture helpers, and scoped import tools. Canonical JSON remains the only
+durable source of truth. Retrieval policy and agent APIs are later phases.
 """
 
 from .enums import (  # noqa: F401

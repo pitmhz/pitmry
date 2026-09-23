@@ -109,7 +109,8 @@ export function TimelinesActivityFeed({
   };
 
   useEffect(() => {
-    fetchActivity();
+    const timer = window.setTimeout(() => { void fetchActivity() }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const filterEvents = (events: Event[] = []) => {

@@ -65,7 +65,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   useEffect(() => {
-    fetchOnboardingState();
+    const timer = window.setTimeout(() => { void fetchOnboardingState() }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchOnboardingState]);
 
   const toggleTask = async (taskId: string) => {

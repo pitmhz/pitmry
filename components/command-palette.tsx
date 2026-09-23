@@ -48,15 +48,18 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
-      setQuery("");
-      setResults([]);
+      const timer = window.setTimeout(() => {
+        setQuery("");
+        setResults([]);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [open]);
 
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
-      return;
+      const timer = window.setTimeout(() => setResults([]), 0);
+      return () => window.clearTimeout(timer);
     }
     const controller = new AbortController();
     const timer = setTimeout(() => {

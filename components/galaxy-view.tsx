@@ -197,8 +197,11 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
   };
 
   useEffect(() => {
-    fetchGalaxyData();
-    return () => galaxyAbortRef.current?.abort();
+    const timer = window.setTimeout(fetchGalaxyData, 0);
+    return () => {
+      window.clearTimeout(timer);
+      galaxyAbortRef.current?.abort();
+    };
   }, []);
 
   // Recalculate dynamic anomalies based on threshold
@@ -645,20 +648,23 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
   // Fetch Decision Journey Data when journeyMode is active or node changes
   useEffect(() => {
     if (!journeyMode || !selectedNode) {
-      setJourneyChain([]);
-      setIsPlayingJourney(false);
-      setActiveJourneyStepIndex(null);
+      const timer = window.setTimeout(() => {
+        setJourneyChain([]);
+        setIsPlayingJourney(false);
+        setActiveJourneyStepIndex(null);
+      }, 0);
       if (threeRef.current?.journeyLine) {
         threeRef.current.scene.remove(threeRef.current.journeyLine);
         threeRef.current.journeyLine.geometry.dispose();
         (threeRef.current.journeyLine.material as THREE.Material).dispose();
         threeRef.current.journeyLine = null;
       }
-      return;
+      return () => window.clearTimeout(timer);
     }
 
-    setJourneyLoading(true);
-    fetch(
+    const timer = window.setTimeout(() => {
+      setJourneyLoading(true);
+      fetch(
       `/api/memory?action=journey&item_type=${selectedNode.type}&item_id=${selectedNode.numeric_id}&hops=3`
     )
       .then((res) => res.json())
@@ -672,6 +678,8 @@ export function GalaxyView({ onSelectNode }: GalaxyViewProps) {
         console.error("Failed to load journey in galaxy:", err);
         setJourneyLoading(false);
       });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [journeyMode, selectedNode?.id]);
 
   // Render Glowing Celestial Flight Path Line for Journey

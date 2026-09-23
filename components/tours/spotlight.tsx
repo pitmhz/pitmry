@@ -72,7 +72,8 @@ export function SpotlightTour({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setCurrentStep(step);
+    const timer = window.setTimeout(() => setCurrentStep(step), 0);
+    return () => window.clearTimeout(timer);
   }, [step]);
 
   const updateTargetRect = useCallback(() => {
@@ -105,7 +106,7 @@ export function SpotlightTour({
 
   useEffect(() => {
     if (!active) return;
-    updateTargetRect();
+    const frame = window.requestAnimationFrame(updateTargetRect);
 
     const handleResize = () => updateTargetRect();
     const handleScroll = () => updateTargetRect();
@@ -118,6 +119,7 @@ export function SpotlightTour({
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("scroll", handleScroll, true);
+      window.cancelAnimationFrame(frame);
       clearTimeout(timer);
     };
   }, [active, currentStep, updateTargetRect]);

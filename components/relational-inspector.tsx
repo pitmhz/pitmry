@@ -69,12 +69,12 @@ export function RelationalInspector({
 
   useEffect(() => {
     if (!item) {
-      setNeighbors([]);
-      return;
+      const timer = window.setTimeout(() => setNeighbors([]), 0);
+      return () => window.clearTimeout(timer);
     }
-
-    setLoadingNeighbors(true);
-    fetch(
+    const timer = window.setTimeout(() => {
+      setLoadingNeighbors(true);
+      fetch(
       `/api/memory?action=relations&item_type=${item.type}&item_id=${item.numeric_id}`
     )
       .then((res) => res.json())
@@ -86,6 +86,8 @@ export function RelationalInspector({
         console.error("Failed to fetch relations:", err);
         setLoadingNeighbors(false);
       });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [item]);
 
   useEffect(() => {

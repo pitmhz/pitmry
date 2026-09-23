@@ -530,8 +530,11 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
-    fetchFeed();
-    return () => feedAbortRef.current?.abort();
+    const timer = window.setTimeout(fetchFeed, 0);
+    return () => {
+      window.clearTimeout(timer);
+      feedAbortRef.current?.abort();
+    };
   }, [selectedProject, selectedType, selectedTag]);
 
   // Click outside to close notification popover

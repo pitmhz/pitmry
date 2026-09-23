@@ -92,8 +92,11 @@ export function KnowledgeGraph({ onSelectNode }: KnowledgeGraphProps) {
   };
 
   useEffect(() => {
-    fetchGraph();
-    return () => graphAbortRef.current?.abort();
+    const timer = window.setTimeout(fetchGraph, 0);
+    return () => {
+      window.clearTimeout(timer);
+      graphAbortRef.current?.abort();
+    };
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {

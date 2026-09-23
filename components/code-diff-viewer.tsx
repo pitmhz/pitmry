@@ -163,13 +163,14 @@ export function CodeDiffViewer({
 
   useEffect(() => {
     if (!commitHash && !itemId) return;
-    setLoading(true);
     let url = `/api/memory?action=diff`;
     if (project) url += `&project=${encodeURIComponent(project)}`;
     if (commitHash) url += `&commit=${encodeURIComponent(commitHash)}`;
     if (itemId) url += `&item_id=${encodeURIComponent(itemId)}`;
 
-    fetch(url)
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      fetch(url)
       .then((res) => res.json())
       .then((resData) => {
         setData(resData);
@@ -181,6 +182,8 @@ export function CodeDiffViewer({
         setData({ available: false, error: "Failed to connect to backend bridge" });
         setLoading(false);
       });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [project, commitHash, itemId]);
 
   const files = data?.files || [];
