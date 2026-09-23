@@ -214,7 +214,10 @@ export function getDemoFallback(action: string, params: URLSearchParams): Record
       focal: { id: "commit-1", title: "Vertical Diff Viewer Layout", type: "commit", project: "pitmry" },
       hops: [
         {
-          stage: "Origin Discussion",
+          stage: "Possible discussion match",
+          relation: "possible_origin",
+          provenance: "inferred",
+          inference_basis: ["similarity"],
           id: "grill-1",
           type: "grill",
           project: "cloud-core",
@@ -223,7 +226,10 @@ export function getDemoFallback(action: string, params: URLSearchParams): Record
           similarity: 0.76
         },
         {
-          stage: "Architectural Decision",
+          stage: "Related decision candidate",
+          relation: "semantically_related",
+          provenance: "inferred",
+          inference_basis: ["same_project", "similarity"],
           id: "adr-1",
           type: "adr",
           project: "pitmry",
@@ -232,7 +238,9 @@ export function getDemoFallback(action: string, params: URLSearchParams): Record
           similarity: 0.88
         },
         {
-          stage: "Focal Implementation",
+          stage: "Selected record",
+          relation: "focal_node",
+          provenance: "focal",
           id: "commit-1",
           type: "commit",
           project: "pitmry",
@@ -241,7 +249,10 @@ export function getDemoFallback(action: string, params: URLSearchParams): Record
           similarity: 1.0
         },
         {
-          stage: "Follow-up Verification",
+          stage: "Possible related change",
+          relation: "possible_followup",
+          provenance: "inferred",
+          inference_basis: ["same_project", "similarity", "time_order"],
           id: "commit-2",
           type: "commit",
           project: "pitmry",

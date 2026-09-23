@@ -148,6 +148,84 @@ def cmd_migrate_legacy(args) -> int:
     return 0
 
 
+def cmd_search(args) -> int:
+    from .models import MemoryRecord
+    from .relations import explicit_relations
+    from .retrieval import retrieve
+    from .state_resolver import resolve_states
+
+    try:
+        store = _make_store(args)
+        result = retrieve(args.query, root=args.root, limit=args.limit,
+                          include_vectors=not args.no_vectors)
+        records = [item for item in store.load_all() if isinstance(item, MemoryRecord)]
+        edges = explicit_relations(store.load_all())
+        states = resolve_states(records, edges)
+        payload = {
+            "status": "AMBIGUOUS" if result["ambiguous"] else
+                      "OK" if result["records"] and not result["warnings"] else
+                      "DEGRADED" if result["records"] else "NO_MATCH",
+            "query": args.query,
+            "project_id": result["project_id"],
+            "mode": result["mode"],
+            "results": [{
+                "id": record.id, "type": record.type.value,
+                "title": record.title, "summary": record.summary,
+                "state": states.get(record.id, "UNKNOWN"),
+                **(result["signals"].get(record.id, {}) if args.explain else {}),
+            } for record in result["records"]],
+            "warnings": result["warnings"],
+        }
+    except (ValueError, OSError, RuntimeError) as exc:
+        print(f"search failed: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        print(f"{payload['status']} ({payload['mode']}) — {len(payload['results'])} result(s)")
+        for item in payload["results"]:
+            print(f"{item['id']} [{item['state']}] {item['title']}")
+            print(f"  {item['summary']}")
+        for warning in payload["warnings"]:
+            print(f"warning: {warning}")
+    return 0
+
+
+def cmd_context(args) -> int:
+    from .context_service import context
+
+    try:
+        payload = context(args.query, root=args.root, max_records=args.limit,
+                          character_budget=args.character_budget,
+                          include_vectors=not args.no_vectors,
+                          include_inferred=args.include_inferred)
+    except (ValueError, OSError, RuntimeError) as exc:
+        print(f"context failed: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    return 0
+
+
+def cmd_lineage(args) -> int:
+    from .context_service import lineage
+
+    try:
+        payload = lineage(args.record_id, root=args.root, max_hops=args.hops)
+    except (ValueError, OSError, RuntimeError) as exc:
+        print(f"lineage failed: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        for item in payload["nodes"]:
+            print(f"{item['id']} [{item['state']}] {item['title']}")
+        for edge in payload["relations"]:
+            print(f"{edge['source_record_id']} -[{edge['relation']}]-> {edge['target_record_id']} [explicit]")
+        if not payload["nodes"]:
+            print(f"{payload['status']}: no canonical record for {args.record_id}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     # Shared options. `parents=` is what makes `--root` and `--json` valid on
     # every subcommand, because a global option is only parsed *before* the
@@ -192,6 +270,30 @@ def build_parser() -> argparse.ArgumentParser:
     p_migrate.add_argument("--dry-run", action="store_true",
                             help="report selected legacy rows without writing canonical data")
     p_migrate.set_defaults(func=cmd_migrate_legacy)
+
+    p_search = subparsers.add_parser("search", parents=[common],
+                                     help="rank canonical records with FTS and optional vectors")
+    p_search.add_argument("query")
+    p_search.add_argument("--limit", type=int, default=10)
+    p_search.add_argument("--no-vectors", action="store_true")
+    p_search.add_argument("--explain", action="store_true",
+                          help="include lexical/vector ranks, RRF score, and reasons")
+    p_search.set_defaults(func=cmd_search)
+
+    p_context = subparsers.add_parser("context", parents=[common],
+                                      help="build compact trust-aware agent context")
+    p_context.add_argument("query")
+    p_context.add_argument("--limit", type=int, default=8)
+    p_context.add_argument("--character-budget", type=int, default=12000)
+    p_context.add_argument("--no-vectors", action="store_true")
+    p_context.add_argument("--include-inferred", action="store_true")
+    p_context.set_defaults(func=cmd_context)
+
+    p_lineage = subparsers.add_parser("lineage", parents=[common],
+                                      help="show explicit canonical relations")
+    p_lineage.add_argument("record_id")
+    p_lineage.add_argument("--hops", type=int, default=2)
+    p_lineage.set_defaults(func=cmd_lineage)
 
     return parser
 

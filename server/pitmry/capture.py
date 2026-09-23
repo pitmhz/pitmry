@@ -36,11 +36,17 @@ def _record(store, record_type, source_type, source_id, title, summary, content,
 
 
 def capture_decision(store, title, decision, context="", rationale="", trade_offs="",
-                     source_id=None, authority=Authority.agent_reported, tags=(), created_at=None):
+                     source_id=None, authority=Authority.agent_reported, tags=(), created_at=None,
+                     subject_key=None):
     source_id = source_id or new_source_id()
+    content = {"context": context, "decision": decision, "rationale": rationale,
+               "trade_offs": trade_offs}
+    if subject_key is not None:
+        if not isinstance(subject_key, str) or not subject_key.strip():
+            raise ValueError("subject_key must be a non-empty string")
+        content["subject_key"] = subject_key.strip()
     return _record(store, RecordType.decision, "decision", source_id, title, decision,
-                   {"context": context, "decision": decision, "rationale": rationale,
-                    "trade_offs": trade_offs}, authority, TruthDomain.intent,
+                   content, authority, TruthDomain.intent,
                    created_at=created_at, tags=tags)
 
 

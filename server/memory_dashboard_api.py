@@ -769,8 +769,11 @@ def cmd_galaxy():
 
 def cmd_journey(item_type: str, item_id: int, max_hops: int = 3):
     """
-    Multi-hop relational tracing: discovers the causal lineage
-    (upstream origin -> decision -> focal -> implementation -> fallout).
+    Compatibility view of inferred neighbors around a legacy record.
+
+    Similarity, shared files, and timestamps are search hints. This legacy
+    dashboard path does not own canonical relation evidence, so it labels all
+    neighbor edges as inferred and never presents them as causes.
     """
     import numpy as np
     import lancedb
@@ -878,6 +881,11 @@ def cmd_journey(item_type: str, item_id: int, max_hops: int = 3):
         time_diff = node["timestamp"] - focal_time # pos = newer, neg = older
         same_proj = (node["project"] == focal_proj)
 
+        # Journey candidates stay within the selected project. A similar
+        # record in another project is not evidence about this project's past.
+        if not same_proj:
+            continue
+
         score = (sim * 0.50) + (0.25 if same_proj else 0.0) + (overlap * 0.25)
 
         candidates.append({
@@ -908,11 +916,13 @@ def cmd_journey(item_type: str, item_id: int, max_hops: int = 3):
         chain.append({
             "step": 1,
             "role": "origin",
-            "relation": "originated_from",
+            "relation": "possible_origin",
+            "provenance": "inferred",
+            "inference_basis": ["same_project", "similarity", "time_order"],
             "node": g["node"],
             "similarity": g["sim"],
             "score": g["score"],
-            "badge": "Design Debate"
+            "badge": "Possible origin"
         })
 
     # Step 2: Prior ADR / Architectural Foundation
@@ -922,11 +932,13 @@ def cmd_journey(item_type: str, item_id: int, max_hops: int = 3):
         chain.append({
             "step": len(chain) + 1,
             "role": "decision",
-            "relation": "authorized_by",
+            "relation": "semantically_related",
+            "provenance": "inferred",
+            "inference_basis": ["same_project", "similarity", "time_order"],
             "node": a["node"],
             "similarity": a["sim"],
             "score": a["score"],
-            "badge": "ADR Authorized"
+            "badge": "Related decision"
         })
 
     # Step 3: Focal Node
@@ -937,19 +949,24 @@ def cmd_journey(item_type: str, item_id: int, max_hops: int = 3):
         "node": focal_node,
         "similarity": 1.0,
         "score": 1.0,
-        "badge": "Current Focus"
+        "badge": "Selected record"
     })
 
     # Step 4: Downstream Implementations / Patches
     for d in downstream[:max_hops]:
         role = "implementation" if focal_node["type"] == "adr" and d["node"]["type"] == "commit" else "consequence"
-        relation = "implemented_by" if role == "implementation" else ("hotfixed_by" if len(d["shared_files"]) > 0 else "followed_by")
-        badge = "Implementation" if role == "implementation" else ("Regression Fix" if "fix" in d["node"]["title"].lower() else "Follow-up")
+        relation = ("possible_followup" if role == "implementation" else
+                    "shared_files" if d["shared_files"] else "temporal_neighbor")
+        badge = ("Possible follow-up" if relation == "possible_followup" else
+                 "Shared files" if relation == "shared_files" else "Temporal neighbor")
 
         chain.append({
             "step": len(chain) + 1,
             "role": role,
             "relation": relation,
+            "provenance": "inferred",
+            "inference_basis": (["same_project", "similarity", "time_order"] +
+                                (["shared_files"] if d["shared_files"] else [])),
             "node": d["node"],
             "similarity": d["sim"],
             "score": d["score"],
