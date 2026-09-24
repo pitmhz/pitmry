@@ -1,17 +1,15 @@
 {
   "version": 1,
   "mode": "live",
-  "recorded_at": "2026-09-20T14:57:10",
-  "golden_version": 1,
+  "recorded_at": "2026-09-24T12:35:33",
+  "golden_version": 2,
   "metrics": {
-    "recall_at_1": 0.96,
-    "recall_at_3": 0.96,
-    "mean_reciprocal_rank": 0.96,
+    "recall_at_1": 1.0,
+    "recall_at_3": 1.0,
+    "mean_reciprocal_rank": 1.0,
     "no_result_precision": 1.0,
-    "semantic_source_share": 1.0,
-    "p95_latency_ms": 239.107,
-    "index_freshness": 1.0,
-    "unembedded_observations": 0,
-    "worker_healthy": 1.0
+    "semantic_source_share": 0.875,
+    "p95_latency_ms": 226.813,
+    "index_freshness": 1.0
   }
 }

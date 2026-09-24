@@ -15,22 +15,26 @@ class LocalEmbedder:
 
     model_name = "Xenova/all-MiniLM-L6-v2"
     dimensions = 384
+    # Known local install used by lancedb_strategic.py; picked up when the
+    # PITMRY_ONNX_MODEL/PITMRY_TOKENIZER env overrides are absent.
+    default_model_path = Path.home() / ".cavemem" / "models" / "Xenova" / "all-MiniLM-L6-v2" / "onnx" / "model_quantized.onnx"
+    default_tokenizer_path = Path.home() / ".cavemem" / "models" / "Xenova" / "all-MiniLM-L6-v2" / "tokenizer.json"
 
     def __init__(self, model_path=None, tokenizer_path=None):
         configured_model = model_path or os.environ.get("PITMRY_ONNX_MODEL")
         configured_tokenizer = tokenizer_path or os.environ.get("PITMRY_TOKENIZER")
-        self.model_path = Path(configured_model) if configured_model else None
-        self.tokenizer_path = Path(configured_tokenizer) if configured_tokenizer else None
+        self.model_path = Path(configured_model) if configured_model else self.default_model_path
+        self.tokenizer_path = Path(configured_tokenizer) if configured_tokenizer else self.default_tokenizer_path
         self._session = None
         self._tokenizer = None
 
     def _load(self):
         if self._session is not None:
             return
-        if self.model_path is None or self.tokenizer_path is None:
-            raise EmbeddingUnavailable("set PITMRY_ONNX_MODEL and PITMRY_TOKENIZER to local files")
         if not self.model_path.is_file() or not self.tokenizer_path.is_file():
-            raise EmbeddingUnavailable("configured local embedding model files are missing")
+            raise EmbeddingUnavailable(
+                "local embedding model files are missing; set PITMRY_ONNX_MODEL "
+                f"and PITMRY_TOKENIZER (looked for {self.model_path})")
         try:
             import onnxruntime as ort
             from tokenizers import Tokenizer

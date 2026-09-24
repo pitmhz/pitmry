@@ -84,9 +84,20 @@ export async function GET(request: NextRequest) {
   const limit = clampLimitStr(searchParams.get("limit"), "50");
   const hops = clampLimitStr(searchParams.get("hops"), "3", 10);
   const commitHash = searchParams.get("commit") || searchParams.get("commit_hash");
+  const newAction = action === "workspace" || action === "records" || action === "record" || action === "readiness" || action === "diff" || action === "project-intelligence";
+  const cursor = searchParams.get("cursor") || "0";
+  const dateFrom = searchParams.get("from");
+  const dateTo = searchParams.get("to");
+
+  if (newAction && (!/^\d+$/.test(cursor) || [dateFrom, dateTo].some((date) => date && !/^\d{4}-\d{2}-\d{2}$/.test(date)))) {
+    return NextResponse.json({ status: "INVALID_INPUT", message: "Check the date range or page cursor." }, { status: 400 });
+  }
 
   const scriptPath = resolvePythonScript();
   if (!scriptPath) {
+    if (newAction) {
+      return NextResponse.json({ status: "UNAVAILABLE", message: "Local memory backend not found. Run pnpm setup." }, { status: 503 });
+    }
     // Fall back gracefully to built-in sample data
     return NextResponse.json(
       withFallbackMarker(
@@ -99,7 +110,25 @@ export async function GET(request: NextRequest) {
   const pythonBin = resolvePythonBinary();
   const args = [scriptPath];
 
-  if (action === "readiness" || action === "health") {
+  if (action === "workspace") {
+    args.push("--workspace");
+  } else if (action === "project-intelligence") {
+    args.push("--project-intelligence");
+  } else if (action === "records") {
+    args.push("--records", "--limit", limit, "--cursor", cursor);
+    if (project) args.push("--project", project);
+    if (recordType) args.push("--type", recordType);
+    if (tag) args.push("--tag", tag);
+    if (query) args.push("--query", query);
+    if (searchParams.get("state")) args.push("--state", searchParams.get("state")!);
+    if (dateFrom) args.push("--date-from", dateFrom);
+    if (dateTo) args.push("--date-to", dateTo);
+  } else if (action === "record") {
+    if (!searchParams.get("item_id")) {
+      return NextResponse.json({ status: "INVALID_INPUT", message: "Record ID is required." }, { status: 400 });
+    }
+    args.push("--record", "--item-id", itemId);
+  } else if (action === "readiness" || action === "health") {
     args.push("--health");
   } else if (action === "summary") {
     args.push("--summary");
@@ -166,7 +195,7 @@ export async function GET(request: NextRequest) {
 
     if (action === "readiness") {
       const checks = Object.fromEntries(
-        ["canonical", "sqlite", "fts", "vectors", "git"].map((key) => [
+        ["canonical", "sqlite", "fts", "vectors", "git", "project_intelligence", "project_intelligence_projection"].map((key) => [
           key,
           { status: parsed[key] || "unavailable", message: (parsed.warnings || []).join("; ") },
         ]),
@@ -178,14 +207,14 @@ export async function GET(request: NextRequest) {
         checks,
       });
     }
-    return NextResponse.json(parsed);
+    return NextResponse.json(parsed, { status: action === "record" && parsed.status === "NO_MATCH" ? 404 : 200 });
   } catch (error: any) {
     const duration = Math.round(performance.now() - startTime);
     logServerEvent({
       severity: "warn",
       service: "api/memory",
-      message: `GET /api/memory?action=${action} fallback: ${error?.message || "unknown"}`,
-      status: 200,
+      message: `GET /api/memory?action=${action} failed: ${error?.message || "unknown"}`,
+      status: newAction ? 503 : 200,
       duration,
       context: [
         { label: "action", value: action },
@@ -193,6 +222,9 @@ export async function GET(request: NextRequest) {
       ]
     });
     console.warn(`[API: ${action}] Backend query failed, serving demo fallback:`, error?.message);
+    if (newAction) {
+      return NextResponse.json({ status: "UNAVAILABLE", message: "Could not read local memory. Check Memory readiness in Utilities." }, { status: 503 });
+    }
     return NextResponse.json(
       withFallbackMarker(
         getDemoFallback(action, searchParams),

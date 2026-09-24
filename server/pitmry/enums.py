@@ -51,6 +51,17 @@ class RecordType(_StableEnum):
     deployment = "deployment"
     note = "note"
     relation = "relation"
+    source_artifact = "source_artifact"
+    requirement = "requirement"
+    acceptance_criterion = "acceptance_criterion"
+    phase = "phase"
+    work_unit = "work_unit"
+    session = "session"
+    implementation = "implementation"
+    verification = "verification"
+    bug = "bug"
+    fix = "fix"
+    regression = "regression"
 
 
 # --- Authority --------------------------------------------------------------
@@ -95,6 +106,20 @@ class RelationType(_StableEnum):
     discussed_in = "discussed_in"
     introduced_by = "introduced_by"
     fixed_by = "fixed_by"
+    contains = "contains"
+    clarifies = "clarifies"
+    depends_on = "depends_on"
+    blocks = "blocks"
+    implements_requirement = "implements_requirement"
+    verifies = "verifies"
+    invalidates_verification = "invalidates_verification"
+    affects = "affects"
+    fixes = "fixes"
+    regressed_by = "regressed_by"
+    created_during = "created_during"
+    produced_commit = "produced_commit"
+    targets = "targets"
+    scoped_to = "scoped_to"
 
     semantically_related = "semantically_related"
     shared_files = "shared_files"
@@ -112,7 +137,10 @@ class RelationProvenance(_StableEnum):
 EXPLICIT_RELATIONS = frozenset(
     m for m in RelationType if m.value in {
         "implements", "supersedes", "reverts", "validated_by", "derived_from",
-        "discussed_in", "introduced_by", "fixed_by",
+        "discussed_in", "introduced_by", "fixed_by", "contains", "clarifies",
+        "depends_on", "blocks", "implements_requirement", "verifies",
+        "invalidates_verification", "affects", "fixes", "regressed_by",
+        "created_during", "produced_commit", "targets", "scoped_to",
     }
 )
 

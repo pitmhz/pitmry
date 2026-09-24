@@ -11,6 +11,7 @@ from pitmry.canonical_store import CanonicalStore
 from pitmry.doctor import doctor
 from pitmry.models import MemoryRecord
 from pitmry.enums import RecordType
+from pitmry.project_intelligence import project_context
 
 
 def _diff(project=None, commit_hash=None, item_id=None):
@@ -55,6 +56,10 @@ def main(argv=None):
     action.add_argument("--deploys", action="store_true")
     action.add_argument("--activity", action="store_true")
     action.add_argument("--notifications", action="store_true")
+    action.add_argument("--workspace", action="store_true")
+    action.add_argument("--records", action="store_true")
+    action.add_argument("--record", action="store_true")
+    action.add_argument("--project-intelligence", action="store_true")
     parser.add_argument("--root", default=None)
     parser.add_argument("--project", default=None)
     parser.add_argument("--type", default=None)
@@ -65,12 +70,27 @@ def main(argv=None):
     parser.add_argument("--item-id", default=None)
     parser.add_argument("--hops", type=int, default=2)
     parser.add_argument("--commit-hash", default=None)
+    parser.add_argument("--state", default=None)
+    parser.add_argument("--date-from", default=None)
+    parser.add_argument("--date-to", default=None)
+    parser.add_argument("--cursor", type=int, default=0)
     args = parser.parse_args(argv)
     if args.root:
         import os
         os.environ["PITMRY_ROOT"] = args.root
 
-    if args.feed:
+    if args.records:
+        result = dashboard.records_page(args.project, args.type, args.tag, args.query,
+                                        args.state, args.date_from, args.date_to,
+                                        args.cursor, args.limit, args.root)
+    elif args.record:
+        result = dashboard.record_detail(args.item_id or "", args.root)
+    elif args.workspace:
+        result = {"status": "OK", **dashboard.workspace_summary(args.root)}
+    elif args.project_intelligence:
+        stores = [CanonicalStore(args.root)] if args.root else dashboard.project_roots()
+        result = {"status": "OK", "projects": [project_context(store) for store in stores]}
+    elif args.feed:
         result = dashboard.feed(args.project, args.type, args.tag, args.query, args.limit, args.root)
     elif args.relations:
         result = dashboard.relations(args.item_id or "", args.root)

@@ -26,6 +26,8 @@ from .migration import PROJECT_LABELS, migrate_legacy
 from .rebuild import rebuild
 from .capture import (capture_decision, capture_git_change, capture_relation)
 from .enums import Authority, EXPLICIT_RELATIONS, RecordType, RelationType
+from . import project_intelligence as pi
+from .models import record_to_dict
 
 
 def _make_store(args) -> CanonicalStore:
@@ -309,6 +311,240 @@ def _capture_relation_command(args, relation):
     return 0
 
 
+def _pi_output(value):
+    if hasattr(value, "type"):
+        value = record_to_dict(value)
+    elif isinstance(value, dict):
+        value = {key: (record_to_dict(item) if hasattr(item, "type") else item)
+                 for key, item in value.items()}
+    print(json.dumps(value, indent=2, ensure_ascii=False, default=str))
+    return 0
+
+
+def cmd_pi_ingest(args):
+    return _pi_output(pi.ingest_markdown(_make_store(args), args.path))
+
+
+def cmd_pi_import(args):
+    store = _make_store(args)
+    path = (store.paths.root / args.file).resolve()
+    try:
+        path.relative_to(store.paths.root.resolve())
+    except ValueError as exc:
+        raise ValueError("decomposition file must be inside the project root") from exc
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return _pi_output(pi.import_decomposition(store, args.artifact_id, payload))
+
+
+def cmd_pi_reconcile(args):
+    return _pi_output(pi.record_reconciliation(_make_store(args), args.classification,
+                     args.record_ids, args.summary, critical=not args.noncritical))
+
+
+def cmd_pi_resolve(args):
+    store = _make_store(args)
+    if not sys.stdin.isatty():
+        raise ValueError("reconciliation resolution requires an interactive terminal")
+    record = store.get(args.observation_id)
+    if record is None:
+        raise ValueError(f"reconciliation not found: {args.observation_id}")
+    print(f"{record.title}: {record.summary}")
+    answer = input("Enter the reviewed resolution: ").strip()
+    return _pi_output(pi.resolve_reconciliation(store, args.observation_id, answer,
+                     decision_id=args.decision_id, actor="human"))
+
+
+def cmd_pi_baseline(args):
+    store = _make_store(args)
+    if not sys.stdin.isatty():
+        raise ValueError("baseline approval requires an interactive terminal")
+    name = store.require_manifest()["name"]
+    print(f"Reviewing proposed baseline for {name}")
+    print("Accepted records:")
+    for record_id in args.record_ids:
+        record = store.get(record_id)
+        if record is None:
+            raise ValueError(f"record not found: {record_id}")
+        print(f"- [{record.type.value}] {record.title}: {record.summary}")
+    conflicts = [record for record in store.iter_records()
+                 if record.type == RecordType.observation
+                 and record.content.get("observation_kind") == "reconciliation"
+                 and record.content.get("critical")
+                 and not any(item.type == RecordType.observation
+                             and item.content.get("observation_kind") == "reconciliation_resolution"
+                             and item.content.get("target_id") == record.id
+                             for item in store.iter_records())]
+    if conflicts:
+        print("Unresolved critical reconciliations:")
+        for conflict in conflicts:
+            print(f"- {conflict.id}: {conflict.content.get('summary', conflict.summary)}")
+    answer = input(f"Type {name!r} to approve this baseline: ").strip()
+    waivers = {}
+    for item in args.waive_conflict:
+        conflict_id, separator, reason = item.partition("=")
+        if not separator or not conflict_id.strip() or not reason.strip():
+            raise ValueError("--waive-conflict must use ID=REASON")
+        waivers[conflict_id.strip()] = reason.strip()
+    return _pi_output(pi.baseline_project(store, args.record_ids,
+                     confirmation=answer, waived_conflicts=waivers))
+
+
+def cmd_pi_phase(args):
+    return _pi_output(pi.create_phase(_make_store(args), args.name, args.ordinal, args.objective))
+
+
+def cmd_pi_work(args):
+    return _pi_output(pi.create_work_unit(_make_store(args), args.phase_id, args.title,
+                     args.objective, args.requirement, scope={"paths": args.path, "symbols": args.symbol},
+                     release_gate=args.release_gate))
+
+
+def cmd_pi_readiness(args):
+    result = pi.evaluate_readiness(_make_store(args), args.work_id)
+    print(json.dumps(result, indent=2))
+    return 0 if result["ready"] else 2
+
+
+def cmd_pi_next(args):
+    store = _make_store(args)
+    result = pi.list_ready_work(store, phase_id=args.phase_id, tags=args.tag)
+    _pi_output([{"work_unit": record_to_dict(item["work_unit"]),
+                 "readiness": item["readiness"]} for item in result])
+    return 0
+
+
+def cmd_pi_session_start(args):
+    result = pi.start_session(_make_store(args), args.work_id, agent=args.agent,
+                              branch=args.branch, worktree=args.worktree,
+                              base_commit=args.base_commit, lease_seconds=args.lease_seconds,
+                              read_only=args.read_only)
+    return _pi_output(result)
+
+
+def cmd_pi_session_finish(args):
+    store = _make_store(args)
+    reuse = None
+    if args.reuse_analysis_file:
+        path = (store.paths.root / args.reuse_analysis_file).resolve()
+        try:
+            path.relative_to(store.paths.root.resolve())
+        except ValueError as exc:
+            raise ValueError("reuse-analysis file must be inside the project root") from exc
+        reuse = json.loads(path.read_text(encoding="utf-8"))
+    tests = args.test
+    if args.tests_file:
+        path = (store.paths.root / args.tests_file).resolve()
+        try:
+            path.relative_to(store.paths.root.resolve())
+        except ValueError as exc:
+            raise ValueError("test evidence file must be inside the project root") from exc
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        tests = payload.get("tests", payload) if isinstance(payload, dict) else payload
+        if not isinstance(tests, list):
+            raise ValueError("test evidence file must contain a list or an object with a tests list")
+    return _pi_output(pi.finish_session(store, args.session_id,
+                     changed_files=args.changed_file, summary=args.summary,
+                     commit_sha=args.commit, tests=tests, build_result=args.build_result,
+                     changed_symbols=args.changed_symbol, reuse_analysis=reuse,
+                     limitations=args.limitation, decision_ids=args.decision_id,
+                     bug_ids=args.bug_id, unresolved_work=args.unresolved_work))
+
+
+def cmd_pi_checkpoint(args):
+    return _pi_output(pi.checkpoint_session(_make_store(args), args.session_id,
+                     args.summary, open_work=args.open_work))
+
+
+def cmd_pi_block(args):
+    return _pi_output(pi.block_session(_make_store(args), args.session_id, args.reason))
+
+
+def cmd_pi_resume(args):
+    return _pi_output(pi.resume_session(_make_store(args), args.session_id))
+
+
+def cmd_pi_abandon(args):
+    return _pi_output(pi.abandon_session(_make_store(args), args.session_id, reason=args.reason))
+
+
+def cmd_pi_incident(args):
+    kind = {"bug": RecordType.bug, "fix": RecordType.fix, "regression": RecordType.regression}[args.type]
+    return _pi_output(pi.record_incident(_make_store(args), kind, args.title, args.summary,
+                     related_ids=args.related))
+
+
+def cmd_pi_close_bug(args):
+    store = _make_store(args)
+    if not sys.stdin.isatty():
+        raise ValueError("bug closure requires an interactive terminal")
+    answer = input(f"Type {args.bug_id!r} to close this bug: ").strip()
+    return _pi_output(pi.close_bug(store, args.bug_id, fix_id=args.fix_id,
+                     disposition=args.disposition, confirmation=answer))
+
+
+def cmd_pi_staleness(args):
+    return _pi_output(pi.verification_staleness(_make_store(args), args.verification_id, head=args.head))
+
+
+def cmd_pi_context(args):
+    store = _make_store(args)
+    if args.kind == "project":
+        value = pi.project_context(store)
+    elif args.kind == "work":
+        value = pi.work_context(store, args.record_id)
+    elif args.kind == "session":
+        value = pi.session_context(store, args.record_id)
+    else:
+        value = pi.code_context(store, args.record_id)
+    return _pi_output(value)
+
+
+def cmd_pi_plan_validate(args):
+    result = pi.validate_plan(_make_store(args))
+    _pi_output(result)
+    return 0 if result["valid"] else 2
+
+
+def cmd_pi_release_readiness(args):
+    result = pi.release_readiness(_make_store(args))
+    _pi_output(result)
+    return 0 if result["ready"] else 2
+
+
+def cmd_pi_verify(args):
+    store = _make_store(args)
+    path = (store.paths.root / args.file).resolve()
+    try:
+        path.relative_to(store.paths.root.resolve())
+    except ValueError as exc:
+        raise ValueError("verification file must be inside the project root") from exc
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    confirmation = None
+    if args.type in {"human", "human_confirmed"}:
+        if not sys.stdin.isatty():
+            raise ValueError("human verification requires an interactive terminal")
+        confirmation = input(f"Type {args.work_id!r} to confirm this verification: ").strip()
+    return _pi_output(pi.verify_work(store, args.work_id, args.commit,
+                     payload.get("criteria", []), verification_type=args.type,
+                     human_confirmation=confirmation))
+
+
+def cmd_hook_post_commit(args):
+    from .git_hooks import post_commit
+    post_commit(args.root)
+    return 0
+
+
+def cmd_hooks_install(args):
+    from .git_hooks import install_post_commit
+    return _pi_output(install_post_commit(args.root))
+
+
+def cmd_hooks_uninstall(args):
+    from .git_hooks import uninstall_post_commit
+    return _pi_output(uninstall_post_commit(args.root))
+
+
 def build_parser() -> argparse.ArgumentParser:
     # Shared options. `parents=` is what makes `--root` and `--json` valid on
     # every subcommand, because a global option is only parsed *before* the
@@ -416,7 +652,164 @@ def build_parser() -> argparse.ArgumentParser:
     p_supersede.add_argument("--evidence", required=True, action="append")
     p_supersede.set_defaults(func=cmd_supersede)
 
-    p_mcp = subparsers.add_parser("mcp", parents=[common], help="run the optional read-only MCP server")
+    p_pi = subparsers.add_parser("pi", parents=[common], help="Project Intelligence operations")
+    pi_commands = p_pi.add_subparsers(dest="pi_command", required=True)
+
+    p_pi_ingest = pi_commands.add_parser("ingest", parents=[common], help="preserve a Markdown source snapshot")
+    p_pi_ingest.add_argument("path")
+    p_pi_ingest.set_defaults(func=cmd_pi_ingest)
+
+    p_pi_import = pi_commands.add_parser("import", parents=[common], help="import a validated decomposition JSON file")
+    p_pi_import.add_argument("artifact_id")
+    p_pi_import.add_argument("file")
+    p_pi_import.set_defaults(func=cmd_pi_import)
+
+    p_pi_reconcile = pi_commands.add_parser("reconcile", parents=[common], help="record a reconciliation proposal")
+    p_pi_reconcile.add_argument("classification", choices=sorted(pi._RECONCILIATIONS))
+    p_pi_reconcile.add_argument("record_ids", nargs="+")
+    p_pi_reconcile.add_argument("--summary", required=True)
+    p_pi_reconcile.add_argument("--noncritical", action="store_true")
+    p_pi_reconcile.set_defaults(func=cmd_pi_reconcile)
+
+    p_pi_resolve = pi_commands.add_parser("resolve", parents=[common], help="interactively resolve a reconciliation proposal")
+    p_pi_resolve.add_argument("observation_id")
+    p_pi_resolve.add_argument("--decision", dest="decision_id")
+    p_pi_resolve.set_defaults(func=cmd_pi_resolve)
+
+    p_pi_baseline = pi_commands.add_parser("baseline", parents=[common], help="review and approve the requirement baseline")
+    p_pi_baseline.add_argument("record_ids", nargs="+")
+    p_pi_baseline.add_argument("--waive-conflict", action="append", default=[], metavar="ID=REASON")
+    p_pi_baseline.set_defaults(func=cmd_pi_baseline)
+
+    p_pi_phase = pi_commands.add_parser("phase", parents=[common], help="create a planning phase")
+    p_pi_phase.add_argument("name")
+    p_pi_phase.add_argument("--ordinal", required=True, type=int)
+    p_pi_phase.add_argument("--objective", required=True)
+    p_pi_phase.set_defaults(func=cmd_pi_phase)
+
+    p_pi_work = pi_commands.add_parser("work", parents=[common], help="create a work unit")
+    p_pi_work.add_argument("phase_id")
+    p_pi_work.add_argument("--title", required=True)
+    p_pi_work.add_argument("--objective", required=True)
+    p_pi_work.add_argument("--requirement", required=True, action="append")
+    p_pi_work.add_argument("--path", action="append", default=[])
+    p_pi_work.add_argument("--symbol", action="append", default=[])
+    p_pi_work.add_argument("--release-gate", action="store_true",
+                           help="require this work unit to pass before project release")
+    p_pi_work.set_defaults(func=cmd_pi_work)
+
+    p_pi_readiness = pi_commands.add_parser("readiness", parents=[common], help="explain work readiness")
+    p_pi_readiness.add_argument("work_id")
+    p_pi_readiness.set_defaults(func=cmd_pi_readiness)
+
+    p_pi_next = pi_commands.add_parser("next", parents=[common], help="list ready work only")
+    p_pi_next.add_argument("--phase", dest="phase_id")
+    p_pi_next.add_argument("--tag", action="append", default=[])
+    p_pi_next.set_defaults(func=cmd_pi_next)
+
+    p_pi_start = pi_commands.add_parser("session-start", parents=[common], help="claim ready work and build a session contract")
+    p_pi_start.add_argument("work_id")
+    p_pi_start.add_argument("--agent", default="unknown")
+    p_pi_start.add_argument("--branch", default="")
+    p_pi_start.add_argument("--worktree", default="")
+    p_pi_start.add_argument("--base-commit", default="")
+    p_pi_start.add_argument("--lease-seconds", type=int, default=3600)
+    p_pi_start.add_argument("--read-only", action="store_true")
+    p_pi_start.set_defaults(func=cmd_pi_session_start)
+
+    p_pi_finish = pi_commands.add_parser("session-finish", parents=[common], help="capture implementation and release the lease")
+    p_pi_finish.add_argument("session_id")
+    p_pi_finish.add_argument("--changed-file", action="append", default=[])
+    p_pi_finish.add_argument("--changed-symbol", action="append", default=[])
+    p_pi_finish.add_argument("--summary", default="")
+    p_pi_finish.add_argument("--commit", default=None)
+    p_pi_finish.add_argument("--test", action="append", default=[])
+    p_pi_finish.add_argument("--tests-file", default=None,
+                             help="project-relative JSON with structured test evidence")
+    p_pi_finish.add_argument("--build-result", default=None)
+    p_pi_finish.add_argument("--limitation", action="append", default=[])
+    p_pi_finish.add_argument("--decision-id", action="append", default=[])
+    p_pi_finish.add_argument("--bug-id", action="append", default=[])
+    p_pi_finish.add_argument("--unresolved-work", action="append", default=[])
+    p_pi_finish.add_argument("--reuse-analysis-file", default=None)
+    p_pi_finish.set_defaults(func=cmd_pi_session_finish)
+
+    p_pi_checkpoint = pi_commands.add_parser("checkpoint", parents=[common], help="record a session checkpoint")
+    p_pi_checkpoint.add_argument("session_id")
+    p_pi_checkpoint.add_argument("--summary", required=True)
+    p_pi_checkpoint.add_argument("--open-work", default="")
+    p_pi_checkpoint.set_defaults(func=cmd_pi_checkpoint)
+
+    p_pi_block = pi_commands.add_parser("block", parents=[common], help="record a session blocker")
+    p_pi_block.add_argument("session_id")
+    p_pi_block.add_argument("--reason", required=True)
+    p_pi_block.set_defaults(func=cmd_pi_block)
+
+    p_pi_resume = pi_commands.add_parser("resume", parents=[common], help="resume a blocked session with a valid lease")
+    p_pi_resume.add_argument("session_id")
+    p_pi_resume.set_defaults(func=cmd_pi_resume)
+
+    p_pi_abandon = pi_commands.add_parser("abandon", parents=[common], help="abandon a session and release its lease")
+    p_pi_abandon.add_argument("session_id")
+    p_pi_abandon.add_argument("--reason", required=True)
+    p_pi_abandon.set_defaults(func=cmd_pi_abandon)
+
+    p_pi_incident = pi_commands.add_parser("incident", parents=[common], help="record a bug, fix, or regression")
+    p_pi_incident.add_argument("type", choices=("bug", "fix", "regression"))
+    p_pi_incident.add_argument("--title", required=True)
+    p_pi_incident.add_argument("--summary", required=True)
+    p_pi_incident.add_argument("--related", action="append", default=[])
+    p_pi_incident.set_defaults(func=cmd_pi_incident)
+
+    p_pi_close_bug = pi_commands.add_parser("close-bug", parents=[common], help="interactively close a bug")
+    p_pi_close_bug.add_argument("bug_id")
+    p_pi_close_bug.add_argument("--fix")
+    p_pi_close_bug.add_argument("--disposition")
+    p_pi_close_bug.set_defaults(func=cmd_pi_close_bug)
+
+    p_pi_staleness = pi_commands.add_parser("staleness", parents=[common], help="check and record verification staleness")
+    p_pi_staleness.add_argument("verification_id")
+    p_pi_staleness.add_argument("--head", default="HEAD")
+    p_pi_staleness.set_defaults(func=cmd_pi_staleness)
+
+    p_pi_context = pi_commands.add_parser("context", parents=[common], help="build structured project, work, session, or code context")
+    p_pi_context.add_argument("kind", choices=("project", "work", "session", "code"))
+    p_pi_context.add_argument("record_id", nargs="?")
+    p_pi_context.set_defaults(func=cmd_pi_context)
+
+    p_pi_verify = pi_commands.add_parser("verify", parents=[common], help="record criterion results at a commit")
+    p_pi_verify.add_argument("work_id")
+    p_pi_verify.add_argument("--commit", required=True)
+    p_pi_verify.add_argument("--file", required=True, help="project-relative JSON containing criterion results")
+    p_pi_verify.add_argument("--type", choices=("automated", "agent_reviewed", "human_confirmed", "runtime_observed"),
+                             default="automated")
+    p_pi_verify.set_defaults(func=cmd_pi_verify)
+
+    p_pi_plan = pi_commands.add_parser("plan-validate", parents=[common],
+                                       help="validate planning coverage and dependencies")
+    p_pi_plan.set_defaults(func=cmd_pi_plan_validate)
+
+    p_pi_release = pi_commands.add_parser("release-readiness", parents=[common],
+                                          help="check required project completion gates")
+    p_pi_release.set_defaults(func=cmd_pi_release_readiness)
+
+    p_hooks = subparsers.add_parser("hooks", parents=[common],
+                                    help="manage opt-in local Git hook integration")
+    hook_commands = p_hooks.add_subparsers(dest="hooks_command", required=True)
+    p_hooks_install = hook_commands.add_parser("install", parents=[common],
+                                               help="install a fail-open post-commit adapter")
+    p_hooks_install.set_defaults(func=cmd_hooks_install)
+    p_hooks_uninstall = hook_commands.add_parser("uninstall", parents=[common],
+                                                 help="remove the PITMRY post-commit adapter")
+    p_hooks_uninstall.set_defaults(func=cmd_hooks_uninstall)
+
+    p_hook = subparsers.add_parser("hook", parents=[common], help="run a Git hook adapter")
+    hook_events = p_hook.add_subparsers(dest="hook_event", required=True)
+    p_post_commit = hook_events.add_parser("post-commit", parents=[common],
+                                           help="capture the commit and check verification freshness")
+    p_post_commit.set_defaults(func=cmd_hook_post_commit)
+
+    p_mcp = subparsers.add_parser("mcp", parents=[common], help="run the optional PITMRY agent tool server")
     p_mcp.set_defaults(func=lambda args: __import__("server.pitmry.mcp_server", fromlist=["run"]).run(root=args.root))
 
     return parser

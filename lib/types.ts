@@ -23,7 +23,14 @@ export interface MemoryItem {
   authority?: string;
   truth_domain?: string;
   state?: string;
-  provenance?: { source_type?: string; source_id?: string; evidence_refs?: unknown[] };
+  provenance?: {
+    source_type?: string;
+    source_id?: string;
+    originator?: string;
+    captured_by?: string;
+    source_commit?: string | null;
+    evidence_refs?: unknown[];
+  };
   score?: number;
   source?: MemorySearchSource;
   score_components?: Record<string, number>;
@@ -44,6 +51,22 @@ export interface MemorySummary {
     total_vectors?: number;
   };
   projects?: string[];
+  project_options?: Array<{
+    id: string;
+    name: string;
+    record_count?: number;
+    decision_count?: number;
+    conflict_count?: number;
+    last_activity?: string | null;
+    recent?: MemoryItem[];
+    current_decisions?: MemoryItem[];
+    conflicts?: MemoryItem[];
+  }>;
+  recent?: MemoryItem[];
+  current_decisions?: MemoryItem[];
+  conflicts?: MemoryItem[];
+  conflict_count?: number;
+  current_decision_count?: number;
   tags?: Array<{ tag: string; count: number }>;
   is_demo?: boolean;
   /** Set by the API bridge when sample data is served instead of real memory. */

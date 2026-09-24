@@ -16,7 +16,7 @@
       "name": "memory-navigator",
       "title": "Memory Navigator",
       "category": "Retrieval",
-      "description": "Universal 4-step memory discovery, hybrid vector search, and record inspection.",
+      "description": "PITMRY-first memory protocol: compact context queries, progressive record inspection, and evidence-backed citations.",
       "version": "1.0.0",
       "entry": "skills/memory-navigator/SKILL.md"
     },

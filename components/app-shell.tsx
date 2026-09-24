@@ -42,6 +42,7 @@ import { NotificationToastContainer } from "@/components/notification-toast-cont
 import { CodeDiffViewer } from "@/components/code-diff-viewer";
 import { OnboardingDialog } from "@/components/onboarding-dialog";
 import { SkillsWorkspace } from "@/components/skills-workspace";
+import { ProjectIntelligenceView } from "@/components/project-intelligence-view";
 import { FilterToolbar, type FilterToolbarState } from "@/components/filter-toolbar";
 import { TableLogs } from "@/components/table-logs";
 import {
@@ -88,6 +89,7 @@ export type ViewMode =
   | "status"
   | "activity"
   | "skills"
+  | "planning"
   | "logs";
 
 const VIEW_META: Record<ViewMode, { label: string; title: string; description: string }> = {
@@ -114,6 +116,7 @@ const VIEW_META: Record<ViewMode, { label: string; title: string; description: s
   graph: { label: "graph", title: "Knowledge graph", description: "Explore relationships across your memory records." },
   galaxy: { label: "galaxy", title: "3D vector view", description: "Explore the vector projection when its layout is available." },
   skills: { label: "skills", title: "Skills workspace", description: "Run offline workflows and automations." },
+  planning: { label: "planning", title: "Project Intelligence", description: "Review accepted intent, planned work, blockers, and verification history." },
   logs: { label: "logs", title: "System logs", description: "Inspect local service and runtime events." },
 };
 
@@ -219,6 +222,17 @@ function MemorySidebar({
 
             <SidebarMenuItem>
               <SidebarMenuButton
+                isActive={viewMode === "planning"}
+                onClick={() => setViewMode("planning")}
+                tooltip="Project Intelligence"
+              >
+                <Network className="size-4" />
+                <span>Project Intelligence</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton
                 isActive={viewMode === "skills"}
                 onClick={() => setViewMode("skills")}
                 tooltip="Skills & Automations"
@@ -275,6 +289,7 @@ function MemorySidebar({
                 >
                   <HugeiconsIcon icon={SearchList01Icon} strokeWidth={1.5} />
                   <span className="truncate">{proj}</span>
+                  <span className="ml-auto font-mono text-[10px] text-muted-foreground" title="Canonical records in this project">{summary.project_options?.find((item) => item.name === proj)?.record_count ?? ""}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -388,6 +403,10 @@ function MemorySidebar({
 export function AppShell() {
   const [summary, setSummary] = useState<MemorySummary | null>(null);
   const [feed, setFeed] = useState<MemoryItem[]>([]);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [feedTotal, setFeedTotal] = useState(0);
+  const [feedError, setFeedError] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -488,37 +507,78 @@ export function AppShell() {
   }, [feed, filterCriteria]);
 
   const fetchSummary = () => {
-    fetch("/api/memory?action=summary")
-      .then((res) => res.json())
-      .then((data) => setSummary(data))
-      .catch((err) => console.error(err));
+    Promise.all([fetch("/api/memory?action=summary"), fetch("/api/memory?action=workspace")])
+      .then(async ([summaryResponse, workspaceResponse]) => {
+        if (!summaryResponse.ok || !workspaceResponse.ok) throw new Error("Could not load workspace metadata.");
+        const [legacy, workspace] = await Promise.all([summaryResponse.json(), workspaceResponse.json()]);
+        if (legacy.fallback) throw new Error("The local memory backend is unavailable.");
+        setSummary({ ...legacy, ...workspace, stats: { ...legacy.stats, ...workspace.stats } });
+      })
+      .catch((err) => { setSummary(null); console.error(err); });
   };
 
-  const fetchFeed = () => {
+  const fetchFeed = React.useCallback(() => {
     feedAbortRef.current?.abort();
     const controller = new AbortController();
     feedAbortRef.current = controller;
     setLoading(true);
-    let url = "/api/memory?action=feed&limit=60";
+    setLoadingMore(false);
+    setFeedError("");
+    let url = "/api/memory?action=records&limit=60";
     if (selectedProject) url += `&project=${encodeURIComponent(selectedProject)}`;
     if (selectedType) url += `&type=${encodeURIComponent(selectedType)}`;
     if (selectedTag) url += `&tag=${encodeURIComponent(selectedTag)}`;
 
     fetch(url, { signal: controller.signal })
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Could not load records.");
+        return data;
+      })
       .then((data) => {
-        const items = Array.isArray(data) ? (data as MemoryItem[]) : [];
+        const items = (data.items || []) as MemoryItem[];
         setFeed(items);
+        setFeedCursor(data.next_cursor || null);
+        setFeedTotal(data.total || 0);
         setLoading(false);
-        if (items.length > 0) {
-          setActiveItem((prev) => prev ?? items[0]);
-        }
+        setActiveItem((previous) => items.find((item) => item.id === previous?.id) || items[0] || null);
       })
       .catch((err) => {
         if (err?.name === "AbortError") return;
         console.error(err);
+        setFeed([]);
+        setFeedCursor(null);
+        setFeedTotal(0);
+        setFeedError(err instanceof Error ? err.message : "Could not load records.");
+        setActiveItem(null);
         setLoading(false);
       });
+  }, [selectedProject, selectedType, selectedTag]);
+
+  const loadMoreRecords = async () => {
+    if (!feedCursor || loadingMore) return;
+    const controller = new AbortController();
+    feedAbortRef.current?.abort();
+    feedAbortRef.current = controller;
+    setLoadingMore(true);
+    setFeedError("");
+    const params = new URLSearchParams({ action: "records", limit: "60", cursor: feedCursor });
+    if (selectedProject) params.set("project", selectedProject);
+    if (selectedType) params.set("type", selectedType);
+    if (selectedTag) params.set("tag", selectedTag);
+    try {
+      const response = await fetch(`/api/memory?${params}`, { signal: controller.signal });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not load more records.");
+      if (!controller.signal.aborted) {
+        setFeed((previous) => [...previous, ...data.items]);
+        setFeedCursor(data.next_cursor || null);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) setFeedError(error instanceof Error ? error.message : "Could not load more records.");
+    } finally {
+      if (feedAbortRef.current === controller) setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -535,7 +595,7 @@ export function AppShell() {
       window.clearTimeout(timer);
       feedAbortRef.current?.abort();
     };
-  }, [selectedProject, selectedType, selectedTag]);
+  }, [fetchFeed]);
 
   // Click outside to close notification popover
   useEffect(() => {
@@ -912,7 +972,11 @@ export function AppShell() {
 
         {/* Body: Multi-View Hub */}
         <div className="flex flex-1 overflow-hidden">
-          {viewMode === "galaxy" ? (
+          {viewMode === "planning" ? (
+            <div className="flex-1 overflow-hidden">
+              <ProjectIntelligenceView />
+            </div>
+          ) : viewMode === "galaxy" ? (
             <div className="flex-1 h-full">
               <GalaxyView
                 onSelectNode={(id, type) => {
@@ -987,7 +1051,7 @@ export function AppShell() {
                   </div>
                   {feed.length > 0 && (
                     <div className="font-mono text-[11px] font-semibold text-muted-foreground shrink-0">
-                      {feed.length} indexed records
+                      {feed.length} of {feedTotal} records loaded
                     </div>
                   )}
                 </div>
@@ -1081,6 +1145,7 @@ export function AppShell() {
                     )}
                   </div>
 
+                  {feedError && <p role="alert" className="rounded-md border border-destructive/40 p-3 text-xs text-destructive">{feedError}</p>}
                   {loading ? (
                     <div className="flex items-center justify-center py-12 text-xs text-muted-foreground animate-pulse">
                       Loading...
@@ -1230,6 +1295,7 @@ export function AppShell() {
                       })}
                     </div>
                   )}
+                  {!loading && feedCursor && <div className="flex justify-center pt-3"><Button variant="outline" size="sm" onClick={loadMoreRecords} disabled={loadingMore}>{loadingMore ? "Loading…" : `Load more records (${feed.length} of ${feedTotal})`}</Button></div>}
                 </div>
               </div>
 

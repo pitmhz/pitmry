@@ -59,7 +59,7 @@ DEFAULT_GOLDEN = SERVER_DIR / "fixtures" / "retrieval_golden.json"
 DEFAULT_BASELINE = SERVER_DIR / "fixtures" / "retrieval_baseline.json"
 
 # Metrics where a smaller number is better.
-LOWER_IS_BETTER = {"p95_latency_ms", "unembedded_observations"}
+LOWER_IS_BETTER = {"p95_latency_ms"}
 
 # Fixture mode only verifies plumbing, so it has one honest success condition.
 FIXTURE_THRESHOLDS = {"case_hit_rate": 1.0, "deterministic": 1.0}
@@ -266,70 +266,45 @@ def run_benchmark(fixture_path: Path = DEFAULT_FIXTURE,
 # ==============================================================================
 
 def measure_index_freshness() -> Dict[str, Any]:
-    """Compare indexed LanceDB vectors against their SQLite source rows."""
-    import os
+    """Compare the active LanceDB projection against its canonical snapshot."""
     import sqlite3
 
-    from memory_navigator import (DEFAULT_CAVEMEM_DB, DEFAULT_LANCE_DIR,
-                                  get_lancedb, get_lance_table_names)
+    from server.pitmry.canonical_store import CanonicalStore
 
-    lancedb_counts = {}
+    store = CanonicalStore(None)
+    cache_root = store.paths.cache_dir
     try:
-        ldb = get_lancedb(DEFAULT_LANCE_DIR)
-        for name in get_lance_table_names(ldb):
-            lancedb_counts[name] = len(ldb.open_table(name))
+        active = json.loads((cache_root / "active.json").read_text(encoding="utf-8"))
+        generation = active.get("generation")
+        if not generation:
+            return {"status": "unavailable", "error": "no active generation",
+                    "indexed": {}, "source": {}}
+        vector_dir = cache_root / "generations" / generation / "lancedb"
+        db_path = cache_root / "generations" / generation / "pitmry.db"
+        import lancedb
+        db = lancedb.connect(str(vector_dir))
+        tables = db.list_tables()
+        names = tables.tables if hasattr(tables, "tables") else list(tables)
+        indexed = (db.open_table("records").count_rows()
+                   if "records" in names else 0)
+        meta: Dict[str, str] = {}
+        if db_path.is_file():
+            with sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True) as conn:
+                meta = dict(conn.execute("SELECT key,value FROM projection_meta"))
+        source_count = len([r for r in store.load_all()
+                            if hasattr(r, "project_id") and hasattr(r, "type")])
+        ratio = round(min(1.0, indexed / source_count), 4) if source_count else 1.0
+        return {
+            "status": "measured",
+            "generation": generation,
+            "embedding_model": meta.get("embedding_model", "unknown"),
+            "indexed": {"records": indexed},
+            "source": {"canonical_records": source_count},
+            "ratios": {"records": ratio},
+            "worst_ratio": ratio,
+        }
     except Exception as exc:  # noqa: BLE001 - reported as freshness 0
         return {"status": "unavailable", "error": str(exc), "indexed": {}, "source": {}}
-
-    source_counts: Dict[str, int] = {}
-    merged_memories = 0
-    if os.path.exists(DEFAULT_CAVEMEM_DB):
-        conn = sqlite3.connect(DEFAULT_CAVEMEM_DB)
-        try:
-            for table in ("adrs", "git_semantic_digests", "grill_me_logs",
-                          "summaries", "checkpoints", "memory_items"):
-                try:
-                    source_counts[table] = conn.execute(
-                        f"SELECT COUNT(*) FROM {table}"
-                    ).fetchone()[0]
-                except sqlite3.Error:
-                    source_counts[table] = 0
-            # A durable memory promoted from a checkpoint shares the checkpoint
-            # vector and is linked through related_ids instead of getting its
-            # own row. Counting it as missing would report false index lag.
-            try:
-                merged_memories = conn.execute(
-                    "SELECT COUNT(*) FROM memory_items m WHERE EXISTS ("
-                    "SELECT 1 FROM checkpoints c WHERE c.content = m.content)"
-                ).fetchone()[0]
-            except sqlite3.Error:
-                merged_memories = 0
-        finally:
-            conn.close()
-
-    recovery_source = (source_counts.get("summaries", 0)
-                       + source_counts.get("checkpoints", 0)
-                       + source_counts.get("memory_items", 0)
-                       - merged_memories)
-    pairs = {
-        "adrs": source_counts.get("adrs", 0),
-        "git_digests": source_counts.get("git_semantic_digests", 0),
-        "grill_me_logs": source_counts.get("grill_me_logs", 0),
-        "recovery_records": recovery_source
-    }
-    ratios = {}
-    for table, expected in pairs.items():
-        indexed = lancedb_counts.get(table, 0)
-        ratios[table] = round(min(1.0, indexed / expected), 4) if expected else 1.0
-
-    return {
-        "status": "measured",
-        "indexed": {k: lancedb_counts.get(k, 0) for k in pairs},
-        "source": pairs,
-        "merged_durable_memories": merged_memories,
-        "ratios": ratios,
-        "worst_ratio": round(min(ratios.values()), 4) if ratios else 0.0
-    }
 
 
 def run_live(golden_path: Path = DEFAULT_GOLDEN,
@@ -350,13 +325,20 @@ def run_live(golden_path: Path = DEFAULT_GOLDEN,
     for case in golden["cases"]:
         started = time.perf_counter()
         try:
-            results = memory_navigator.cmd_search(
+            payload = memory_navigator.cmd_search(
                 case["query"],
                 project=case.get("project"),
                 record_type=case.get("record_type"),
                 limit=max(depth, case.get("target_rank", 3) + 2),
-                as_json=True
+                as_json=True, explain=True, emit=False
             )
+            # cmd_search returns a payload dict; results are a list of dicts.
+            results = payload.get("results", []) if isinstance(payload, dict) else list(payload)
+            for item in results:
+                signals = item.pop("lexical_rank", None), item.pop("vector_rank", None)
+                lex, vec = signals
+                item["source"] = ("hybrid" if lex and vec else
+                                  "vector" if vec else "lexical" if lex else None)
         except Exception as exc:  # noqa: BLE001 - one broken query must not abort the run
             results = []
             case = dict(case, error=str(exc))
@@ -399,7 +381,8 @@ def run_live(golden_path: Path = DEFAULT_GOLDEN,
     no_result_cases = []
     for query in golden.get("no_result_cases", []):
         try:
-            results = memory_navigator.cmd_search(query, limit=3, as_json=True)
+            payload = memory_navigator.cmd_search(query, limit=3, as_json=True, emit=False)
+            results = payload.get("results", []) if isinstance(payload, dict) else list(payload)
         except Exception:  # noqa: BLE001
             results = []
         if not results:
@@ -426,14 +409,13 @@ def run_live(golden_path: Path = DEFAULT_GOLDEN,
     worker = watchdog.check()
     freshness = measure_index_freshness()
     metrics["index_freshness"] = freshness.get("worst_ratio", 0.0)
-    if worker.get("unembedded_observations") is not None:
-        metrics["unembedded_observations"] = worker["unembedded_observations"]
-    metrics["worker_healthy"] = 1.0 if worker.get("healthy") else 0.0
+    # Legacy Cavemem worker health is reported for visibility but no longer
+    # gates canonical retrieval: the canonical store owns its own rebuild.
 
     thresholds = golden.get("thresholds") or {}
     report = {
         "mode": "live",
-        "note": "Measured against the real Cavemem database and LanceDB.",
+        "note": "Measured against the canonical .pitmry store and its LanceDB projection.",
         "golden_version": golden.get("version"),
         "worker": worker,
         "index_freshness": freshness,

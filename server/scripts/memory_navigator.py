@@ -29,10 +29,8 @@ _LEGACY_TYPES = {
 }
 
 
-def _emit(payload, as_json=False):
-    if as_json:
-        print(json.dumps(payload, indent=2, ensure_ascii=False))
-    else:
+def _emit(payload, as_json=False, emit=True):
+    if emit:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
     return payload
 
@@ -95,7 +93,8 @@ def _example_record(project_id):
 
 
 def cmd_search(query, *, root=None, project=None, record_type=None,
-               limit=5, as_json=False, explain=False, no_vectors=False):
+               limit=5, as_json=False, explain=False, no_vectors=False,
+               emit=True):
     store = CanonicalStore(root)
     manifest = store.require_manifest()
     project_id = project or manifest["project_id"]
@@ -125,7 +124,7 @@ def cmd_search(query, *, root=None, project=None, record_type=None,
         } for record in records],
         "warnings": result["warnings"],
     }
-    return _emit(payload, as_json)
+    return _emit(payload, as_json, emit=emit)
 
 
 def cmd_inspect(record_id, *, root=None, as_json=False):

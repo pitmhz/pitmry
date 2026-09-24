@@ -29,6 +29,17 @@ TYPE_PREFIXES = {
     "deployment": "dep",
     "note": "note",
     "relation": "rel",
+    "source_artifact": "src",
+    "requirement": "req",
+    "acceptance_criterion": "ac",
+    "phase": "ph",
+    "work_unit": "work",
+    "session": "sess",
+    "implementation": "impl",
+    "verification": "ver",
+    "bug": "bug",
+    "fix": "fix",
+    "regression": "reg",
 }
 
 PITMRY_NAMESPACE = uuid.NAMESPACE_URL
@@ -36,7 +47,7 @@ PITMRY_NAMESPACE = uuid.NAMESPACE_URL
 #: Length of the hex suffix in a record id.
 _ID_HEX_LENGTH = 24
 _PROJECT_ID_RE = re.compile(r"^prj_[0-9a-f]{24}$")
-_RECORD_ID_RE = re.compile(r"^(dec|con|git|dis|obs|fail|chk|sum|test|dep|note|rel)_([0-9a-f]{24})$")
+_RECORD_ID_RE = re.compile(r"^(dec|con|git|dis|obs|fail|chk|sum|test|dep|note|rel|src|req|ac|ph|work|sess|impl|ver|bug|fix|reg)_([0-9a-f]{24})$")
 
 
 def validate_project_id(project_id: str) -> str:

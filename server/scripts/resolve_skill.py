@@ -13,18 +13,35 @@ import json
 import os
 import sys
 
-# Adaptive skills library resolution
-SKILLS_LIBRARY = os.getenv("AGENTS_SKILLS_LIBRARY", os.getenv("AGENTS_SKILLS_PATH", os.path.expanduser(r"~\.agents\skills-library")))
-if not os.path.exists(SKILLS_LIBRARY):
-    # Fallback to active skills or repo bundled skills
-    for p in [
-        os.path.expanduser(r"~\.agents\skills"),
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "skills")),
-        os.path.abspath(r".\.agents\skills"),
-    ]:
-        if os.path.exists(p):
-            SKILLS_LIBRARY = p
+# Adaptive skills library resolution.
+# Priority: explicit AGENTS_SKILLS_LIBRARY override, then any candidate that
+# actually carries a skills_catalog.json (the full library), then the active
+# AGENTS_SKILLS_PATH set, then bundled repo skills. Catalog presence decides:
+# the lean active set at ~/.agents/skills has no catalog and must not shadow
+# the full skills-library.
+_candidates = [
+    os.environ.get("AGENTS_SKILLS_LIBRARY"),
+    r"~\.agents\skills-library",
+    os.environ.get("AGENTS_SKILLS_PATH"),
+    r"~\.agents\skills",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "skills")),
+    os.path.abspath(r".\.agents\skills"),
+]
+SKILLS_LIBRARY = None
+for _p in _candidates:
+    if not _p:
+        continue
+    _p = os.path.expanduser(_p)
+    if os.path.isfile(os.path.join(_p, "skills_catalog.json")):
+        SKILLS_LIBRARY = _p
+        break
+if SKILLS_LIBRARY is None:
+    for _p in _candidates:
+        if _p and os.path.exists(os.path.expanduser(_p)):
+            SKILLS_LIBRARY = os.path.expanduser(_p)
             break
+if SKILLS_LIBRARY is None:
+    SKILLS_LIBRARY = os.path.expanduser(r"~\.agents\skills-library")
 
 CATALOG_PATH = os.path.join(SKILLS_LIBRARY, "skills_catalog.json")
 MAX_RESULTS = 6
@@ -41,7 +58,7 @@ SYNONYM_MAP = {
     "memory":         ["memory-navigator", "strategic-memory", "cavemem"],
     "recall":         ["memory-navigator", "strategic-memory"],
     "vector db":      ["memory-navigator", "strategic-memory"],
-    "vector":         ["memory-navigator", "strategic-memory"],
+    "vector":         ["memory-navigator", "strategic-memory", "pieter-rag"],
     "adr":            ["memory-navigator", "strategic-memory"],
     "past decision":  ["memory-navigator", "strategic-memory"],
     "why did we":     ["memory-navigator"],
@@ -120,10 +137,9 @@ SYNONYM_MAP = {
     "ux copy":        ["claude-design-ux-copy"],
     # Pricing
     "pricing":        ["pricing-page"],
-    # Memory
-    "memory":         ["strategic-memory", "cavemem"],
+    # Memory (merged into the "memory" key above; a second literal key here
+    # would silently shadow it in the dict constructor)
     "remember":       ["strategic-memory", "cavemem"],
-    "vector":         ["strategic-memory", "pieter-rag"],
     # Official Vercel Skills Ecosystem
     "ai-sdk":         ["ai-sdk", "ai-elements", "streamdown"],
     "ai sdk":         ["ai-sdk", "ai-elements", "streamdown"],

@@ -77,6 +77,9 @@ def _view(store, record, states=None):
         "state": states.get(record.id, "UNKNOWN") if states else "UNKNOWN",
         "provenance": {"source_type": record.provenance.source_type,
                        "source_id": record.provenance.source_id,
+                       "originator": record.provenance.originator,
+                       "captured_by": record.provenance.captured_by,
+                       "source_commit": record.provenance.source_commit,
                        "evidence_refs": list(record.provenance.evidence_refs)},
         "numeric_id": None,
     }
@@ -104,12 +107,55 @@ def summary(root=None):
                     vector_count += db.open_table("records").count_rows()
             except Exception:
                 pass
-    total = len(pairs)
+    total = sum(isinstance(record, MemoryRecord) for _, record in pairs)
     return {"stats": {"total_adrs": counts["decision"], "total_commits": counts["git_change"],
                        "total_grill": counts["discussion"], "total_records": total,
                        "total_vectors": vector_count}, "projects": sorted(projects),
             "tags": [{"tag": key, "count": value} for key, value in
                      sorted(tags.items(), key=lambda pair: (-pair[1], pair[0]))[:20]]}
+
+
+def workspace_summary(root=None):
+    stores = project_roots(root)
+    counts = {"decision": 0, "git_change": 0, "discussion": 0, "total": 0}
+    projects = []
+    all_items = []
+    for store in stores:
+        records = store.load_all()
+        memories = [record for record in records if isinstance(record, MemoryRecord)]
+        states = resolve_states(memories, explicit_relations(records))
+        project_items = [_view(store, record, states) for record in memories]
+        project_items.sort(key=lambda item: (item["timestamp"], item["id"]), reverse=True)
+        all_items.extend(project_items)
+        projects.append({"id": store.project_id, "name": store.require_manifest()["name"],
+                         "record_count": len(memories),
+                         "decision_count": sum(item["canonical_type"] == "decision" and item["state"] == "CURRENT"
+                                               for item in project_items),
+                         "conflict_count": sum(item["state"] == "CONFLICTING" for item in project_items),
+                         "last_activity": project_items[0]["timestamp"] if project_items else None,
+                         "recent": project_items[:5],
+                         "current_decisions": [item for item in project_items
+                                               if item["canonical_type"] == "decision" and item["state"] == "CURRENT"][:4],
+                         "conflicts": [item for item in project_items if item["state"] == "CONFLICTING"][:4]})
+        counts["total"] += len(memories)
+        for record in memories:
+            if record.type.value in counts:
+                counts[record.type.value] += 1
+    all_items.sort(key=lambda item: (item["timestamp"], item["id"]), reverse=True)
+    projects.sort(key=lambda item: (item["last_activity"] or "", item["name"]), reverse=True)
+    return {
+        "stats": {"total_adrs": counts["decision"], "total_commits": counts["git_change"],
+                  "total_grill": counts["discussion"], "total_records": counts["total"]},
+        "projects": [project["name"] for project in projects],
+        "project_options": projects,
+        "recent": all_items[:8],
+        "current_decisions": [item for item in all_items if item["canonical_type"] == "decision"
+                              and item["state"] == "CURRENT"][:6],
+        "conflicts": [item for item in all_items if item["state"] == "CONFLICTING"][:6],
+        "conflict_count": sum(item["state"] == "CONFLICTING" for item in all_items),
+        "current_decision_count": sum(item["canonical_type"] == "decision" and item["state"] == "CURRENT"
+                                      for item in all_items),
+    }
 
 
 def feed(project=None, record_type=None, tag=None, query=None, limit=50, root=None):
@@ -151,6 +197,94 @@ def feed(project=None, record_type=None, tag=None, query=None, limit=50, root=No
         item["source"] = "hybrid" if query else "canonical"
         output.append(item)
     return output
+
+
+def records_page(project=None, record_type=None, tag=None, query=None, state=None,
+                 date_from=None, date_to=None, cursor=0, limit=25, root=None):
+    """A typed, server-filtered page for the human work log."""
+    from .retrieval import retrieve
+
+    limit = max(1, min(int(limit), 100))
+    cursor = max(0, int(cursor))
+    if date_from:
+        date_from = datetime.fromisoformat(date_from).date()
+    if date_to:
+        date_to = datetime.fromisoformat(date_to).date()
+    stores = project_roots(root)
+    selected = []
+    states = {}
+    warnings = []
+    for store in stores:
+        name = store.require_manifest()["name"]
+        if project and project not in (name, store.project_id):
+            continue
+        records = store.load_all()
+        memories = [item for item in records if isinstance(item, MemoryRecord)]
+        states.update(resolve_states(memories, explicit_relations(records)))
+        for record in memories:
+            if record_type and record.type.value != TYPE_FILTER.get(record_type, record_type):
+                continue
+            if tag and tag not in record.tags:
+                continue
+            if state and states.get(record.id, "UNKNOWN") != state:
+                continue
+            created = datetime.fromisoformat(record.created_at.replace("Z", "+00:00")).date()
+            if date_from and created < date_from:
+                continue
+            if date_to and created > date_to:
+                continue
+            selected.append((store, record))
+
+    scores = {}
+    if query and query.strip():
+        for store in stores:
+            candidates = [record for candidate_store, record in selected if candidate_store.project_id == store.project_id]
+            if not candidates:
+                continue
+            all_memories = [item for item in store.load_all() if isinstance(item, MemoryRecord)]
+            result = retrieve(query.strip(), root=store.paths.root,
+                              project_id=store.project_id, limit=len(all_memories))
+            scores.update(result["signals"])
+            warnings.extend(result["warnings"])
+        selected = [(store, record) for store, record in selected if record.id in scores]
+        selected.sort(key=lambda pair: (-scores[pair[1].id]["rrf_score"],
+                                        -datetime.fromisoformat(pair[1].created_at.replace("Z", "+00:00")).timestamp(),
+                                        pair[1].id))
+    else:
+        selected.sort(key=lambda pair: (pair[1].created_at, pair[1].id), reverse=True)
+
+    page = selected[cursor:cursor + limit]
+    items = []
+    for store, record in page:
+        item = _view(store, record, states)
+        item["score"] = scores.get(record.id, {}).get("rrf_score")
+        items.append(item)
+    total = len(selected)
+    return {"status": "OK" if total else "NO_MATCH", "items": items, "total": total,
+            "next_cursor": str(cursor + limit) if cursor + limit < total else None,
+            "warnings": sorted(set(warnings)), "provenance": "canonical"}
+
+
+def record_detail(record_id, root=None):
+    store, record = _find_record(record_id, root)
+    if not record:
+        return {"status": "NO_MATCH", "record": None, "explicit": [], "inferred": []}
+    records = store.load_all()
+    states = resolve_states([item for item in records if isinstance(item, MemoryRecord)],
+                            explicit_relations(records))
+    item = _view(store, record, states)
+    item["content"] = record.content
+    item["related_files"] = list(record.related_files)
+    item["related_symbols"] = list(record.related_symbols)
+    links = relations(record_id, root)
+    evidence_by_peer = {}
+    for edge in links["explicit"]:
+        peer_id = edge["target_record_id"] if edge["source_record_id"] == record_id else edge["source_record_id"]
+        evidence_by_peer[peer_id] = edge.get("evidence_refs", [])
+    return {"status": "OK", "record": item,
+            "explicit": [{**neighbor, "evidence_refs": evidence_by_peer.get(neighbor["id"], [])}
+                         for neighbor in links["neighbors"] if neighbor["provenance"] == "explicit"],
+            "inferred": [neighbor for neighbor in links["neighbors"] if neighbor["provenance"] == "inferred"]}
 
 
 def _find_record(record_id, root=None):

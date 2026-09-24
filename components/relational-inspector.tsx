@@ -11,7 +11,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-import type { MemoryItemType } from "@/lib/types";
+import type { MemoryItem, MemoryItemType } from "@/lib/types";
+import { formatAuthority } from "@/lib/types";
 import { DecisionJourney } from "./decision-journey";
 import { CodeDiffViewer } from "./code-diff-viewer";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,12 @@ interface ItemDetail {
   status?: string;
 }
 
+type CanonicalDetail = MemoryItem & {
+  content?: Record<string, unknown>;
+  related_files?: string[];
+  related_symbols?: string[];
+};
+
 interface RelationalInspectorProps {
   item: ItemDetail | null;
   onClose: () => void;
@@ -71,6 +78,20 @@ export function RelationalInspector({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"journey" | "neighbors">("journey");
   const [diffModalOpen, setDiffModalOpen] = useState(false);
+  const [fullRecord, setFullRecord] = useState<CanonicalDetail | null>(null);
+  const activeRecordId = item?.id;
+
+  useEffect(() => {
+    if (!activeRecordId) return;
+    const controller = new AbortController();
+    fetch(`/api/memory?action=record&item_id=${encodeURIComponent(activeRecordId)}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!controller.signal.aborted && data?.status === "OK") setFullRecord(data.record);
+      })
+      .catch(() => { /* The stream record remains available if detail retrieval fails. */ });
+    return () => controller.abort();
+  }, [activeRecordId]);
 
   useEffect(() => {
     if (!item) {
@@ -110,6 +131,8 @@ export function RelationalInspector({
   }, [diffModalOpen, item, onClose]);
 
   if (!item) return null;
+
+  const canonical = fullRecord?.id === item.id ? fullRecord : null;
 
   const handleCopy = () => {
     const text = `# ${item.title}\n\n**Type**: ${item.type.toUpperCase()}\n**Project**: ${item.project}\n**Date**: ${formatDate(item.timestamp)}\n\n${item.summary}\n\n${item.rationale || ""}`;
@@ -198,6 +221,23 @@ export function RelationalInspector({
               </span>
             ))}
           </div>
+        )}
+
+        {canonical && (
+          <section className="rounded-xl border border-border/80 bg-secondary/20 p-4 text-xs" aria-label="Record source and metadata">
+            <h3 className="mb-3 font-semibold text-foreground">Record metadata</h3>
+            <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-2">
+              <dt className="text-muted-foreground">Authority</dt><dd>{formatAuthority(canonical.authority) || "Unknown"}</dd>
+              <dt className="text-muted-foreground">State</dt><dd>{canonical.state?.replaceAll("_", " ").toLowerCase() || "Unknown"}</dd>
+              <dt className="text-muted-foreground">Truth domain</dt><dd>{canonical.truth_domain?.replaceAll("_", " ") || "Unspecified"}</dd>
+              <dt className="text-muted-foreground">Source</dt><dd className="break-all">{canonical.provenance?.source_type || "Unknown"}{canonical.provenance?.source_id ? ` / ${canonical.provenance.source_id}` : ""}</dd>
+              {canonical.provenance?.originator && <><dt className="text-muted-foreground">Originator</dt><dd className="break-all">{canonical.provenance.originator}</dd></>}
+              {canonical.provenance?.captured_by && <><dt className="text-muted-foreground">Captured by</dt><dd className="break-all">{canonical.provenance.captured_by}</dd></>}
+              {canonical.provenance?.evidence_refs && canonical.provenance.evidence_refs.length > 0 && <><dt className="text-muted-foreground">Evidence</dt><dd>{canonical.provenance.evidence_refs.length} source {canonical.provenance.evidence_refs.length === 1 ? "reference" : "references"}</dd></>}
+            </dl>
+            {canonical.related_files && canonical.related_files.length > 0 && <div className="mt-3 border-t border-border pt-3"><h4 className="mb-1 text-muted-foreground">Related files</h4><ul className="space-y-1 font-mono text-[11px]">{canonical.related_files.map((file) => <li key={file} className="break-all">{file}</li>)}</ul></div>}
+            {canonical.content && Object.keys(canonical.content).length > 0 && <details className="mt-3 border-t border-border pt-3"><summary className="cursor-pointer font-medium">Full canonical content</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-muted-foreground">{JSON.stringify(canonical.content, null, 2)}</pre></details>}
+          </section>
         )}
 
         {/* Core Decision / Summary Card */}

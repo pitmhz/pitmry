@@ -100,12 +100,14 @@ def capture_relation(store, source_record_id, target_record_id, relation, eviden
         raise ValueError("relation targets must belong to this project")
     evidence_refs = _verify_relation_evidence(store, evidence_refs)
     kind = RelationType.coerce(relation)
+    relation_id = derive_relation_id(store.project_id, source_record_id, target_record_id, kind)
+    existing = store.get(relation_id)
     edge = RelationRecord(
         schema_version=SCHEMA_VERSION,
-        id=derive_relation_id(store.project_id, source_record_id, target_record_id, kind),
+        id=relation_id,
         project_id=store.project_id, relation=kind, source_record_id=source_record_id,
         target_record_id=target_record_id, provenance=RelationProvenance.explicit,
-        created_at=created_at or dt.datetime.now(dt.timezone.utc).isoformat(),
+        created_at=created_at or (existing.created_at if existing is not None else dt.datetime.now(dt.timezone.utc).isoformat()),
         evidence_refs=tuple(evidence_refs), metadata={})
     store.write(edge)
     return edge

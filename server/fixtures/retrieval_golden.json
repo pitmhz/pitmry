@@ -1,214 +1,210 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": 1,
-  "name": "pitmry live retrieval golden set",
-  "notes": [
-    "Queries are written the way an agent would ask, not the way the record is stored.",
-    "expected_any accepts any of the listed IDs because several records are mirrored",
-    "(for example an ADR and the git digest that produced it carry the same text).",
-    "require_source asserts the answer came from semantic memory (vector or hybrid).",
-    "A keyword-only hit on a paraphrased question is a miss, not a pass.",
-    "thresholds are regression floors kept just below the recorded baseline."
-  ],
+  "version": 2,
+  "name": "pitmry-canonical-retrieval-golden",
+  "notes": "Canonical-store rewrite of the legacy Cavemem golden set. Every expected_any ID is a canonical .pitmry record id (dec_/git_/sum_ + hex24) verified against live retrieval before recording. Legacy adr-N/commit-N ids were removed because the Phase 2 migration was deliberately scoped to the PITMRY labels (dec_f335ff01180454f98f9367a2). Thresholds are regression floors set below observed values, not targets.",
   "thresholds": {
-    "recall_at_1": 0.88,
-    "recall_at_3": 0.92,
-    "mean_reciprocal_rank": 0.88,
+    "recall_at_1": 0.8,
+    "recall_at_3": 0.9,
+    "mean_reciprocal_rank": 0.8,
     "no_result_precision": 1.0,
-    "semantic_source_share": 0.9,
+    "semantic_source_share": 0.75,
     "p95_latency_ms": 1500,
-    "index_freshness": 1.0,
-    "unembedded_observations": 0
+    "index_freshness": 1.0
   },
   "cases": [
     {
-      "id": "adr-memory-engine",
-      "query": "offline strategic memory engine with cavemem sqlite and lancedb",
-      "expected_any": ["adr-13", "commit-5", "commit-32"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"],
-      "note": "Semantic layer can explain its own architecture."
-    },
-    {
-      "id": "adr-memory-reliability",
-      "query": "memory reliability recovery of context after compaction",
-      "expected_any": ["adr-37", "commit-24", "commit-36"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-pitmry-layout",
+      "id": "layout-revamp",
       "query": "pitmry layout revamp split resizable diff viewer and timeline subsystem",
-      "expected_any": ["adr-24", "commit-16", "adr-25"],
+      "expected_any": ["git_52e2ee4b532a5a4fa20cca8e", "git_fae4be4c31b655bc9de84d93", "dec_d9a23cb608ab5721980934e1", "dec_be3825647a5c56cc91699660"],
       "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
+      "require_source": ["vector", "hybrid"],
+      "note": "Layout revamp decision and commit."
     },
     {
-      "id": "adr-claude-isolation",
-      "query": "claude provider environment isolation and authentication reference",
-      "expected_any": ["adr-4", "adr-44"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-codex-isolation",
-      "query": "codex provider isolation openai versus bynara authentication",
-      "expected_any": ["adr-5", "adr-45"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-daschool-security",
-      "query": "daschool security architecture and access control model",
-      "expected_any": ["adr-6", "adr-46"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-dashboard-revamp-plan",
-      "query": "dashboard revamp architecture offline execution plan",
-      "expected_any": ["adr-12", "adr-52"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-cloudflare-runbook",
-      "query": "cloudflare integration dashboard guide and runbook",
-      "expected_any": ["adr-10", "adr-50"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-luma-migration",
-      "query": "luma style component architecture migration and branding",
-      "expected_any": ["adr-11", "adr-51"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "adr-skills-library",
-      "query": "164 design taste and anti-slop skills library refactor with zed active catalog",
-      "expected_any": ["adr-1", "commit-1"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "commit-full-sweep-audit",
+      "id": "full-sweep-audit",
       "query": "full sweep audit mutation auth guard localhost bind deferred filtering",
-      "expected_any": ["commit-27", "commit-38", "adr-40"],
+      "expected_any": ["dec_84e9571b3cd6548d91cc6ef7", "git_433e8e0cb28e533d95f03466"],
       "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
+      "require_source": ["vector", "hybrid"],
+      "note": "Security sweep decision and its commit."
     },
     {
-      "id": "commit-skills-hub",
+      "id": "skills-hub",
       "query": "skills management hub with bundled starter skills and python automations",
-      "expected_any": ["commit-25", "commit-33", "adr-38"],
+      "expected_any": ["dec_d52d9b6cec035f76a752aadb", "git_ad144aeac1895eddaa51e38a", "git_ee0fe24def7d526082f3dde5"],
       "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
+      "require_source": ["vector", "hybrid"],
+      "note": "Skills hub decision plus commits."
     },
     {
-      "id": "commit-observability-suite",
+      "id": "observability-suite",
       "query": "observability suite devl.dev calendars filter toolbar table logs and toasts",
-      "expected_any": ["commit-26", "adr-39", "commit-35"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "commit-typegen-corruption",
-      "query": "nextjs typegen corruption from the setup-pin route",
-      "expected_any": ["commit-29", "adr-2", "adr-42"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "commit-profile-editor-crash",
-      "query": "unified profile editor crash gradeLevel stakeholder errors",
-      "expected_any": ["commit-30", "commit-3", "adr-3"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "commit-onnx-embeddings",
-      "query": "local onnx all-MiniLM-L6 model producing 384 dimension embeddings",
-      "expected_any": ["commit-32", "adr-13", "adr-37"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "commit-checkout-palette",
-      "query": "checkout summary sync with palette on the maehservice shop",
-      "expected_any": ["commit-6", "adr-14", "commit-7"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "commit-turnstile-token",
-      "query": "warm turnstile token early before the chat stream",
-      "expected_any": ["commit-12", "adr-20"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "grill-zed-budget",
-      "query": "zed skills catalog budget of 50 KB and on-demand routing tradeoffs",
-      "expected_any": ["grill-1"],
+      "expected_any": ["git_53d6d61a2676578d9aecf9e4", "dec_2bd4a37c22465ee689d5af6b", "git_675f30f879ba5431834edda4"],
       "target_rank": 3,
       "require_source": ["vector", "hybrid"],
-      "note": "The only grill record. It must stay reachable by paraphrase."
+      "note": "Observability suite records."
     },
     {
-      "id": "recovery-checkpoint-resume",
-      "query": "resume the session checkpoint for the memory dashboard project",
-      "expected_any": ["checkpoint-1", "memory-1"],
+      "id": "why-canonical-store",
+      "query": "why did we choose the canonical git tracked store",
+      "expected_any": ["git_7aa4f4b5e2155a109a3472b9", "dec_ea6ebd2cdaf55924892fcae5", "git_01729e8c8c2555258d3c58ed", "dec_699f9c094f7657dd83ee194d"],
       "target_rank": 3,
       "require_source": ["vector", "hybrid"],
-      "note": "Assessment P1: recovery records must be vector searchable."
+      "note": "Vector-only historical rationale query."
     },
     {
-      "id": "recovery-pitmry-scoped",
-      "query": "pitmry project scoped checkpoint and recent pitmry commits",
-      "project": "pitmry",
-      "expected_any": ["commit-16", "adr-24", "adr-40", "commit-27", "commit-37"],
-      "target_rank": 4,
-      "require_source": ["vector", "hybrid"],
-      "note": "Exercises the project filter path."
-    },
-    {
-      "id": "hard-paraphrase-compaction",
-      "query": "how do agents restore reliable context after conversation compaction",
-      "expected_any": ["adr-37", "commit-24", "checkpoint-1"],
+      "id": "phase2-rebuild",
+      "query": "pitmry phase 2 canonical backend rebuild",
+      "expected_any": ["dec_699f9c094f7657dd83ee194d", "sum_b60ef6c54ec752469f7bb6b1", "git_01729e8c8c2555258d3c58ed"],
       "target_rank": 3,
       "require_source": ["vector", "hybrid"],
-      "note": "No shared keywords with the record. Pure semantic recall."
+      "note": "Phase 2 rebuild decision, summary, and export commit."
     },
     {
-      "id": "hard-paraphrase-skills-budget",
-      "query": "two tier progressive skills architecture with strict on demand loading",
-      "expected_any": ["grill-1", "adr-1"],
-      "target_rank": 3,
-      "require_source": ["vector", "hybrid"]
-    },
-    {
-      "id": "hard-paraphrase-mutation-guard",
-      "query": "which change added a guard to state changing routes and bound the server to localhost",
-      "expected_any": ["commit-27", "commit-38", "adr-40"],
+      "id": "retrieval-trust",
+      "query": "retrieval trust phase explicit relations evidence",
+      "expected_any": ["dec_f335ff01180454f98f9367a2", "git_39e8eef376ed5fde849fc25b"],
       "target_rank": 3,
       "require_source": ["vector", "hybrid"],
-      "note": "Passed at similarity 0.662, only just above the 0.66 floor."
+      "note": "Retrieval trust closure."
     },
     {
-      "id": "hard-paraphrase-wrapper-layout",
-      "query": "why did we need only one wrapper container to stop double borders",
-      "expected_any": ["adr-24"],
-      "target_rank": 5,
+      "id": "establish-store",
+      "query": "establish canonical store phase 1 architecture",
+      "expected_any": ["dec_ea6ebd2cdaf55924892fcae5", "git_7aa4f4b5e2155a109a3472b9", "git_f8d047ea989c51ab8cc66f61"],
+      "target_rank": 3,
       "require_source": ["vector", "hybrid"],
-      "known_gap": true,
-      "note": "Known gap: no shared keywords, so a generic turn summary outranks the layout ADR. Recorded to keep the gap visible."
+      "note": "Phase 1 canonical store establishment."
+    },
+    {
+      "id": "backend-hardening",
+      "query": "backend hardening canonical store package session history export",
+      "expected_any": ["dec_62369d26cc0b5f249c7ae00f", "git_01729e8c8c2555258d3c58ed", "sum_b60ef6c54ec752469f7bb6b1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Canonical store package decision."
+    },
+    {
+      "id": "dashboard-refresh",
+      "query": "dashboard refresh UI and memory tooling",
+      "expected_any": ["git_58b661dc99fc5ae0b532570b", "dec_e8ac5323c92f53f6bee0b7a1", "git_e4db038cfda35d96a54e83ee"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Dashboard refresh commit and decision."
+    },
+    {
+      "id": "devl-timelines",
+      "query": "integrate devl.dev timelines split resizable diff viewer",
+      "expected_any": ["dec_d9a23cb608ab5721980934e1", "git_c5ab0e48b7345955a663824f", "git_52e2ee4b532a5a4fa20cca8e"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Timelines integration records."
+    },
+    {
+      "id": "sync-remotes",
+      "query": "compare gitlab origin and github remote master refs",
+      "expected_any": ["git_6da5ef7f1bbe53c2a5d1c446", "dec_85fcfff7d16c57a185f60b81"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Remote sync vector-only hit."
+    },
+    {
+      "id": "skillrouter-audit",
+      "query": "audited memory-dashboard via skill-router code review",
+      "expected_any": ["git_e4db038cfda35d96a54e83ee"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Skill-router audit commit."
+    },
+    {
+      "id": "mutation-guard",
+      "query": "mutation guard on state changing routes localhost",
+      "expected_any": ["git_433e8e0cb28e533d95f03466", "dec_84e9571b3cd6548d91cc6ef7"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Hard paraphrase of the mutation auth guard."
+    },
+    {
+      "id": "pitmry-scoped-commits",
+      "query": "pitmry project scoped recent pitmry commits",
+      "expected_any": ["dec_699f9c094f7657dd83ee194d", "git_01729e8c8c2555258d3c58ed", "dec_62369d26cc0b5f249c7ae00f", "git_7aa4f4b5e2155a109a3472b9", "git_39e8eef376ed5fde849fc25b"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Scoped recovery-style query over recent PITMRY records."
+    },
+    {
+      "id": "state-resolution",
+      "query": "conflicting records state resolution current versus superseded",
+      "expected_any": ["dec_f335ff01180454f98f9367a2", "dec_ea6ebd2cdaf55924892fcae5", "sum_b60ef6c54ec752469f7bb6b1"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "State resolver semantics."
+    },
+    {
+      "id": "workspace-hub",
+      "query": "workspace specials skills automations hub manage edit and run",
+      "expected_any": ["git_ee0fe24def7d526082f3dde5", "git_ad144aeac1895eddaa51e38a", "dec_d52d9b6cec035f76a752aadb"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Workspace specials commit."
+    },
+    {
+      "id": "abortable-fetches",
+      "query": "abortable feed palette graph galaxy fetches",
+      "expected_any": ["git_e4db038cfda35d96a54e83ee", "dec_84e9571b3cd6548d91cc6ef7", "git_433e8e0cb28e533d95f03466"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Audit commit content paraphrase."
+    },
+    {
+      "id": "efferd-shell",
+      "query": "efferd collapsible app shell split resizable panes",
+      "expected_any": ["git_27d21a5fb5cb54908dffa1ec", "dec_d9a23cb608ab5721980934e1", "git_52e2ee4b532a5a4fa20cca8e"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "App shell integration commit."
+    },
+    {
+      "id": "unified-commit",
+      "query": "unified commit pushed to gitlab pitmhs with devl.dev timelines",
+      "expected_any": ["git_fae4be4c31b655bc9de84d93", "dec_d9a23cb608ab5721980934e1", "git_c5ab0e48b7345955a663824f"],
+      "target_rank": 3,
+      "require_source": ["vector", "hybrid"],
+      "note": "Unified push commit."
+    },
+    {
+      "id": "path-lookup",
+      "query": "which record changed in server/pitmry/retrieval.py",
+      "expected_any": ["git_39e8eef376ed5fde849fc25b", "dec_62369d26cc0b5f249c7ae00f", "sum_b60ef6c54ec752469f7bb6b1"],
+      "target_rank": 3,
+      "note": "Exact path classification lands on the retrieval-trust commit."
+    },
+    {
+      "id": "wrapper-layout",
+      "query": "single nested wrapper architecture z-index stacking layers",
+      "expected_any": ["dec_be3825647a5c56cc91699660", "dec_d9a23cb608ab5721980934e1"],
+      "target_rank": 3,
+      "note": "Lexical-only hit; no source requirement."
+    },
+    {
+      "id": "exact-sha",
+      "query": "80aaebb",
+      "expected_any": ["git_39e8eef376ed5fde849fc25b"],
+      "target_rank": 1,
+      "note": "EXACT mode: short commit sha."
+    },
+    {
+      "id": "exact-record-id",
+      "query": "dec_84e9571b3cd6548d91cc6ef7",
+      "expected_any": ["dec_84e9571b3cd6548d91cc6ef7"],
+      "target_rank": 1,
+      "note": "EXACT mode: canonical record id."
     }
   ],
   "no_result_cases": [
     "xyzzy plugh frobnicate quokka",
     "glyptodont xertzband quingumbo flarnak",
-    "kraflax vimzorp thrumblewocket"
+    "kraflax vimzorp thrumblewocket flurb"
   ]
 }

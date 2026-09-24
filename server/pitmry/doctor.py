@@ -12,7 +12,8 @@ from .canonical_store import CanonicalStore
 def doctor(root=None):
     store = CanonicalStore(root)
     checks = {"canonical": "unavailable", "sqlite": "unavailable",
-              "fts": "unavailable", "vectors": "unavailable", "git": "unavailable"}
+              "fts": "unavailable", "vectors": "unavailable", "git": "unavailable",
+              "project_intelligence_projection": "unavailable"}
     warnings = []
     try:
         manifest = store.require_manifest()
@@ -41,6 +42,22 @@ def doctor(root=None):
                     else:
                         checks["fts"] = "unavailable"
                         warnings.append("FTS_UNAVAILABLE")
+                    required_pi_tables = {"pi_record_state", "pi_work_readiness", "pi_work_lease",
+                                          "pi_project_summary"}
+                    if required_pi_tables.issubset(tables):
+                        from .rebuild import canonical_snapshot
+                        projected = conn.execute(
+                            "SELECT value FROM projection_meta WHERE key='canonical_snapshot'"
+                        ).fetchone()
+                        actual = canonical_snapshot(store.load_all())
+                        if projected and projected[0] == actual:
+                            checks["project_intelligence_projection"] = "healthy"
+                        else:
+                            checks["project_intelligence_projection"] = "stale"
+                            warnings.append("PROJECT_INTELLIGENCE_PROJECTION_STALE")
+                    else:
+                        checks["project_intelligence_projection"] = "stale"
+                        warnings.append("PROJECT_INTELLIGENCE_PROJECTION_REBUILD_REQUIRED")
             except (sqlite3.Error, OSError) as exc:
                 checks["sqlite"] = "unhealthy"
                 checks["fts"] = "unhealthy"
@@ -61,6 +78,17 @@ def doctor(root=None):
         else:
             warnings.append("VECTOR_RETRIEVAL_UNAVAILABLE")
 
+        try:
+            from .project_intelligence import project_intelligence_doctor
+            pi_report = project_intelligence_doctor(store)
+            checks["project_intelligence"] = pi_report["status"]
+            warnings.extend(f"PI_WARNING: {item}" for item in pi_report["warnings"])
+            warnings.extend(f"PI_ERROR: {item['code']} {item.get('record_id', '')}".strip()
+                            for item in pi_report["errors"])
+        except Exception as exc:
+            checks["project_intelligence"] = "unhealthy"
+            warnings.append(f"PROJECT_INTELLIGENCE_CHECK_FAILED: {exc}")
+
     result = subprocess.run(["git", "-C", str(store.paths.root), "rev-parse", "--show-toplevel"],
                             capture_output=True, text=True)
     checks["git"] = "healthy" if result.returncode == 0 else "unavailable"
@@ -69,6 +97,7 @@ def doctor(root=None):
 
     canonical_bad = checks["canonical"] in ("unavailable", "unhealthy")
     projection_bad = checks["sqlite"] == "unhealthy" or checks["fts"] == "unhealthy"
-    status = "unhealthy" if canonical_bad or projection_bad else (
+    pi_bad = checks.get("project_intelligence") == "unhealthy"
+    status = "unhealthy" if canonical_bad or projection_bad or pi_bad else (
         "degraded" if warnings else "healthy")
     return {"status": status, **checks, "warnings": warnings}

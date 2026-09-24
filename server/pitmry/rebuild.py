@@ -44,12 +44,41 @@ def _publish_pointer(path, generation, metadata):
         raise
 
 
+def _reuse_matching_vectors(store, snapshot, target):
+    """Reuse a verified old vector projection if local embedding is unavailable."""
+    database = store.paths.sqlite_cache
+    vector_dir = store.paths.lancedb_cache
+    if not database.is_file() or not vector_dir.is_dir():
+        return None
+    import sqlite3
+    try:
+        with sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True) as conn:
+            meta = dict(conn.execute("SELECT key,value FROM projection_meta"))
+        if meta.get("canonical_snapshot") != snapshot:
+            return None
+        import lancedb
+        db = lancedb.connect(str(vector_dir))
+        if "records" not in db.table_names():
+            return None
+        count = db.open_table("records").count_rows()
+        shutil.copytree(vector_dir, target)
+        return {"count": count, "model": meta.get("embedding_model", "unknown"),
+                "dimensions": meta.get("embedding_dimensions", "0")}
+    except Exception:
+        return None
+
+
 def rebuild(root=None, no_vectors=False, embedder=None):
     store = CanonicalStore(root)
     problems = store.validate_all()
     if problems:
         raise ValueError("canonical validation failed: " + "; ".join(problems))
     records = store.load_all()
+    from .project_intelligence import project_intelligence_doctor, project_sqlite_state
+    pi_report = project_intelligence_doctor(store)
+    if pi_report["errors"]:
+        raise ValueError("Project Intelligence validation failed: " + "; ".join(
+            f"{item['code']}:{item.get('record_id', '')}" for item in pi_report["errors"]))
     snapshot = canonical_snapshot(records)
     projected_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
     generation = uuid.uuid4().hex
@@ -64,6 +93,7 @@ def rebuild(root=None, no_vectors=False, embedder=None):
         try:
             for record in records:
                 project_record(conn, record)
+            pi_projection = project_sqlite_state(conn, store)
             meta = {
                 "schema_version": "1", "canonical_snapshot": snapshot,
                 "canonical_record_count": str(len(records)), "embedding_model": "unavailable",
@@ -78,9 +108,23 @@ def rebuild(root=None, no_vectors=False, embedder=None):
                         meta["embedding_model"] = active_embedder.model_name
                         meta["embedding_dimensions"] = str(active_embedder.dimensions)
                     else:
-                        warnings.append("VECTOR_RETRIEVAL_UNAVAILABLE")
+                        reused = _reuse_matching_vectors(store, snapshot, staging_root / "lancedb")
+                        if reused:
+                            vector_count = reused["count"]
+                            meta["embedding_model"] = reused["model"]
+                            meta["embedding_dimensions"] = reused["dimensions"]
+                            warnings.append("VECTOR_RETRIEVAL_REUSED_FROM_MATCHING_SNAPSHOT")
+                        else:
+                            warnings.append("VECTOR_RETRIEVAL_UNAVAILABLE")
                 except EmbeddingUnavailable as exc:
-                    warnings.append("VECTOR_RETRIEVAL_UNAVAILABLE: " + str(exc))
+                    reused = _reuse_matching_vectors(store, snapshot, staging_root / "lancedb")
+                    if reused:
+                        vector_count = reused["count"]
+                        meta["embedding_model"] = reused["model"]
+                        meta["embedding_dimensions"] = reused["dimensions"]
+                        warnings.append("VECTOR_RETRIEVAL_REUSED_FROM_MATCHING_SNAPSHOT")
+                    else:
+                        warnings.append("VECTOR_RETRIEVAL_UNAVAILABLE: " + str(exc))
             else:
                 warnings.append("VECTOR_RETRIEVAL_SKIPPED")
             conn.executemany("INSERT INTO projection_meta(key,value) VALUES (?,?)", meta.items())
@@ -97,4 +141,5 @@ def rebuild(root=None, no_vectors=False, embedder=None):
         raise
     return {"generation": generation, "records": len(records), "vectors": vector_count,
             "canonical_snapshot": snapshot, "warnings": warnings,
+            "project_intelligence": pi_projection,
             "sqlite": final_root / "pitmry.db", "lancedb": final_root / "lancedb"}
