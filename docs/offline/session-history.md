@@ -1,4 +1,32 @@
 ---
+
+## [2026-09-24] — `621ed46` Project Intelligence worktree flow
+
+| Field | Value |
+|-------|-------|
+| **Branch** | `master` |
+| **Remotes** | GitLab `origin`; GitHub `github` |
+| **Commit** | `621ed46 feat(pitmry): add project intelligence workflows` |
+| **Scope** | All staged worktree changes except `server/tests/**` |
+
+### Validation
+
+- Project Intelligence/PITMRY tests: 61 passed.
+- Full backend suite: 156 passed, 1 failed in unchanged worker-autostart behavior (`test_ensure_respects_autostart_false`: expected `skipped`, got `unavailable`).
+- TypeScript check and scoped ESLint passed.
+- Production build passed.
+- `git diff --check` passed.
+- Dependency audit was not run because `pnpm` is unavailable in this environment.
+
+### Publish
+
+Pushed master to GitLab and GitHub. Each remote was two commits behind before the push. The remote branch refs were subsequently checked against `621ed46`.
+
+### Exclusion
+
+All files under `server/tests/` remain outside the commit, as requested.
+
+---
 ## [2026-09-23 18:37] — `80aaebb684f0df5a0f9b19dd3891b4e69b467933`
 
 | Field | Value |
