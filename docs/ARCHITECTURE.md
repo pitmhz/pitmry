@@ -34,7 +34,7 @@ These milestones are summarized from Git history and PITMRY memory records. Olde
 
 - [Project Intelligence PRD](PROJECT-INTELLIGENCE-PRD.md): product requirements and intended scope.
 - [Project Intelligence backend specification](PROJECT-INTELLIGENCE-BACKEND-SPEC.md): proposed detailed backend contract.
-- `docs (gitignore THIS) IMPORTANT ARCHITECTURE REBUILD/`: original implementation runbook archive. Its old file references describe a planned rebuild, not necessarily the current package layout.
+- `docs (gitignore THIS) IMPORTANT ARCHITECTURE REBUILD/`: tracked historical implementation runbook archive. Its old file references describe a planned rebuild, not necessarily the current package layout.
 
 ## Trust and Status Rules
 

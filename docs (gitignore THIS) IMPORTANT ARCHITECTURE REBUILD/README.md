@@ -1,4 +1,10 @@
-# PITMRY Backend Agent Runbook Bundle
+# PITMRY Backend Agent Runbook Archive
+
+> This tracked directory is a historical working archive. Its specifications capture the earlier backend rebuild plan and may refer to superseded paths or planned behavior. They are not the source of current architecture truth. See the tracked [architecture overview](../docs/ARCHITECTURE.md), [Project Intelligence PRD](../docs/PROJECT-INTELLIGENCE-PRD.md), and [Project Intelligence backend specification](../docs/PROJECT-INTELLIGENCE-BACKEND-SPEC.md).
+
+The phase documents remain useful as historical design rationale. Verify any implementation instruction against the current source and tests before applying it.
+
+## Original Runbook Index
 
 This bundle replaces the earlier broad PRD with strict implementation documents designed for coding agents that follow instructions well but should not be required to make major architecture decisions.
 
