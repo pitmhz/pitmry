@@ -2,7 +2,7 @@
 
 **PITMRY** is an offline project-memory backend with a local dashboard. It stores canonical records in each project's `.pitmry/` directory and rebuilds SQLite/FTS and optional LanceDB indexes from those records.
 
-The entire application runs locally on your machine. It requires zero cloud services and sends no telemetry.
+The app and memory store run locally. Optional integrations, package installation, or setup may require network access. PITMRY does not send telemetry.
 
 **GitLab Repository:** [https://gitlab.com/pitmhs/pitmry](https://gitlab.com/pitmhs/pitmry)
 
@@ -18,10 +18,9 @@ The entire application runs locally on your machine. It requires zero cloud serv
    - [Devl.dev Timeline Subsystems](#devldev-timeline-subsystems)
    - [Split-Resizable Code Diff Viewer](#split-resizable-code-diff-viewer)
    - [Stream View & Relational Inspector](#stream-view--relational-inspector)
-   - [2D Knowledge Graph & 3D Vector Space Galaxy](#2d-knowledge-graph--3d-vector-space-galaxy)
+   - [Record Relationships](#record-relationships)
    - [Command Palette & Search](#command-palette--search)
-   - [Design Token Controller](#design-token-controller)
-   - [Skills & Automations Hub](#skills--automations-hub)
+   - [Dashboard and Skills](#dashboard-and-skills)
 5. [API Reference](#api-reference)
 6. [Data Models](#data-models)
 7. [Dependencies](#dependencies)
@@ -29,7 +28,9 @@ The entire application runs locally on your machine. It requires zero cloud serv
 9. [Running the Server](#running-the-server)
 10. [Keyboard Shortcuts](#keyboard-shortcuts)
 11. [Project Directory Layout](#project-directory-layout)
-12. [GitLab Project Summary](#gitlab-project-summary)
+12. [Project Intelligence](#project-intelligence)
+13. [GitLab and GitHub](#gitlab-and-github)
+14. [Architecture History](docs/ARCHITECTURE.md)
 
 ---
 
@@ -39,29 +40,16 @@ Modern software development generates vast amounts of context across sessions, b
 
 PITMRY keeps project memory portable in Git. The dashboard displays record authority, resolved state, and whether a relation is explicit or inferred. It does not treat similarity or time order as proof of cause.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             pitmry Dashboard                                │
-│                     Next.js 16 · React 19 · Tailwind v4                     │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ HTTP GET /api/memory?action=...
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Next.js API Gateway (App Router)                         │
-│             execFileAsync("python", ["memory_dashboard_api.py", ...])       │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ CLI invocation (stdout JSON)
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     Python Memory Bridge Runtime                            │
-│              server/memory_dashboard_api.py compatibility CLI              │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Git-tracked .pitmry/ canonical records                                      │
-│              ↓ rebuild                                                       │
-│ SQLite + FTS5 projection · optional LanceDB vector projection               │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  UI[Next.js dashboard] --> API[Next.js API routes]
+  API --> PY[Python PITMRY services and CLI]
+  PY --> CANON[.pitmry canonical records<br/>portable and Git-tracked]
+  CANON --> REBUILD[Rebuild]
+  REBUILD --> SQL[SQLite and FTS5 projection]
+  REBUILD --> VEC[Optional LanceDB vector projection]
+  PI[Project Intelligence<br/>in progress] -.-> CANON
+  AGENT[CLI and optional MCP clients] --> PY
 ```
 
 ---
@@ -83,17 +71,17 @@ PITMRY keeps project memory portable in Git. The dashboard displays record autho
 
 `.pitmry/records/` contains immutable canonical records and is committed with the project. `.pitmry-cache/` contains disposable SQLite/FTS and optional LanceDB projections. Run `python -m server.pitmry rebuild` to recreate the projections. Use `--no-vectors` when local embedding support is unavailable.
 
-### 2. Python Bridge Pattern
+### 2. Python Services
 
-The frontend does not communicate directly with the database files. Instead, Next.js executes the bundled Python script `server/memory_dashboard_api.py` (or a custom path defined in `pitmry.config.json` or `.env`) via Node.js `execFileAsync`. The script processes arguments, queries the database or git repositories, and outputs a single JSON response to stdout.
+The frontend does not read database files directly. Next.js routes invoke the local Python backend and return JSON. Canonical records remain authoritative; SQLite/FTS and optional vector indexes can be rebuilt.
 
-If the human dashboard cannot reach its backend, it may show clearly marked demo data. The separate agent API never returns demo records.
+Selected dashboard flows include demo data. Agent context APIs use the real backend and do not return demo records.
 
 Benefits:
 - Clean decoupling between the Python data science toolchain and the TypeScript web application.
 - No need to maintain a separate persistent FastAPI or Flask daemon.
 - Safe argument passing with OS-level process isolation.
-- Automatic fallback to Demo Mode if backend components are not yet initialized.
+- Projection health is reported separately from canonical-store health.
 
 ### 3. Layered Frontend Hierarchy
 
@@ -123,11 +111,11 @@ The dashboard layout is built on `@efferd/app-shell-4`, unstyled accessible `@ba
 
 Pitmry integrates four specialized developer timeline components:
 
-1. **System Status Page (`timelines-status-page.tsx`)**:
-   - Reports checks performed by the canonical-store doctor, including SQLite integrity and optional vector-cache availability.
-   - Health describes the current check only; this page does not claim historical uptime or incident monitoring.
+1. **System Readiness (`timelines-status-page.tsx`)**:
+   - Reports current checks for canonical storage and available projections.
+   - It does not claim historical uptime monitoring.
 
-2. **Deployments (`timelines-deploys.tsx`)**:
+2. **Deployment Records (`timelines-deploys.tsx`)**:
    - Displays captured canonical deployment records only. It does not infer an environment or deployment from a Git commit.
    - Git changes and their available diffs are shown through the activity and record-inspection views.
 
@@ -153,56 +141,27 @@ Integrated with the `@coss` registry and customized for pitmry:
 - **Dual Copy Actions**: One-click "Copy Patch" (copies raw git unified diff) and "Copy Code" (copies current file content).
 - **Editor Deep Links**: Direct URL handlers (`vscode://file/...` and `zed://file/...`) to jump immediately to the modified file in your preferred local editor.
 
-### Stream View & Relational Inspector
+### Stream View and Relational Inspector
 
-- **Stream View**: Fast, scrollable card list of all records with category tags, timestamps, and key file badges.
-- **Relational Inspector**: Slide-out right panel displaying complete record metadata:
+- **Stream View**: Paginated canonical records with supported filters.
+- **Relational Inspector**: Record metadata, provenance, content, and links.
 - **Decision Journey Tab**: Shows the focal record and evidence-backed explicit relations. It does not assign causal roles to unlinked records.
 - **Neighbors Tab**: Separates explicit relations from inferred candidates; missing similarity values remain unavailable rather than fabricated.
 
-### 2D Knowledge Graph & 3D Vector Space Galaxy
+### Record Relationships
 
-- **2D Knowledge Graph**: HTML5 Canvas force-directed graph. Project membership is structural; explicit evidence-backed relations and inferred candidates are visually distinguished.
-- **3D Vector Space Galaxy**: A spatial projection is not currently available from the canonical store; the view reports that limitation instead of presenting fabricated coordinates.
+- Explicit evidence-backed relations are separate from inferred associations. Similarity does not establish causality or supersession.
+- The legacy 2D graph may show project membership and relation hints. Canonical data does not currently provide a 3D spatial projection.
 
 ### Command Palette & Search
 
 - Press `⌘K` or `Ctrl+K` to open the palette.
-- Real-time search debounced at 200 ms.
-- Supports both full-text keyword matching and semantic search queries.
+- Search uses canonical records with lexical retrieval and optional vector retrieval.
+- Agent context includes resolved state and trust metadata, and can abstain when evidence is insufficient.
 
-### Design Token Controller
+### Dashboard and Skills
 
-- Flyout panel in the top header to adjust visual tokens at runtime.
-- Controls theme mode (dark/light), accent color palettes (Orange, Amber, Emerald, Indigo, Rose), border radius, and layout density (compact/default/relaxed).
-- Updates CSS custom properties directly on `document.documentElement`.
-
-### Skills & Automations Hub
-
-- Dedicated workspace for managing AI agent skills and executing Python automation scripts.
-- **Bundled Starter Skills (`skills/`)**:
-  - `strategic-memory`: Vector & SQLite memory engine protocol and lifecycle hooks.
-  - `memory-navigator`: Universal 4-step memory discovery, hybrid search, and record inspection.
-  - `cavemem`: Persistent memory across sessions and context compactions.
-  - `skill-router`: Progressive skill resolver for specialized domain capabilities.
-  - `simple-english`: ASD-STE100 technical writing standards for agent communication.
-- **Skills Catalog & Creator**:
-  - Browse installed and bundled agent skills with category and tag filtering.
-  - In-browser markdown editor for `SKILL.md` with live preview.
-  - One-click wizard to generate new custom skills with standard YAML frontmatter and starter templates.
-- **Python Automation Studio (`server/scripts/`)**:
-  - Inspect, edit, and test core Python automation tools directly in the browser:
-    - `memory_navigator.py`: Universal developer memory and vector DB CLI.
-    - `cavemem_search.py`: Fast relational FTS5 & semantic search.
-    - `cavemem_write.py`: Quick ADR and discussion logger.
-    - `export_session_to_memory.py`: Automated session & git-flow memory ingester.
-    - `resolve_skill.py`: Rapid skill resolver for 600+ skills.
-    - `build_skills_catalog.py`: Catalog index builder.
-    - `ingest_session_docs.py`: Offline markdown documentation ingester.
-  - **User Safety Safeguards**: Prominent risk warnings, automatic `.bak` backup creation, syntax validation via `python -m py_compile`, and factory revert capabilities.
-  - **Interactive Script Runner**: Execute scripts with custom CLI arguments directly from the browser, streaming stdout and stderr live.
-- **Adaptive Machine Setup**:
-  - `pnpm setup` automatically detects your machine's skills location (`$env:AGENTS_SKILLS_PATH`, `~/.agents/skills`, or `./.agents/skills`) and injects the starter skills cleanly.
+The dashboard includes stream, record inspection, activity, readiness, skills, and Project Intelligence views. Available information depends on the configured local backend and captured records.
 
 ---
 
@@ -213,7 +172,11 @@ All requests target `GET /api/memory` with the `action` query parameter.
 | Action | Description | Parameters |
 |---|---|---|
 | `summary` | System statistics, projects list, top tags | None |
-| `feed` | Paginated records feed with search & filters | `project`, `type`, `tag`, `query`, `limit` |
+| `workspace` | Project counts, latest records, current decisions, and conflicts from canonical records | None |
+| `records` | Server-filtered canonical records with an offset cursor and resolved state | `project`, `type`, `tag`, `query`, `state`, `from`, `to`, `cursor`, `limit` |
+| `record` | Full canonical record, provenance, content, files, and explicit or inferred links | `item_id` canonical ID |
+| `readiness` | Dashboard-shaped canonical, SQLite, FTS, vector, and Git checks | None |
+| `feed` | Legacy bounded records feed with search & filters | `project`, `type`, `tag`, `query`, `limit` |
 | `relations` | Explicit evidence-backed links and separately labeled inferred hints | `item_id` canonical ID |
 | `journey` | Canonical explicit lineage; no inferred causal chain | `item_id` canonical ID, `hops` |
 | `graph` | Project membership, explicit relations, inferred associations | None |
@@ -224,7 +187,9 @@ All requests target `GET /api/memory` with the `action` query parameter.
 | `activity` | Canonical records grouped by capture date | None |
 | `notifications` | Empty until a canonical notification source is defined | None |
 
-Agent clients should use the CLI or read-only MCP tools. HTTP clients can use `POST /api/v1/memory/context`; this endpoint does not return demo data.
+Agent clients can use the CLI or the PITMRY MCP tools available in their checkout. HTTP clients can use `POST /api/v1/memory/context`; this endpoint does not return demo data.
+
+The existing stream uses `records` and loads additional pages on request. Its inspector fetches `record` to show authority, truth domain, source, related files, and complete content. These actions return an error when the local backend is unavailable; they do not substitute sample records. Legacy actions remain available for existing clients and views.
 
 ---
 
@@ -290,9 +255,9 @@ interface DiffLine {
 ## Dependencies
 
 ### Production Dependencies
-- **`next`** `16.1.6`: React framework with App Router and Turbopack compiler.
+- **`next`** `16.3.6`: React framework with App Router.
 - **`react`** & **`react-dom`** `19.2.4`: React 19 concurrent features.
-- **`three`** `^0.186.0`: WebGL rendering engine for the 3D Vector Space Galaxy.
+- **`three`** `^0.186.0`: WebGL library used by the legacy spatial view.
 - **`@base-ui/react`** `^1.8.0`: Headless, accessible primitives (Tooltips, Collapsibles, Buttons) powering the Efferd sidebar.
 - **`@hugeicons/react`** & **`@hugeicons/core-free-icons`**: Complete SVG icon family for dashboard navigation.
 - **`prism-react-renderer`** `^2.4.1`: Syntax highlighting for the code diff viewer.
@@ -311,28 +276,9 @@ interface DiffLine {
 
 You can run `pitmry` in two ways:
 
-### Option A: Instant Demo Mode (Zero Backend Setup)
+### Local Setup
 
-Explore the full UI, 3D galaxy visualization, timeline feeds, and code diffs immediately without Python or database setup:
-
-```bash
-# 1. Clone the repository
-git clone https://gitlab.com/pitmhs/pitmry.git
-cd pitmry
-
-# 2. Install Node dependencies and start the dev server
-pnpm install
-pnpm dev
-```
-
-Open [http://localhost:4242](http://localhost:4242) in your browser.
-The dashboard automatically serves realistic demo data and displays a setup banner with an interactive in-app setup guide.
-
----
-
-### Option B: Full Setup (Local Offline Memory Engine)
-
-Connect the dashboard to your local git commits, SQLite database, and LanceDB vector store:
+Install and start the dashboard and local backend:
 
 ```bash
 # 1. Clone the repository
@@ -355,11 +301,9 @@ pnpm dev
 ### CLI Diagnostic Tools
 
 - **`pnpm setup`**:
-  - Creates a Python virtual environment when needed.
-  - Initializes `.pitmry/` if the project does not have a canonical store.
-  - Does not create global databases, download an embedding model, or write to another agent's skill directory.
+  - Prepares the local Python environment and dependencies.
 - **`pnpm doctor`**:
-  - Runs the backend's independent canonical, SQLite, FTS, vector, and Git checks.
+  - Checks canonical storage and available projections.
 
 ### Custom Configuration
 
@@ -377,7 +321,6 @@ You can configure repositories that the dashboard should read:
    ```
    Supported variables:
    - `PYTHON_BIN`: Path to Python executable (defaults to `.venv` or system `python`).
-   - `PYTHON_BIN`: Optional path to a Python executable.
    - `PITMRY_ROOT`: Optional project root for CLI use.
    - `PITMRY_ONNX_MODEL` and `PITMRY_TOKENIZER`: Optional paths to already-installed local model files. PITMRY does not download them.
 
@@ -432,10 +375,8 @@ pitmry/
 │   ├── command-palette.tsx            # ⌘K instant search overlay
 │   ├── decision-journey.tsx           # DAG multi-hop decision tree stepper
 │   ├── design-token-controller.tsx    # Live runtime CSS variable customizer
-│   ├── galaxy-view.tsx                # Three.js 3D vector space galaxy
+│   ├── project-intelligence-view.tsx  # Project Intelligence dashboard
 │   ├── knowledge-graph.tsx            # 2D Canvas force-directed graph
-│   ├── notification-toast.tsx         # 20s background polling toast dispatcher
-│   ├── onboarding-dialog.tsx          # Interactive in-app Setup Guide dialog
 │   ├── relational-inspector.tsx       # Record detail, journey, and neighbors panel
 │   ├── stat-tile.tsx                  # Metric cards with sparklines
 │   ├── timelines-activity-feed.tsx    # Sticky day-divider activity feed
@@ -449,9 +390,8 @@ pitmry/
 │   ├── doctor.mjs                     # Diagnostic health inspector (pnpm doctor)
 │   └── setup.mjs                      # Automated 1-command setup CLI (pnpm setup)
 ├── server/
-│   ├── cavemem_strategic.py           # SQLite relational memory engine
-│   ├── lancedb_strategic.py           # LanceDB vector similarity & 3D galaxy engine
-│   ├── memory_dashboard_api.py        # Portable CLI memory bridge
+│   ├── pitmry/                        # Canonical store, retrieval, PI, CLI, MCP
+│   ├── memory_dashboard_api.py        # Dashboard compatibility API
 │   └── requirements.txt               # Backend Python dependencies
 ├── .env.example                       # Template for environment configuration
 ├── components.json                    # shadcn & @coss registry configuration
@@ -463,13 +403,24 @@ pitmry/
 
 ---
 
-## GitLab Project Summary
+## Project Intelligence
+
+Project Intelligence links source intent to accepted requirements, planned work, sessions, implementation evidence, verification, and incidents. The backend preserves source Markdown and accepts externally prepared, validated decompositions; it does not call an LLM. The detailed PRD remains proposed, and current implementation coverage is narrower than that product vision.
+
+The current working tree includes CLI operations for intake, decomposition import, reconciliation, baseline review, work planning/readiness, session lifecycle, evidence, verification, staleness, incident tracking, context, and release readiness. Run `python -m server.pitmry pi --help` to inspect the commands available in the checkout you are using. This README update does not publish the separate uncommitted implementation changes.
+
+See the [Project Intelligence PRD](docs/PROJECT-INTELLIGENCE-PRD.md), [backend specification](docs/PROJECT-INTELLIGENCE-BACKEND-SPEC.md), and [architecture history](docs/ARCHITECTURE.md).
+
+Git capture hooks are opt-in. The post-commit adapter is fail-open and does not replace an existing hook.
+
+## GitLab and GitHub
 
 | Field | Value |
 |---|---|
 | **Project Name** | `pitmry` |
 | **GitLab URL** | [https://gitlab.com/pitmhs/pitmry](https://gitlab.com/pitmhs/pitmry) |
-| **Tagline / Short Description** | Offline personal developer memory dashboard & git command control powered by LanceDB, SQLite Cavemem, local ONNX embeddings, and Next.js 16. |
+| **GitHub URL** | [https://github.com/pitmhz/pitmry](https://github.com/pitmhz/pitmry) |
+| **Description** | Offline-first project memory and project intelligence with a local dashboard. |
 | **Visibility** | Private / Personal |
 | **Maintainer** | Pieter ([@pitmhs](https://gitlab.com/pitmhs)) |
 
