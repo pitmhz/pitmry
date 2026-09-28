@@ -61,9 +61,9 @@ interface DeploysData {
 }
 
 const ENV_TONE: Record<Deploy["env"], string> = {
-  production: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  staging: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  preview: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/20",
+  production: "bg-success text-success text-success border-success",
+  staging: "bg-warning text-warning text-warning border-warning",
+  preview: "bg-info text-info text-info border-info",
 };
 
 export function TimelinesDeploys({
@@ -206,8 +206,8 @@ export function TimelinesDeploys({
               <span
                 className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-semibold ${
                   repo.clean
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                    ? "bg-success text-success text-success"
+                    : "bg-warning text-warning text-warning"
                 }`}
               >
                 {repo.clean ? "Clean" : `${repo.dirty_count} modified`}
@@ -286,7 +286,7 @@ export function TimelinesDeploys({
                   >
                     <span>{d.sha}</span>
                     {copiedSha === d.sha ? (
-                      <Check className="size-3 text-emerald-500" />
+                      <Check className="size-3 text-success" />
                     ) : (
                       <Copy className="size-3 opacity-60" />
                     )}
@@ -400,11 +400,11 @@ export function TimelinesDeploys({
 
 function StatusGlyph({ status }: { status: Status }) {
   if (status === "succeeded")
-    return <CheckCircle2 className="size-4 text-emerald-500" />;
+    return <CheckCircle2 className="size-4 text-success" />;
   if (status === "failed")
-    return <XCircle className="size-4 text-rose-500" />;
+    return <XCircle className="size-4 text-danger" />;
   if (status === "rolled-back")
-    return <AlertTriangle className="size-4 text-amber-500" />;
+    return <AlertTriangle className="size-4 text-warning" />;
   return (
     <span className="grid size-4 place-items-center relative">
       <span className="absolute size-3 animate-ping rounded-full bg-primary/30" />

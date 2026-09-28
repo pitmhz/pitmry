@@ -16,8 +16,9 @@ The app and memory store run locally. Optional integrations, package installatio
 4. [Core Subsystems and Features](#core-subsystems-and-features)
    - [Efferd App Shell & Layout](#efferd-app-shell--layout)
    - [Devl.dev Timeline Subsystems](#devldev-timeline-subsystems)
+   - [Project Intelligence Console](#project-intelligence-console)
    - [Split-Resizable Code Diff Viewer](#split-resizable-code-diff-viewer)
-   - [Stream View & Relational Inspector](#stream-view--relational-inspector)
+   - [Stream View and Record Inspector](#stream-view-and-record-inspector)
    - [Record Relationships](#record-relationships)
    - [Command Palette & Search](#command-palette--search)
    - [Dashboard and Skills](#dashboard-and-skills)
@@ -29,8 +30,9 @@ The app and memory store run locally. Optional integrations, package installatio
 10. [Keyboard Shortcuts](#keyboard-shortcuts)
 11. [Project Directory Layout](#project-directory-layout)
 12. [Project Intelligence](#project-intelligence)
-13. [GitLab and GitHub](#gitlab-and-github)
-14. [Architecture History](docs/ARCHITECTURE.md)
+13. [Performance Notes](#performance-notes)
+14. [GitLab and GitHub](#gitlab-and-github)
+15. [Architecture History](docs/ARCHITECTURE.md)
 
 ---
 
@@ -127,9 +129,18 @@ Pitmry integrates four specialized developer timeline components:
 4. **Notifications (`timelines-notifications.tsx` & `notification-toast.tsx`)**:
    - Shows notification records when captured. No unread count, polling, or toast is implied by an empty canonical store.
 
+### Project Intelligence Console
+
+The Project Intelligence view is a three-column console: a schema navigator, a main surface, and a context-aware inspector.
+
+- **Main surface stays scannable.** Each tab (work board, chain, knowledge map, handoff, verification ledger, release gate) shows one line per record. Selecting a record opens the inspector rather than expanding a row in place.
+- **Capability-aware inspector.** The inspector's tab bar is derived from the selected record's kind, so a work unit offers Readiness, Criteria, Session, Evidence, Chain and Diff, while a requirement offers Criteria and Relations. Tabs that would show nothing are not offered.
+- **Provenance-aware chain traversal.** A chain follows only evidence-backed edges. Inferred edges are collected into a separate similarity block and are never mixed into a chain, because a chain of guesses would assert a history the store never recorded.
+- **Diff capability** is reachable from any record carrying a commit, and opens the shared diff viewer in an overlay.
+
 ### Split-Resizable Code Diff Viewer
 
-Integrated with the `@coss` registry and customized for pitmry:
+Implemented in `components/diff/`. `components/code-diff-viewer.tsx` remains as a re-export shim so existing importers keep resolving.
 
 - **4 View Modes**:
   - `Inline`: Unified single-column view with colored line additions and deletions.
@@ -140,18 +151,19 @@ Integrated with the `@coss` registry and customized for pitmry:
 - **Delta Percentage Badge**: Computes change density (`+X% / -Y%`) based on hunk additions and deletions.
 - **Dual Copy Actions**: One-click "Copy Patch" (copies raw git unified diff) and "Copy Code" (copies current file content).
 - **Editor Deep Links**: Direct URL handlers (`vscode://file/...` and `zed://file/...`) to jump immediately to the modified file in your preferred local editor.
+- **Structured payload**: the backend parses the unified diff into per-file hunks and typed lines, so the viewer renders structure rather than re-parsing patch text in the browser.
 
-### Stream View and Relational Inspector
+### Stream View and Record Inspector
 
-- **Stream View**: Paginated canonical records with supported filters.
-- **Relational Inspector**: Record metadata, provenance, content, and links.
+- **Stream View**: Paginated canonical records with supported filters. The `commits` view is the same stream pinned to the commit type.
+- **Record Inspector** (`components/shell/record-dossier-panel.tsx`): Record metadata, provenance, content, and links. Docks beside the list on wide screens and becomes a bottom sheet on mobile, so it can never squeeze the list it belongs to.
 - **Decision Journey Tab**: Shows the focal record and evidence-backed explicit relations. It does not assign causal roles to unlinked records.
 - **Neighbors Tab**: Separates explicit relations from inferred candidates; missing similarity values remain unavailable rather than fabricated.
 
 ### Record Relationships
 
 - Explicit evidence-backed relations are separate from inferred associations. Similarity does not establish causality or supersession.
-- The legacy 2D graph may show project membership and relation hints. Canonical data does not currently provide a 3D spatial projection.
+- Relation edges are only carried by the `graph` action. The `records` projection strips `source_record_id`, `target_record_id`, `relation` and `provenance`, so a record list can never reconstruct a chain.
 
 ### Command Palette & Search
 
@@ -161,7 +173,9 @@ Integrated with the `@coss` registry and customized for pitmry:
 
 ### Dashboard and Skills
 
-The dashboard includes stream, record inspection, activity, readiness, skills, and Project Intelligence views. Available information depends on the configured local backend and captured records.
+The dashboard includes briefing, records, commits and diffs, deploys, activity, readiness, skills, and Project Intelligence views. The view list has one source of truth (`components/shell/view-registry.ts`) that both the sidebar and the header render from, so a view cannot become unreachable in one of them. The active view and every filter are mirrored into the URL, so any view can be linked.
+
+Skills and automations are split into a thin shell plus per-feature state hooks, so switching tabs cannot reset an in-progress edit. Available information depends on the configured local backend and captured records.
 
 ---
 
@@ -369,29 +383,81 @@ pitmry/
 │   ├── layout.tsx                     # Root layout, TooltipProvider, metadata
 │   └── page.tsx                       # Dashboard entry point (<AppShell />)
 ├── components/
-│   ├── app-shell.tsx                  # Root layout: Sidebar + Header + Views + Demo Banner
-│   ├── app-shared.tsx                 # Navigation links and state definitions
-│   ├── code-diff-viewer.tsx           # Split-resizable diff viewer with syntax highlighting
-│   ├── command-palette.tsx            # ⌘K instant search overlay
-│   ├── decision-journey.tsx           # DAG multi-hop decision tree stepper
-│   ├── design-token-controller.tsx    # Live runtime CSS variable customizer
-│   ├── project-intelligence-view.tsx  # Project Intelligence dashboard
-│   ├── knowledge-graph.tsx            # 2D Canvas force-directed graph
-│   ├── relational-inspector.tsx       # Record detail, journey, and neighbors panel
-│   ├── stat-tile.tsx                  # Metric cards with sparklines
-│   ├── timelines-activity-feed.tsx    # Sticky day-divider activity feed
-│   ├── timelines-deploys.tsx          # Multi-repo git deploy & commit tracker
-│   ├── timelines-notifications.tsx    # Notification center popover tray
-│   ├── timelines-status-page.tsx      # System health & 60-day uptime bars
-│   └── ui/                            # Primitives: buttons, badges, split-resizable, etc.
+│   ├── app-shell.tsx                  # Root shell: state and wiring only
+│   ├── shell/                        # Shell modules extracted from app-shell
+│   │   ├── view-registry.ts           # Single source of truth for the view list
+│   │   ├── use-dashboard-state.ts    # URL-backed view and filter state
+│   │   ├── use-dashboard-data.ts     # Summary and record fetching with abort handling
+│   │   ├── overlay.tsx               # Shared dialog: focus trap, Escape stack, scroll lock
+│   │   ├── sidebar.tsx               # Views, projects, types and tags facets
+│   │   ├── header.tsx                # Breadcrumb and header controls
+│   │   ├── stream-view.tsx           # Paginated record list
+│   │   ├── record-renderers.tsx      # Record card renderers
+│   │   ├── record-dossier-panel.tsx  # Docked / sheet record inspector
+│   │   └── view-router.tsx           # Lazy view loading
+│   ├── console/                      # Project Intelligence console
+│   │   ├── project-intelligence-console.tsx  # Three-column console layout
+│   │   ├── capability-panel.tsx      # Context-aware tabbed inspector
+│   │   ├── capability-views.tsx      # Multi-layer capability renderers
+│   │   ├── chain-view.tsx            # Provenance-aware chain traversal
+│   │   ├── knowledge-map.tsx         # Deterministic layered ERD
+│   │   ├── work-board.tsx            # Work units by lifecycle state
+│   │   ├── verification-ledger.tsx   # Verification and staleness
+│   │   ├── release-gate.tsx          # Release readiness
+│   │   ├── agent-handoff.tsx         # Agent session handoff
+│   │   └── use-canonical-graph.ts    # Graph loader with a read deadline
+│   ├── diff/                         # Code diff viewer modules
+│   │   ├── diff-viewer.tsx           # Orchestration
+│   │   ├── diff-file-tabs.tsx        # File strip and breadcrumb
+│   │   ├── diff-hunk.tsx             # Inline and split hunk renderers
+│   │   ├── diff-toolbar.tsx          # View mode, search, copy actions
+│   │   ├── diff-preview.tsx          # Preview pane
+│   │   ├── diff-types.ts             # DiffData / DiffFile / DiffHunk
+│   │   └── use-diff-data.ts          # Diff fetching
+│   ├── skills/                       # Skills and automations modules
+│   │   ├── use-skills-catalog.ts     # Catalog state, inspect, save, create, sync
+│   │   ├── use-automations.ts       # Script state, save, revert, run
+│   │   ├── skills-catalog-tab.tsx    # Skills catalog surface
+│   │   ├── automations-studio-tab.tsx# Python studio surface
+│   │   ├── machine-config-tab.tsx    # Path resolution and bundled sync
+│   │   ├── create-skill-dialog.tsx   # Create dialog
+│   │   └── skill-inspector-dialog.tsx# Inspect and edit dialog
+│   ├── code-diff-viewer.tsx          # Re-export shim for components/diff
+│   ├── command-palette.tsx           # ⌘K instant search overlay
+│   ├── decision-journey.tsx          # DAG multi-hop decision tree stepper
+│   ├── design-token-controller.tsx   # Live runtime CSS variable customizer
+│   ├── relational-inspector.tsx      # Legacy inspector, still used by the stream view
+│   ├── stat-tile.tsx                 # Metric cards with sparklines
+│   ├── timelines-activity-feed.tsx   # Sticky day-divider activity feed
+│   ├── timelines-deploys.tsx         # Multi-repo git deploy & commit tracker
+│   ├── timelines-notifications.tsx   # Notification center popover tray
+│   ├── timelines-status-page.tsx     # System health & 60-day uptime bars
+│   └── ui/                           # Primitives: buttons, badges, split-resizable, etc.
+├── lib/                              # Shared domain logic
+│   ├── graph-traversal.ts            # Provenance-aware traversal
+│   ├── pi-capabilities.ts            # Record kind to capability mapping
+│   ├── pi-dossier.ts                 # Lifecycle stage classification
+│   ├── pi-graph.ts                   # Project payload to graph
+│   ├── pi-status.ts                  # Readiness and blocker vocabulary
+│   └── pi-types.ts                   # ProjectContext types and fetching
 ├── docs/
 │   └── sessions/                      # Offline markdown session logs & decision records
 ├── scripts/
+│   ├── check-patch-parser.py          # Diff payload contract
+│   ├── check-store-cache.py           # Store cache never serves a stale read
+│   ├── check-pi-contract.mjs          # Project Intelligence payload contract
+│   ├── check-traversal.mts            # Traversal correctness against the live graph
+│   ├── check-triage.mts               # Lifecycle classification
+│   ├── check-url-state.mts            # View registry and URL invariants
 │   ├── doctor.mjs                     # Diagnostic health inspector (pnpm doctor)
 │   └── setup.mjs                      # Automated 1-command setup CLI (pnpm setup)
 ├── server/
 │   ├── pitmry/                        # Canonical store, retrieval, PI, CLI, MCP
+│   │   ├── canonical_store.py         # Durable memory; stamp-guarded read cache
+│   │   ├── project_intelligence.py    # PI records, lifecycle, readiness
+│   │   └── patch_parser.py            # Unified diff to structured payload
 │   ├── memory_dashboard_api.py        # Dashboard compatibility API
+│   ├── tests/                         # unittest suites
 │   └── requirements.txt               # Backend Python dependencies
 ├── .env.example                       # Template for environment configuration
 ├── components.json                    # shadcn & @coss registry configuration
@@ -407,11 +473,30 @@ pitmry/
 
 Project Intelligence links source intent to accepted requirements, planned work, sessions, implementation evidence, verification, and incidents. The backend preserves source Markdown and accepts externally prepared, validated decompositions; it does not call an LLM. The detailed PRD remains proposed, and current implementation coverage is narrower than that product vision.
 
-The current working tree includes CLI operations for intake, decomposition import, reconciliation, baseline review, work planning/readiness, session lifecycle, evidence, verification, staleness, incident tracking, context, and release readiness. Run `python -m server.pitmry pi --help` to inspect the commands available in the checkout you are using. This README update does not publish the separate uncommitted implementation changes.
+The current working tree includes CLI operations for intake, decomposition import, reconciliation, baseline review, work planning/readiness, session lifecycle, evidence, verification, staleness, incident tracking, context, and release readiness. Run `python -m server.pitmry pi --help` to inspect the commands available in the checkout you are using.
+
+A record is classified into a lifecycle stage (Intent, Plan, Work, Evidence, Incidents, History, Relations) from its canonical id prefix and its `type` field. Readiness is never stored as a state: the backend derives a boolean plus structured reasons, so the UI renders readiness as an axis with blocking reasons rather than a literal `READY` column. Acceptance criteria are not projected by `project_context`; they are reachable through `contains` edges, which is why the inspector reads them from the chain.
 
 See the [Project Intelligence PRD](docs/PROJECT-INTELLIGENCE-PRD.md), [backend specification](docs/PROJECT-INTELLIGENCE-BACKEND-SPEC.md), and [architecture history](docs/ARCHITECTURE.md).
 
 Git capture hooks are opt-in. The post-commit adapter is fail-open and does not replace an existing hook.
+
+## Performance Notes
+
+- **Reads are stamp-cached.** `CanonicalStore` caches parsed records, the record listing and the manifest against each file's `(mtime_ns, size)`. The store is a view of files that other code writes directly, so the cache is validated against the file rather than against the writer. A pure write-invalidated cache silently bypasses manifest validation.
+- **Dashboard reads are deadline-bounded.** The Project Intelligence and graph fetch hooks abort after 20 seconds and surface a real error, rather than leaving the console on a loading state indefinitely.
+- **Verify with the check scripts.** `scripts/check-*.{py,mts,mjs}` assert the diff payload contract, cache freshness, lifecycle classification, traversal correctness, and URL invariants. The traversal and contract scripts read from stdin and need the backend piped in:
+
+```bash
+.venv/Scripts/python.exe server/memory_dashboard_api.py --graph \
+  | node --experimental-strip-types scripts/check-traversal.mts
+```
+
+- **Python tests** run under `unittest` with the repository root on the path:
+
+```bash
+PYTHONPATH=. .venv/Scripts/python.exe server/tests/test_canonical_store.py
+```
 
 ## GitLab and GitHub
 

@@ -31,14 +31,14 @@ export function ToastInfoBanner({
         role="status"
         aria-live="polite"
         className={cn(
-          "sticky top-0 z-50 border-b border-amber-500/40 bg-amber-500/10 backdrop-blur-md dark:bg-amber-500/[0.08] transition-all animate-in fade-in-0 duration-150",
+          "sticky top-0 z-50 border-b border-warning bg-warning backdrop-blur-md bg-warning/[0.08] transition-all animate-in fade-in-0 duration-150",
           className
         )}
       >
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 sm:px-6 py-2">
-          <InfoIcon className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <InfoIcon className="size-4 shrink-0 text-warning text-warning" />
           <p className="flex-1 truncate text-xs sm:text-sm text-foreground">
-            <strong className="font-semibold text-amber-700 dark:text-amber-300">
+            <strong className="font-semibold text-warning text-warning">
               {title}
             </strong>{" "}
             <span className="text-muted-foreground">· {message}</span>
@@ -49,7 +49,7 @@ export function ToastInfoBanner({
               variant="ghost"
               type="button"
               onClick={onAction}
-              className="h-7 gap-1 px-2.5 text-xs text-amber-700 hover:bg-amber-500/15 dark:text-amber-300 cursor-pointer font-medium"
+              className="h-7 gap-1 px-2.5 text-xs text-warning hover:bg-warning text-warning cursor-pointer font-medium"
             >
               <span>{actionLabel}</span>
               <ExternalLinkIcon className="size-3" />
@@ -62,7 +62,7 @@ export function ToastInfoBanner({
               type="button"
               onClick={onDismiss}
               aria-label="Dismiss banner"
-              className="text-muted-foreground hover:bg-amber-500/15 hover:text-foreground"
+              className="text-muted-foreground hover:bg-warning hover:text-foreground"
             >
               <XIcon className="size-3.5" />
             </Button>
@@ -78,11 +78,11 @@ export function ToastInfoBanner({
       role="status"
       aria-live="polite"
       className={cn(
-        "flex items-start gap-3 rounded-xl border border-amber-500/40 bg-card/95 p-3.5 shadow-xl backdrop-blur-md transition-all animate-in fade-in-0 slide-in-from-bottom-3 w-84 sm:w-96 text-left",
+        "flex items-start gap-3 rounded-xl border border-warning bg-card/95 p-3.5 shadow-xl backdrop-blur-md transition-all animate-in fade-in-0 slide-in-from-bottom-3 w-84 sm:w-96 text-left",
         className
       )}
     >
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 mt-0.5">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-warning text-warning text-warning mt-0.5">
         <InfoIcon className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
@@ -99,7 +99,7 @@ export function ToastInfoBanner({
               variant="ghost"
               type="button"
               onClick={onAction}
-              className="h-6 px-2 text-[11px] font-semibold text-amber-600 hover:bg-amber-500/15 dark:text-amber-400 cursor-pointer"
+              className="h-6 px-2 text-[11px] font-semibold text-warning hover:bg-warning text-warning cursor-pointer"
             >
               {actionLabel}
             </Button>

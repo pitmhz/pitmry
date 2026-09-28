@@ -1,0 +1,9 @@
+Refactored the PITMRY dashboard into a Project Intelligence console and fixed three latent backend defects that made features silently dead. app-shell 1418->460 lines into components/shell/; skills-workspace 1192->113 into components/skills/; code-diff-viewer 912->13-line shim into components/diff/ with the public import path preserved. Added a capability-aware inspector, a sidebar "Commits and diffs" route, and a View diff button on any record carrying a commit_hash.
+
+Bugs fixed at the root: (1) the diff viewer was dead for every commit because the backend returned raw patch text while the viewer required files/hunks/lines, so it always rendered "Code comparison unavailable" - fixed with a new server/pitmry/patch_parser.py; (2) _diff crashed on a bare git SHA because it fed the SHA to store.get() which validates record ids; (3) on Windows subprocess text=True used cp1252 and raised UnicodeDecodeError, silently nulling every patch. Also fixed a rules-of-hooks violation where CapabilityBody called useMemo inside switch cases, and added 20s timeouts to fetch hooks that had none.
+
+Performance: the reported "endless loading" was a 45-80 second read that climbed on every call. cProfile showed 84.8M function calls in 108s with 309,978 file opens, because CanonicalStore was a stateless filesystem view used in nested loops. Added mtime-guarded caching; now a stable 1.6s.
+
+Decisive lesson: the first cache attempt used plain write-invalidation and passed its own new tests but broke 5 pre-existing tests, silently bypassing manifest validation because the store is a view of files other code writes directly. A cache in a filesystem-backed store must be validated against the file, not the writer.
+
+Verified with 36/36 canonical store tests, 12/12 other python test files, and six contract check scripts. test_retrieval_benchmark.py fails pre-existing and unrelated (Windows SQLite file lock in teardown).

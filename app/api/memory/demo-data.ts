@@ -167,48 +167,6 @@ export function getDemoFallback(action: string, params: URLSearchParams): Record
     return filtered;
   }
 
-  if (action === "galaxy") {
-    // Simulated 3D Vector Space Galaxy nodes
-    const nodes = [
-      { id: "commit-1", title: "Vertical Diff Viewer Layout", type: "commit", project: "pitmry", x: 12.4, y: -4.2, z: 8.1, cluster_id: 0, color: "#38bdf8", mean_similarity: 0.82, isolation_score: 0.18, is_anomaly: false },
-      { id: "adr-1", title: "Single Container Shell Architecture", type: "adr", project: "pitmry", x: 14.1, y: -3.5, z: 9.3, cluster_id: 0, color: "#10b981", mean_similarity: 0.84, isolation_score: 0.16, is_anomaly: false },
-      { id: "commit-2", title: "Devl.dev Timeline Subsystems", type: "commit", project: "pitmry", x: 10.2, y: -6.1, z: 6.8, cluster_id: 0, color: "#38bdf8", mean_similarity: 0.79, isolation_score: 0.21, is_anomaly: false },
-      { id: "adr-2", title: "OKLCH Design Token System", type: "adr", project: "portfolio", x: -8.5, y: 15.2, z: -4.1, cluster_id: 1, color: "#10b981", mean_similarity: 0.75, isolation_score: 0.25, is_anomaly: false },
-      { id: "grill-1", title: "Offline Vector Strategy", type: "grill", project: "cloud-core", x: -3.2, y: -12.4, z: -10.2, cluster_id: 2, color: "#f59e0b", mean_similarity: 0.81, isolation_score: 0.19, is_anomaly: false },
-      { id: "commit-3", title: "Status Page & Uptime Bars", type: "commit", project: "pitmry", x: 8.9, y: -7.5, z: 5.4, cluster_id: 0, color: "#38bdf8", mean_similarity: 0.77, isolation_score: 0.23, is_anomaly: false },
-      { id: "adr-3", title: "FTS5 & Hybrid LanceDB Search", type: "adr", project: "pitmry", x: -1.5, y: -10.8, z: -8.6, cluster_id: 2, color: "#10b981", mean_similarity: 0.85, isolation_score: 0.15, is_anomaly: false },
-      { id: "commit-4", title: "Tailwind v4 OKLCH Token Migration", type: "commit", project: "portfolio", x: -10.1, y: 13.8, z: -5.2, cluster_id: 1, color: "#38bdf8", mean_similarity: 0.78, isolation_score: 0.22, is_anomaly: false }
-    ];
-
-    const edges = [
-      { source: "commit-1", target: "adr-1", similarity: 0.88, weight: 0.8 },
-      { source: "commit-1", target: "commit-2", similarity: 0.76, weight: 0.5 },
-      { source: "adr-1", target: "commit-2", similarity: 0.81, weight: 0.6 },
-      { source: "adr-2", target: "commit-4", similarity: 0.91, weight: 0.9 },
-      { source: "grill-1", target: "adr-3", similarity: 0.84, weight: 0.7 }
-    ];
-
-    const clusters = [
-      { id: 0, name: "Dashboard UI & Timelines", color: "#38bdf8", count: 4, centroid: { x: 11.4, y: -5.3, z: 7.4 } },
-      { id: 1, name: "Design System & Tokens", color: "#10b981", count: 2, centroid: { x: -9.3, y: 14.5, z: -4.6 } },
-      { id: 2, name: "Database & Search Engine", color: "#f59e0b", count: 2, centroid: { x: -2.3, y: -11.6, z: -9.4 } }
-    ];
-
-    return {
-      nodes,
-      edges,
-      clusters,
-      stats: {
-        total_nodes: nodes.length,
-        total_edges: edges.length,
-        cluster_count: clusters.length,
-        anomaly_count: 0,
-        dimensions: 384,
-        is_demo: true
-      }
-    };
-  }
-
   if (action === "journey") {
     return {
       focal: { id: "commit-1", title: "Vertical Diff Viewer Layout", type: "commit", project: "pitmry" },

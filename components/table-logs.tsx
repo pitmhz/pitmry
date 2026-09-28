@@ -41,8 +41,8 @@ import { cn } from "@/lib/utils"
 
 const SEVERITY_STYLES: Record<Severity, { dot: string; label: string }> = {
   debug: { dot: "bg-muted-foreground/40", label: "text-muted-foreground" },
-  info: { dot: "bg-sky-500", label: "text-sky-600 dark:text-sky-400 font-semibold" },
-  warn: { dot: "bg-amber-500", label: "text-amber-600 dark:text-amber-400 font-semibold" },
+  info: { dot: "bg-info", label: "text-info text-info font-semibold" },
+  warn: { dot: "bg-warning", label: "text-warning text-warning font-semibold" },
   error: { dot: "bg-destructive", label: "text-destructive font-bold" },
 }
 
@@ -181,7 +181,7 @@ export function TableLogs() {
               <span
                 className={cn(
                   "size-2 rounded-full",
-                  paused ? "bg-muted-foreground/60" : "animate-pulse bg-emerald-500"
+                  paused ? "bg-muted-foreground/60" : "animate-pulse bg-success"
                 )}
               />
               {paused ? "paused" : "live"}
@@ -201,12 +201,12 @@ export function TableLogs() {
             </div>
             <Separator orientation="vertical" className="h-4" />
             <div className="flex items-center gap-1.5 px-1.5 text-muted-foreground">
-              <ActivityIcon className="size-3.5 text-emerald-500" />
+              <ActivityIcon className="size-3.5 text-success" />
               <span>Uptime: <strong className="text-foreground">{Math.round(health.uptime_seconds / 60)}m</strong></span>
             </div>
             <Separator orientation="vertical" className="h-4" />
             <div className="flex items-center gap-1.5 px-1.5 text-muted-foreground">
-              <span>Cavemem: <strong className={health.storage.cavemem_connected ? "text-emerald-500" : "text-amber-500"}>{health.storage.cavemem_connected ? "Ready" : "Demo"}</strong></span>
+              <span>Cavemem: <strong className={health.storage.cavemem_connected ? "text-success" : "text-warning"}>{health.storage.cavemem_connected ? "Ready" : "Demo"}</strong></span>
             </div>
           </div>
         )}
@@ -340,9 +340,9 @@ export function TableLogs() {
                         {e.severity === "error" ? (
                            <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" />
                         ) : e.severity === "warn" ? (
-                          <FlameIcon className="size-3.5 shrink-0 text-amber-500" />
+                          <FlameIcon className="size-3.5 shrink-0 text-warning" />
                         ) : (
-                          <InfoIcon className="size-3.5 shrink-0 text-sky-500/80" />
+                          <InfoIcon className="size-3.5 shrink-0 text-info" />
                         )}
                         <span className="truncate font-sans font-medium text-foreground">
                           {e.message}
@@ -557,7 +557,7 @@ function LogSection({
             }}
             className="inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
           >
-            {copied ? <CheckIcon className="size-3 text-emerald-500" /> : <CopyIcon className="size-3" />}
+            {copied ? <CheckIcon className="size-3 text-success" /> : <CopyIcon className="size-3" />}
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
         )}
@@ -609,7 +609,7 @@ function LogKeyVal({
             aria-label={`Copy ${label}`}
             className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 cursor-pointer"
           >
-            {copied ? <CheckIcon className="size-3 text-emerald-500" /> : <CopyIcon className="size-3" />}
+            {copied ? <CheckIcon className="size-3 text-success" /> : <CopyIcon className="size-3" />}
           </button>
         )}
       </span>

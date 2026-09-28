@@ -66,7 +66,7 @@ export function ToastUndo({
       <div className="flex items-center gap-3 px-3.5 py-2.5">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-background/15">
           {undone ? (
-            <CheckCircle2 className="size-3.5 text-emerald-400" />
+            <CheckCircle2 className="size-3.5 text-success" />
           ) : (
             <RotateCcwIcon className="size-3.5" />
           )}

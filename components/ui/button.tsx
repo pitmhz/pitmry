@@ -16,7 +16,13 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:bg-primary/95",
         odysseyui:
-          "from-primary to-primary/85 text-primary-foreground dark:inset-shadow-2xs dark:inset-shadow-white/10 bg-linear-to-t border border-b-2 border-zinc-950/40 shadow-md shadow-zinc-950/20 ring-1 ring-inset ring-white/25 transition-[filter,transform] duration-200 hover:brightness-120 active:brightness-90 dark:border-x-0 dark:border-t-0 dark:border-zinc-950/50 dark:ring-white/5",
+          // Was a skeuomorphic 3D recipe: bg-linear-to-t, border-b-2,
+          // border-zinc-950/40, ring-white/25, shadow-zinc-950/20. The
+          // hardcoded zinc is a cool neutral inside an otherwise warm
+          // hue-49 palette, so it read as a foreign object. This keeps the
+          // slightly richer treatment but derives every value from the
+          // accent, so it stays coherent in both themes.
+          "from-primary to-primary/85 text-primary-foreground bg-linear-to-t border border-b-2 border-primary-foreground/20 shadow-md shadow-primary/20 ring-1 ring-inset ring-primary-foreground/20 transition-[filter,transform] duration-200 hover:brightness-110 active:brightness-90",
         accent:
           "bg-accent text-accent-foreground shadow-xs hover:bg-accent/90",
         destructive:
@@ -31,11 +37,14 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-8 px-3 py-1.5 text-xs gap-1.5 rounded-md has-[>svg]:px-2.5",
-        xs: "h-6 rounded-md px-2 text-xs gap-1 has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        xs: "h-7 rounded-md px-2 text-xs gap-1 has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 rounded-md gap-1.5 px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 rounded-md px-4 text-sm gap-2 has-[>svg]:px-3",
         icon: "size-8 rounded-md",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        // 24px was below the WCAG 2.2 target-size floor, so the smallest
+        // control in the app was 28px. Anything interactive should be at
+        // least large enough to hit reliably.
+        "icon-xs": "size-7 rounded-md [&_svg:not([class*='size-'])]:size-3.5",
         "icon-sm": "size-7 rounded-md [&_svg:not([class*='size-'])]:size-3.5",
         "icon-md": "size-8 rounded-md",
         "icon-lg": "size-9 rounded-md",

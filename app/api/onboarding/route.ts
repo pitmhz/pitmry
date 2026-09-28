@@ -71,7 +71,7 @@ const DEFAULT_TASKS: OnboardingTask[] = [
     done: false,
     auto_detected: true,
     action_type: "view",
-    target_view: "galaxy",
+    target_view: "status",
   },
   {
     id: "task_inspect_diff",

@@ -28,7 +28,7 @@ export function ToastSuccess({
         className
       )}
     >
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success text-success text-success">
         <CheckIcon className="size-4" />
       </span>
       <div className="min-w-0 flex-1">

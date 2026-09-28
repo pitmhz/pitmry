@@ -31,16 +31,46 @@ export function OnboardingChecklistWidget({
   repoName,
 }: OnboardingChecklistProps) {
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const doneCount = tasks.filter((t) => t.done).length;
   const totalCount = tasks.length || 1;
   const pct = typeof progressPct === "number" ? progressPct : Math.round((doneCount / totalCount) * 100);
   const isAllDone = doneCount === totalCount && totalCount > 0;
 
+  // Once onboarding is finished it stops floating as a large card. A completed
+  // checklist is a status, not a prompt, and a big overlay would sit on top of
+  // the right-docked capability panel. So it collapses to a small, dismissible
+  // chip parked bottom-left, away from the inspector.
+  if (isAllDone) {
+    if (dismissed) return null;
+    return (
+      <aside
+        aria-label="Repository onboarding tasks"
+        className="fixed bottom-4 left-4 z-40"
+      >
+        <div className="flex items-center gap-2 rounded-full border border-success/30 bg-card py-1 pl-2.5 pr-1 text-card-foreground shadow-md">
+          <Check className="size-3.5 shrink-0 text-success" aria-hidden="true" />
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Onboarding complete
+          </span>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="Dismiss onboarding"
+            className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+          >
+            <span aria-hidden="true" className="text-[11px] leading-none">✕</span>
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside
       aria-label="Repository onboarding tasks"
-      className="fixed right-4 bottom-4 z-40 w-80 sm:w-96 rounded-xl border border-border/80 bg-card text-card-foreground shadow-xl transition-all duration-150"
+      className="fixed bottom-4 left-4 z-40 w-80 max-w-[calc(100vw-2rem)] sm:w-96 rounded-xl border border-border/80 bg-card text-card-foreground shadow-xl transition-all duration-150"
     >
       {/* Header Bar */}
       <button

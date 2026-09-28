@@ -31,9 +31,18 @@ export function NotificationToastContainer({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [toasts, dismissToast])
 
-  // Periodic polling for backend-emitted notifications and memory updates
+  // Periodic polling for backend-emitted notifications and memory updates.
+  // The inspect callback is held in a ref and synced in an effect: it is an
+  // inline arrow in the parent, so depending on it directly tore this effect
+  // down on every parent render and re-fired both polls.
+  const inspectRef = React.useRef(onInspectNotification);
+  React.useEffect(() => {
+    inspectRef.current = onInspectNotification;
+  }, [onInspectNotification]);
+
   React.useEffect(() => {
     let active = true
+    const onInspectNotification = inspectRef.current
 
     const pollBackendNotifications = async () => {
       try {
@@ -137,16 +146,35 @@ export function NotificationToastContainer({
     pollBackendNotifications()
     pollMemoryNotifications()
 
+    // The interval only advances while the tab is visible. A hidden tab polling
+    // every 8s spends a Python subprocess per minute to detect notifications
+    // nobody is looking at, so a document-level gate handles both the timer and
+    // the wake-up.
     const interval = setInterval(() => {
-      pollBackendNotifications()
-      pollMemoryNotifications()
-    }, 8000)
+      if (document.visibilityState === "visible") {
+        pollBackendNotifications()
+        pollMemoryNotifications()
+      }
+    }, 15000)
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        pollBackendNotifications()
+        pollMemoryNotifications()
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
 
     return () => {
       active = false
       clearInterval(interval)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
     }
-  }, [toast, onInspectNotification])
+    // `onInspectNotification` is intentionally read through a ref rather than
+    // listed as a dependency. It is an inline arrow in the parent, so a new
+    // identity on every parent render used to tear this effect down and re-fire
+    // both polls, roughly 15 wasted subprocess spawns a minute.
+  }, [toast])
 
   const stickyBanners = toasts.filter((t) => t.type === "info_banner" && t.banner === true)
   const floatingToasts = toasts.filter((t) => !(t.type === "info_banner" && t.banner === true))

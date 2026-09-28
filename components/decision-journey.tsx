@@ -117,16 +117,16 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
     switch (role) {
       case "origin":
         return {
-          dotBg: "bg-amber-500",
-          ringColor: "ring-amber-500/30",
-          badgeBorder: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+          dotBg: "bg-warning",
+          ringColor: "ring-warning",
+          badgeBorder: "border-warning bg-warning text-warning",
           glow: "shadow-[0_0_12px_rgba(245,158,11,0.25)]",
         };
       case "decision":
         return {
-          dotBg: "bg-blue-500",
-          ringColor: "ring-blue-500/30",
-          badgeBorder: "border-blue-500/40 bg-blue-500/10 text-blue-300",
+          dotBg: "bg-info",
+          ringColor: "ring-info",
+          badgeBorder: "border-info bg-info text-info",
           glow: "shadow-[0_0_12px_rgba(59,130,246,0.25)]",
         };
       case "focal":
@@ -138,9 +138,9 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
         };
       case "implementation":
         return {
-          dotBg: "bg-emerald-500",
-          ringColor: "ring-emerald-500/30",
-          badgeBorder: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+          dotBg: "bg-success",
+          ringColor: "ring-success",
+          badgeBorder: "border-success bg-success text-success",
           glow: "shadow-[0_0_12px_rgba(16,185,129,0.25)]",
         };
       case "consequence":
@@ -266,7 +266,7 @@ export function DecisionJourney({ item, onSelectNode }: DecisionJourneyProps) {
           </div>
 
           {/* Primary Journey Stepper (Vertical DAG) */}
-          <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-3 before:bottom-3 before:w-[2px] before:bg-gradient-to-b before:from-amber-500/60 before:via-primary before:to-purple-500/60">
+          <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-3 before:bottom-3 before:w-[2px] before:bg-gradient-to-b before:from-warning before:via-primary before:to-purple-500/60">
             {data.journey_chain.map((step, idx) => {
               const styles = getRoleStyle(step.role);
               const isFocal = step.role === "focal";

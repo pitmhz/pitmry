@@ -13,6 +13,11 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // Required so lib modules can use explicit ".ts" specifiers. Those are
+    // resolved by the Next bundler in the app, and by Node's ESM loader in the
+    // verification scripts, which run the same modules under
+    // `node --experimental-strip-types`.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

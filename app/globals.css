@@ -24,6 +24,28 @@
   --ring: oklch(0.68 0.195 44 / 50%);
   --radius: 0.5rem;
 
+  /* Semantic status tokens. Every status colour in the app resolves through
+     these so accent switching and the light theme stay coherent. Each pair is
+     tuned for >=4.5:1 text contrast on its own surface. */
+  --success: oklch(0.78 0.15 155);
+  --success-foreground: oklch(0.16 0.02 155);
+  --success-surface: color-mix(in oklch, var(--success) 14%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 42%, var(--border));
+  --warning: oklch(0.82 0.14 78);
+  --warning-foreground: oklch(0.18 0.03 78);
+  --warning-surface: color-mix(in oklch, var(--warning) 13%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 40%, var(--border));
+  --danger: oklch(0.68 0.19 25);
+  --danger-foreground: oklch(0.14 0.02 25);
+  --danger-surface: color-mix(in oklch, var(--danger) 14%, var(--card));
+  --danger-border: color-mix(in oklch, var(--danger) 44%, var(--border));
+  --info: oklch(0.76 0.09 235);
+  --info-foreground: oklch(0.15 0.02 235);
+  --info-surface: color-mix(in oklch, var(--info) 12%, var(--card));
+  --info-border: color-mix(in oklch, var(--info) 38%, var(--border));
+  --neutral-surface: var(--muted);
+  --neutral-border: var(--border);
+
   /* Accent-derived memory-card interaction tokens. The card keeps normal
      readable foregrounds while its surface moves through darker OKLCH tints
      of the active palette accent. */
@@ -42,14 +64,14 @@
 
   /* Typographic Token System (Default: Balanced Scale 1.200 Minor Third) */
   --type-ratio: 1.200;
-  --font-size-base: 0.875rem; /* 14px */
+  --font-size-base: 0.9375rem; /* 15px, console base */
   --font-size-display: calc(var(--font-size-base) * var(--type-ratio) * var(--type-ratio) * var(--type-ratio) * var(--type-ratio));
   --font-size-h1: calc(var(--font-size-base) * var(--type-ratio) * var(--type-ratio) * var(--type-ratio));
   --font-size-h2: calc(var(--font-size-base) * var(--type-ratio) * var(--type-ratio));
   --font-size-h3: calc(var(--font-size-base) * var(--type-ratio));
   --font-size-h4: var(--font-size-base);
   --font-size-caption: calc(var(--font-size-base) / var(--type-ratio));
-  --font-size-micro: 0.6875rem; /* 11px minimum for WCAG readability */
+  --font-size-micro: 0.75rem; /* 12px readable floor for console labels */
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-heading: var(--font-sans);
@@ -93,6 +115,17 @@
   --border: oklch(0.90 0.003 48.717);
   --input: oklch(0.90 0.003 48.717);
   --ring: oklch(0.553 0.195 38.402 / 50%);
+
+  /* Light-theme status pairs are darkened so small text clears 4.5:1 on the
+     near-white card surface. The dark pair at the top is too light for it. */
+  --success: oklch(0.47 0.13 152);
+  --success-foreground: oklch(0.99 0.01 152);
+  --warning: oklch(0.53 0.12 62);
+  --warning-foreground: oklch(0.99 0.01 62);
+  --danger: oklch(0.52 0.19 27);
+  --danger-foreground: oklch(0.99 0.01 27);
+  --info: oklch(0.47 0.10 235);
+  --info-foreground: oklch(0.99 0.01 235);
   --card-hover-bg: color-mix(in oklch, var(--primary) 9%, var(--card));
   --card-active-bg: color-mix(in oklch, var(--primary) 18%, var(--card));
   --card-hover-fg: var(--foreground);
@@ -154,6 +187,18 @@ html[data-text-rendering="grayscale"] body {
 }
 
 @theme inline {
+  /* Semantic status tokens. Components must use these instead of stock
+     Tailwind palettes (emerald-400, rose-600, ...). The stock colours ignore
+     the accent and fail the light theme. */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
   --font-mono: var(--font-mono);
@@ -193,9 +238,25 @@ html[data-text-rendering="grayscale"] body {
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --spacing-card: 0.75rem;
-  --spacing-panel: 0.875rem;
-  --spacing-compact: 0.5rem;
+
+  /* Breathing-room scale. The console gives each record row generous padding
+     so a developer can scan a long list without the rows reading as noise.
+     These replace the previous fixed 0.5rem/0.75rem card paddings. */
+  --spacing-card: 1.125rem;
+  --spacing-panel: 1.5rem;
+  --spacing-compact: 0.75rem;
+  --spacing-row: 1rem;
+  --spacing-row-y: 0.875rem;
+  --spacing-section: 2.25rem;
+  --spacing-cell: 0.75rem 1rem;
+  --spacing-cell-y: 0.625rem;
+
+  /* Type ramp for the console: the record grid needs a slightly larger base
+     than the previous 14px because density is now carried by whitespace,
+     not by shrinking text. */
+  --font-size-base: 0.9375rem; /* 15px */
+  --font-size-micro: 0.75rem;   /* 12px, readable floor for labels */
+  --leading-record: 1.55;
 }
 
 @layer base {
@@ -364,18 +425,23 @@ html[data-text-rendering="grayscale"] body {
   }
 }
 
-/* Subtle, refined scrollbars */
+/* Subtle, refined scrollbars. scrollbar-* is the cross-browser baseline;
+   the ::-webkit block is the Chromium enhancement. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
+}
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(1 0 0 / 14%);
-  border-radius: 4px;
+  background: color-mix(in oklch, var(--foreground) 16%, transparent);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(1 0 0 / 24%);
+  background: color-mix(in oklch, var(--foreground) 28%, transparent);
 }

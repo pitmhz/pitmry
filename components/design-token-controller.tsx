@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sliders, X, Check, Palette, Sun, Moon, Type, ShieldCheck } from "lucide-react";
+import { Sliders, X, Check, Palette, Sun, Moon, Type, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -336,15 +336,20 @@ export function DesignTokenController() {
                 </div>
               </div>
 
-              {/* WCAG Accessibility & Contrast Status */}
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 flex items-start gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              {/* Token summary. Replaces a hardcoded "WCAG 2.2 AA / AAA
+                  Compliant" badge that the codebase contradicted: several status
+                  colours sat below the claimed contrast ratio, and the smallest
+                  control was 24px rather than the claimed 24px+. An
+                  unmeasured compliance claim in a trust tool is a liability,
+                  so it is gone. */}
+              <div className="rounded-lg border border-border/80 bg-muted/40 p-2.5 flex items-start gap-2">
+                <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
-                  <div className="text-[11px] font-semibold text-emerald-400">
-                    WCAG 2.2 AA / AAA Compliant
+                  <div className="text-[11px] font-semibold text-foreground">
+                    Semantic status colours
                   </div>
                   <div className="text-[10px] text-muted-foreground leading-snug">
-                    Contrast &ge; 5.2:1 · Subpixel rendering &amp; 24px+ touch targets
+                    Status text uses tokens, not fixed palettes, so both themes stay readable.
                   </div>
                 </div>
               </div>

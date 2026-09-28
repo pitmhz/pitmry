@@ -1,0 +1,92 @@
+ M app/api/memory/demo-data.ts
+ M app/api/memory/route.ts
+ M app/api/onboarding/route.ts
+ M app/globals.css
+ M app/page.tsx
+ M components/app-shell.tsx
+ M components/code-diff-viewer.tsx
+ M components/command-palette.tsx
+ M components/decision-journey.tsx
+ M components/design-token-controller.tsx
+ M components/filter-toolbar.tsx
+ D components/galaxy-view.tsx
+ D components/knowledge-graph.tsx
+ M components/notification-toast-container.tsx
+ M components/onboarding-dialog.tsx
+ D components/project-intelligence-view.tsx
+ M components/skills-workspace.tsx
+ M components/table-logs.tsx
+ M components/timelines-activity-feed.tsx
+ M components/timelines-deploys.tsx
+ M components/timelines-status-page.tsx
+ M components/toasts/toast-info-banner.tsx
+ M components/toasts/toast-success.tsx
+ M components/toasts/toast-undo.tsx
+ M components/tours/checklist.tsx
+ M components/ui/button.tsx
+ M package.json
+ M server/memory_dashboard_api.py
+ M server/pitmry/canonical_store.py
+ M server/pitmry/ids.py
+ M server/tests/test_ids.py
+ M server/tests/test_pitmry_phase4.py
+ M tsconfig.json
+?? components/console/
+?? components/diff/
+?? components/shell/
+?? components/skills/
+?? docs/AGENTS.md
+?? docs/sessions/2026-09-28-155229-refactor.md
+?? docs/sessions/2026-09-28-155237-refactor.md
+?? docs/sessions/2026-09-28-dashboard-console-revival.md
+?? docs/sessions/2026-09-28-dashboard-console-revival.summary.txt
+?? docs/sessions/2026-09-28-worktree-state.txt
+?? lib/graph-traversal.ts
+?? lib/pi-capabilities.ts
+?? lib/pi-dossier.ts
+?? lib/pi-graph.ts
+?? lib/pi-status.ts
+?? lib/pi-types.ts
+?? scripts/check-patch-parser.py
+?? scripts/check-pi-contract.mjs
+?? scripts/check-store-cache.py
+?? scripts/check-traversal.mts
+?? scripts/check-triage.mts
+?? scripts/check-url-state.mts
+?? server/pitmry/patch_parser.py
+?? server/tests/test_pitmry_project_intelligence.py
+ app/api/memory/demo-data.ts                 |   42 -
+ app/api/memory/route.ts                     |    2 -
+ app/api/onboarding/route.ts                 |    2 +-
+ app/globals.css                             |   88 +-
+ app/page.tsx                                |   24 +-
+ components/app-shell.tsx                    | 1663 ++++++---------------------
+ components/code-diff-viewer.tsx             |  921 +--------------
+ components/command-palette.tsx              |  120 +-
+ components/decision-journey.tsx             |   20 +-
+ components/design-token-controller.tsx      |   19 +-
+ components/filter-toolbar.tsx               |    2 +-
+ components/galaxy-view.tsx                  | 1415 -----------------------
+ components/knowledge-graph.tsx              |  344 ------
+ components/notification-toast-container.tsx |   38 +-
+ components/onboarding-dialog.tsx            |    6 +-
+ components/project-intelligence-view.tsx    |  344 ------
+ components/skills-workspace.tsx             | 1243 ++------------------
+ components/table-logs.tsx                   |   18 +-
+ components/timelines-activity-feed.tsx      |   18 +-
+ components/timelines-deploys.tsx            |   18 +-
+ components/timelines-status-page.tsx        |    6 +-
+ components/toasts/toast-info-banner.tsx     |   16 +-
+ components/toasts/toast-success.tsx         |    2 +-
+ components/toasts/toast-undo.tsx            |    2 +-
+ components/tours/checklist.tsx              |   32 +-
+ components/ui/button.tsx                    |   15 +-
+ package.json                                |    4 +-
+ server/memory_dashboard_api.py              |   40 +-
+ server/pitmry/canonical_store.py            |  109 +-
+ server/pitmry/ids.py                        |   11 +
+ server/tests/test_ids.py                    |    3 +
+ server/tests/test_pitmry_phase4.py          |   37 +-
+ tsconfig.json                               |    5 +
+ 33 files changed, 986 insertions(+), 5643 deletions(-)
+9c78791 docs(pitmry): log project intelligence release

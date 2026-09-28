@@ -275,7 +275,7 @@ export function FilterToolbar({
             <span
               className={cn(
                 "size-1.5 rounded-full",
-                filteredCount === 0 ? "bg-destructive" : "bg-emerald-500"
+                filteredCount === 0 ? "bg-destructive" : "bg-success"
               )}
             />
             Showing <strong className="text-foreground">{filteredCount}</strong> of {totalCount} records

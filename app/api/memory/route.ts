@@ -145,8 +145,6 @@ export async function GET(request: NextRequest) {
     args.push("--journey", "--item-type", itemType, "--item-id", itemId, "--hops", hops);
   } else if (action === "graph") {
     args.push("--graph");
-  } else if (action === "galaxy") {
-    args.push("--galaxy");
   } else if (action === "diff") {
     args.push("--diff");
     if (project) args.push("--project", project);

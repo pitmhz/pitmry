@@ -42,9 +42,9 @@ interface ActivityData {
 
 const TONE_CLASSES: Record<string, { bg: string; text: string; ring: string }> = {
   emerald: {
-    bg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    text: "text-emerald-600 dark:text-emerald-400",
-    ring: "ring-emerald-500/20",
+    bg: "bg-success text-success text-success",
+    text: "text-success text-success",
+    ring: "ring-success",
   },
   indigo: {
     bg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
@@ -52,9 +52,9 @@ const TONE_CLASSES: Record<string, { bg: string; text: string; ring: string }> =
     ring: "ring-indigo-500/20",
   },
   sky: {
-    bg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-    text: "text-sky-600 dark:text-sky-400",
-    ring: "ring-sky-500/20",
+    bg: "bg-info text-info text-info",
+    text: "text-info text-info",
+    ring: "ring-info",
   },
   violet: {
     bg: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
@@ -62,9 +62,9 @@ const TONE_CLASSES: Record<string, { bg: string; text: string; ring: string }> =
     ring: "ring-violet-500/20",
   },
   rose: {
-    bg: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-    text: "text-rose-600 dark:text-rose-400",
-    ring: "ring-rose-500/20",
+    bg: "bg-danger text-danger text-danger",
+    text: "text-danger text-danger",
+    ring: "ring-danger",
   },
   pink: {
     bg: "bg-pink-500/15 text-pink-600 dark:text-pink-400",

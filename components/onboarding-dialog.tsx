@@ -117,7 +117,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                 >
                   {copiedStep === 1 ? (
                     <>
-                      <Check className="h-3 w-3 text-emerald-500" />
+                      <Check className="h-3 w-3 text-success" />
                       <span>Copied</span>
                     </>
                   ) : (
@@ -159,7 +159,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                 >
                   {copiedStep === 2 ? (
                     <>
-                      <Check className="h-3 w-3 text-emerald-500" />
+                      <Check className="h-3 w-3 text-success" />
                       <span>Copied</span>
                     </>
                   ) : (
@@ -195,7 +195,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                 >
                   {copiedStep === 3 ? (
                     <>
-                      <Check className="h-3 w-3 text-emerald-500" />
+                      <Check className="h-3 w-3 text-success" />
                       <span>Copied</span>
                     </>
                   ) : (
