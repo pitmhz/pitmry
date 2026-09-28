@@ -445,6 +445,8 @@ pitmry/
 ├── scripts/
 │   ├── check-patch-parser.py          # Diff payload contract
 │   ├── check-store-cache.py           # Store cache never serves a stale read
+│   ├── check-readme-anchors.py        # Every README table-of-contents link resolves
+│   ├── patch_export_canonical.py      # Adds the canonical mirror to the session exporter
 │   ├── check-pi-contract.mjs          # Project Intelligence payload contract
 │   ├── check-traversal.mts            # Traversal correctness against the live graph
 │   ├── check-triage.mts               # Lifecycle classification
@@ -485,6 +487,7 @@ Git capture hooks are opt-in. The post-commit adapter is fail-open and does not 
 
 - **Reads are stamp-cached.** `CanonicalStore` caches parsed records, the record listing and the manifest against each file's `(mtime_ns, size)`. The store is a view of files that other code writes directly, so the cache is validated against the file rather than against the writer. A pure write-invalidated cache silently bypasses manifest validation.
 - **Dashboard reads are deadline-bounded.** The Project Intelligence and graph fetch hooks abort after 20 seconds and surface a real error, rather than leaving the console on a loading state indefinitely.
+- **Memory lives in two systems.** Cavemem SQLite and LanceDB serve agent retrieval; the dashboard reads the canonical store under `.pitmry/records/`. A session exported to the first two is invisible in the dashboard until it is mirrored, which is why the session exporter runs `pitmry migrate-legacy` as a final step. The step is conditional on `.pitmry/manifest.json` existing, scoped to the current project, and can never fail an export that already succeeded.
 - **Verify with the check scripts.** `scripts/check-*.{py,mts,mjs}` assert the diff payload contract, cache freshness, lifecycle classification, traversal correctness, and URL invariants. The traversal and contract scripts read from stdin and need the backend piped in:
 
 ```bash

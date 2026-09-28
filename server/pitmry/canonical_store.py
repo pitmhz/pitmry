@@ -82,8 +82,9 @@ class CanonicalStore:
         # A pure in-memory cache would be faster still, but it would be wrong:
         # the store is a view of files that other code is allowed to write
         # directly, and `validate_all` legitimately writes a corrupt manifest
-        # to check that validation rejects it. Caching on the file's mtime and
-        # size keeps the hot path free of re-parsing while still noticing any
+        # written directly, and `validate_all` deliberately writes a corrupt
+        # manifest to confirm validation rejects it. Caching on the file's mtime
+        # and size keeps the hot path free of re-parsing while still noticing any
         # change made behind the store's back. The cost is one stat per read,
         # which is orders of magnitude cheaper than re-reading and re-parsing.
         self._record_cache: Dict[str, tuple] = {}
