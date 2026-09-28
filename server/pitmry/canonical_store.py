@@ -49,6 +49,15 @@ class CanonicalStore:
     Only ``.pitmry/records/`` and ``.pitmry/manifest.json`` are touched. The
     dashboard also stores UI state and logs under ``.pitmry/``, and those are
     not memory, so they are never written or enumerated here.
+
+    Parsed records and the manifest are cached in memory. Callers legitimately
+    read the same record many times over: deriving one Project Intelligence
+    context reads every observation several times through ``state_of``. Without
+    a cache each of those reads re-parsed a file and re-read the manifest, which
+    turned a read into hundreds of thousands of filesystem operations. The cache
+    is invalidated by this store's own writes, so a write is never masked by a
+    stale read. Another process writing the same directory is out of scope: the
+    store is single-writer by design.
     """
 
     def __init__(self, root=None, uninitialized_root_ok: bool = True):
@@ -67,6 +76,44 @@ class CanonicalStore:
                         else git_root(root))
             self.paths = ProjectPaths.__new__(ProjectPaths)
             self.paths.__init__(root=resolved)
+
+        # Read caches, guarded by a filesystem stamp rather than by trust.
+        #
+        # A pure in-memory cache would be faster still, but it would be wrong:
+        # the store is a view of files that other code is allowed to write
+        # directly, and `validate_all` legitimately writes a corrupt manifest
+        # to check that validation rejects it. Caching on the file's mtime and
+        # size keeps the hot path free of re-parsing while still noticing any
+        # change made behind the store's back. The cost is one stat per read,
+        # which is orders of magnitude cheaper than re-reading and re-parsing.
+        self._record_cache: Dict[str, tuple] = {}
+        self._files_cache: Optional[tuple] = None
+        self._manifest_cache: Optional[tuple] = None
+
+    # --- cache -------------------------------------------------------------
+
+    @staticmethod
+    def _stamp(path: Path) -> Optional[tuple]:
+        """A cheap identity for a file's current contents.
+
+        ``(mtime_ns, size)``. Returns ``None`` when the file is absent, which is
+        itself a meaningful state: a deleted file must not hit a stale cache.
+        """
+        try:
+            info = path.stat()
+        except OSError:
+            return None
+        return (info.st_mtime_ns, info.st_size)
+
+    def invalidate_cache(self) -> None:
+        """Drop cached records, the record listing, and the manifest.
+
+        Writes already invalidate through the filesystem stamp, so this is only
+        needed when a caller knows it changed something the store cannot see.
+        """
+        self._record_cache.clear()
+        self._files_cache = None
+        self._manifest_cache = None
 
     # --- project lifecycle ------------------------------------------------
 
@@ -92,6 +139,7 @@ class CanonicalStore:
         self.paths.canonical_dir.mkdir(parents=True, exist_ok=True)
         self.paths.records_dir.mkdir(parents=True, exist_ok=True)
         self._atomic_write_bytes(self.paths.manifest_path, _pretty_json(manifest))
+        self.invalidate_cache()
         # Now that the manifest exists, normal resolution applies.
         self.paths = ProjectPaths(self.paths.root)
         return manifest
@@ -99,8 +147,12 @@ class CanonicalStore:
     def read_manifest(self) -> Optional[dict]:
         """The manifest mapping, or ``None`` when the project is not initialized."""
         path = self.paths.manifest_path
-        if not path.is_file():
+        stamp = self._stamp(path)
+        if stamp is None:
             return None
+        cached = self._manifest_cache
+        if cached is not None and cached[0] == stamp:
+            return dict(cached[1])
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
@@ -109,7 +161,11 @@ class CanonicalStore:
             self._validate_manifest_data(data)
         except ValueError as exc:
             raise ValueError(f"malformed manifest {path}: {exc}") from exc
-        return data
+        # Validation runs before the cache is populated, so an invalid manifest
+        # is never served from it. The copy keeps a caller from mutating what
+        # the next reader sees.
+        self._manifest_cache = (stamp, dict(data))
+        return dict(data)
 
     @staticmethod
     def _validate_manifest_data(data: dict) -> None:
@@ -179,6 +235,11 @@ class CanonicalStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = record_to_dict(record)
         self._atomic_write_bytes(path, canonical_json_bytes_from(payload))
+        # The record set changed, so the listing is stale. The written record is
+        # seeded into the cache rather than dropped, so a caller that writes and
+        # immediately reads its own write does not re-parse the file.
+        self._files_cache = None
+        self._record_cache[record.id] = (self._stamp(path), record)
         return record.id
 
     def write_record(self, **kwargs) -> str:
@@ -194,14 +255,13 @@ class CanonicalStore:
         so lookup is a filename match rather than a scan of a shard tree.
         """
         validate_record_id(record_id)
-        matches = [path for path in self.paths.iter_record_files()
-                   if path.stem == record_id]
+        matches = [path for path in self._record_files() if path.stem == record_id]
         if len(matches) > 1:
             locations = ", ".join(self._relative(path) for path in matches)
             raise ValueError(f"duplicate record id {record_id}: {locations}")
         if not matches:
             return None
-        return self._load(matches[0])
+        return self._load_cached(matches[0])
 
     def get_at(self, path):
         """The record stored at a specific path."""
@@ -212,15 +272,45 @@ class CanonicalStore:
             raise ValueError("record path is outside the canonical records directory") from exc
         return self._load(candidate)
 
+    def _load_cached(self, path: Path):
+        """Load a record, reusing the parsed form while the file is unchanged.
+
+        The stamp is taken from the same path the record was parsed from, so a
+        record replaced on disk under the same id is re-read rather than served
+        from the cache.
+        """
+        stamp = self._stamp(path)
+        cached = self._record_cache.get(path.stem)
+        if cached is not None and cached[0] == stamp:
+            return cached[1]
+        record = self._load(path)
+        self._record_cache[path.stem] = (stamp, record)
+        return record
+
+    def _record_files(self) -> List[Path]:
+        """Record paths, enumerated once per directory generation.
+
+        Enumerating costs a stat per entry and the readers above do it once per
+        record, so a single Project Intelligence read enumerated it hundreds of
+        times. The listing is memoized against the records directory's stamp,
+        which also notices a record appearing or disappearing out of band.
+        """
+        stamp = self._stamp(self.paths.records_dir)
+        if self._files_cache is not None and self._files_cache[0] == stamp:
+            return self._files_cache[1]
+        files = list(self.paths.iter_record_files())
+        self._files_cache = (stamp, files)
+        return files
+
     def iter_records(self, project_id: Optional[str] = None) -> Iterator:
         """Every canonical record, ordered by path.
 
         A corrupt record yields nothing: iteration continues, and
         :meth:`validate_all` is the place that reports the reason.
         """
-        for path in self.paths.iter_record_files():
+        for path in self._record_files():
             try:
-                record = self._load(path)
+                record = self._load_cached(path)
             except (ValueError, OSError):
                 continue
             if project_id is not None and getattr(record, "project_id", None) != project_id:
@@ -233,10 +323,7 @@ class CanonicalStore:
 
     def all_ids(self) -> List[str]:
         """Every canonical record id on disk."""
-        ids = []
-        for path in self.paths.iter_record_files():
-            ids.append(path.stem)
-        return ids
+        return [path.stem for path in self._record_files()]
 
     # --- validation -------------------------------------------------------
 

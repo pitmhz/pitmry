@@ -50,6 +50,9 @@ class PrefixTests(unittest.TestCase):
                 "decision", "constraint", "git_change", "discussion",
                 "observation", "failure", "checkpoint", "session_summary",
                 "test_result", "deployment", "note", "relation",
+                "source_artifact", "requirement", "acceptance_criterion", "phase",
+                "work_unit", "session", "implementation", "verification", "bug",
+                "fix", "regression",
             }),
         )
 
