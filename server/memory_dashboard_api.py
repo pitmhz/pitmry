@@ -11,6 +11,8 @@ from pitmry.canonical_store import CanonicalStore
 from pitmry.doctor import doctor
 from pitmry.models import MemoryRecord
 from pitmry.enums import RecordType
+from pitmry.ids import is_record_id
+from pitmry.patch_parser import parse_patch
 from pitmry.project_intelligence import project_context
 
 
@@ -18,20 +20,39 @@ def _diff(project=None, commit_hash=None, item_id=None):
     for store in dashboard.project_roots():
         if project and project not in (store.require_manifest()["name"], store.project_id):
             continue
-        record_id = item_id or commit_hash
-        record = store.get(record_id) if record_id else None
+        # A git SHA and a record id are different things. Only a real record id
+        # can be looked up in the store; a bare SHA is already what git wants,
+        # and passing it to store.get would raise on the id format check.
+        record = store.get(item_id) if is_record_id(item_id) else None
         if isinstance(record, MemoryRecord) and record.type is RecordType.git_change:
             sha = record.content.get("commit_sha") or record.provenance.source_commit
         else:
             sha = commit_hash
         if not sha or len(sha) != 40:
             continue
-        result = subprocess.run(["git", "-C", str(store.paths.root), "show", "--format=fuller", sha],
-                                capture_output=True, text=True)
+        # Git writes UTF-8 regardless of the host locale. On Windows the default
+        # text codec is cp1252, which raises on any byte it cannot map and takes
+        # the whole patch with it, so the encoding is pinned and errors are
+        # replaced rather than allowed to abort the read.
+        result = subprocess.run(
+            ["git", "-C", str(store.paths.root), "show", "--format=fuller", sha],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         if result.returncode == 0:
-            return {"record_id": record.id if record else None,
-                    "commit_hash": sha, "diff": result.stdout, "status": "OK"}
-    return {"status": "NO_MATCH", "diff": "", "error": "No canonical Git record or resolvable commit found."}
+            # The viewer renders files and hunks, not raw patch text, so the
+            # patch is parsed here. Both shapes are returned: the structured
+            # one the UI needs, and the raw text for anyone reading the API
+            # directly or copying the patch out.
+            payload = parse_patch(result.stdout)
+            payload["commit_hash"] = payload.get("commit_hash") or sha
+            payload["record_id"] = record.id if record else None
+            payload["diff"] = result.stdout
+            payload["status"] = "OK"
+            return payload
+    return {"available": False, "status": "NO_MATCH", "diff": "", "files": [],
+            "error": "No canonical Git record or resolvable commit found."}
 
 
 def _galaxy():
@@ -114,7 +135,10 @@ def main(argv=None):
                   "status": "OK", "provenance": "canonical"}
     else:
         result = dashboard.summary(args.root)
-    print(json.dumps(result, ensure_ascii=False))
+    # This script is called through a Windows subprocess, where stdout may use
+    # cp1252. Keep the JSON transport ASCII-safe so arbitrary record text cannot
+    # fail before Node receives and decodes it.
+    print(json.dumps(result, ensure_ascii=True))
 
 
 if __name__ == "__main__":

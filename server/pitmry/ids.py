@@ -57,6 +57,17 @@ def validate_project_id(project_id: str) -> str:
     return project_id
 
 
+def is_record_id(value) -> bool:
+    """Return whether a value is a canonical record id.
+
+    Callers that accept either a record id or some other identifier (a git
+    SHA, for example) need to know which one they hold before they go
+    looking a record up, because a store lookup on a malformed id raises
+    instead of returning nothing.
+    """
+    return isinstance(value, str) and _RECORD_ID_RE.fullmatch(value) is not None
+
+
 def validate_record_id(record_id: str, record_type=None) -> str:
     """Validate a canonical record id and, when given, its type prefix."""
     if not isinstance(record_id, str):
