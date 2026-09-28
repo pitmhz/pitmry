@@ -89,6 +89,7 @@ class CanonicalStore:
         # which is orders of magnitude cheaper than re-reading and re-parsing.
         self._record_cache: Dict[str, tuple] = {}
         self._files_cache: Optional[tuple] = None
+        self._index_cache: Optional[tuple] = None
         self._manifest_cache: Optional[tuple] = None
 
     # --- cache -------------------------------------------------------------
@@ -114,6 +115,7 @@ class CanonicalStore:
         """
         self._record_cache.clear()
         self._files_cache = None
+        self._index_cache = None
         self._manifest_cache = None
 
     # --- project lifecycle ------------------------------------------------
@@ -212,8 +214,14 @@ class CanonicalStore:
         record = _with_hash(record)
         path = self.paths.record_path(record.id, getattr(record, "created_at", None))
 
-        matches = [candidate for candidate in self.paths.iter_record_files()
-                   if candidate.stem == record.id]
+        # The duplicate check went through an un-memoized directory walk, so
+        # every write re-enumerated the whole record set. At a few hundred
+        # records that dominated the write cost and grew with the store, which
+        # made remembering something slower the more the agent remembered.
+        # `_record_files` is memoized against the records directory stamp, and
+        # an id index turns the duplicate check into a dict lookup.
+        index = self._record_index()
+        matches = index.get(record.id, [])
         if matches:
             if len(matches) > 1:
                 locations = ", ".join(self._relative(candidate) for candidate in matches)
@@ -236,10 +244,21 @@ class CanonicalStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = record_to_dict(record)
         self._atomic_write_bytes(path, canonical_json_bytes_from(payload))
-        # The record set changed, so the listing is stale. The written record is
-        # seeded into the cache rather than dropped, so a caller that writes and
-        # immediately reads its own write does not re-parse the file.
-        self._files_cache = None
+        # The record set changed by exactly this file. Rather than dropping the
+        # listing, which would force the next write to re-enumerate the whole
+        # store, both the listing and the id index are updated in place: the
+        # store is the only writer, so it knows precisely what changed.
+        # Invalidating instead made every write cost more than the last, which
+        # is the opposite of what memory should do as it accumulates.
+        if self._files_cache is not None and path not in self._files_cache[1]:
+            self._files_cache[1].append(path)
+        if self._index_cache is not None:
+            paths = self._index_cache[1].setdefault(record.id, [])
+            # An identical rewrite is a no-op, so the path must not be recorded
+            # twice or the duplicate check would report a conflict against
+            # itself.
+            if path not in paths:
+                paths.append(path)
         self._record_cache[record.id] = (self._stamp(path), record)
         return record.id
 
@@ -302,6 +321,23 @@ class CanonicalStore:
         files = list(self.paths.iter_record_files())
         self._files_cache = (stamp, files)
         return files
+
+    def _record_index(self) -> Dict[str, List[Path]]:
+        """Record id to the paths holding it, built from the memoized listing.
+
+        A write only needs to know whether its id already exists, and answering
+        that from a dict keeps the write cost independent of store size. Writes
+        update this in place, so the index survives a write burst; it is dropped
+        only when the directory stamp proves the listing is stale.
+        """
+        files = self._record_files()
+        if self._index_cache is not None and self._index_cache[0] is files:
+            return self._index_cache[1]
+        index: Dict[str, List[Path]] = {}
+        for path in files:
+            index.setdefault(path.stem, []).append(path)
+        self._index_cache = (files, index)
+        return index
 
     def iter_records(self, project_id: Optional[str] = None) -> Iterator:
         """Every canonical record, ordered by path.

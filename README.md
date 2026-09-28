@@ -446,6 +446,7 @@ pitmry/
 │   ├── check-patch-parser.py          # Diff payload contract
 │   ├── check-store-cache.py           # Store cache never serves a stale read
 │   ├── check-readme-anchors.py        # Every README table-of-contents link resolves
+│   ├── bench-memory.py                # Write and recall cost, and scale behaviour
 │   ├── patch_export_canonical.py      # Adds the canonical mirror to the session exporter
 │   ├── patch_export_canonical_v2.py   # Adds the restore point and reindex step
 │   ├── check-pi-contract.mjs          # Project Intelligence payload contract
@@ -486,6 +487,7 @@ Git capture hooks are opt-in. The post-commit adapter is fail-open and does not 
 
 ## Performance Notes
 
+- **Write cost is independent of store size.** The duplicate-id check on write is a dict lookup over an id index the store updates in place, because the store is the only writer and therefore knows exactly what changed. Invalidating that index on every write instead made each write cost more than the last: 8.4 ms at 200 records, 35.8 ms at 800. It is now flat at roughly 2.6 ms.
 - **Reads are stamp-cached.** `CanonicalStore` caches parsed records, the record listing and the manifest against each file's `(mtime_ns, size)`. The store is a view of files that other code writes directly, so the cache is validated against the file rather than against the writer. A pure write-invalidated cache silently bypasses manifest validation.
 - **Dashboard reads are deadline-bounded.** The Project Intelligence and graph fetch hooks abort after 20 seconds and surface a real error, rather than leaving the console on a loading state indefinitely.
 - **Memory lives in two systems.** Cavemem SQLite and LanceDB serve agent retrieval; the dashboard reads the canonical store under `.pitmry/records/`. A session exported to the first two is invisible in the dashboard until it is mirrored, which is why the session exporter runs `pitmry migrate-legacy` as a final step. The step is conditional on `.pitmry/manifest.json` existing, scoped to the current project, and can never fail an export that already succeeded.
@@ -501,6 +503,12 @@ Git capture hooks are opt-in. The post-commit adapter is fail-open and does not 
 
 ```bash
 PYTHONPATH=. .venv/Scripts/python.exe server/tests/test_canonical_store.py
+```
+
+- **Benchmarks.** `scripts/bench-memory.py` measures the two loops an agent actually runs: storing a fact and recalling it. It asserts a flat write curve, because a store that gets slower as it accumulates is worse than useless for a memory.
+
+```bash
+.venv/Scripts/python.exe scripts/bench-memory.py
 ```
 
 ## GitLab and GitHub
