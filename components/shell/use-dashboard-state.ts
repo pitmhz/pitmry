@@ -30,7 +30,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_VIEW, isViewMode, type ViewMode } from "@/components/shell/view-registry";
 
-export type Density = "grid" | "rows";
+export type Density = "grid" | "rows" | "grouped";
 
 export type Filters = {
   /** Server-side: narrows the corpus before it is returned. */
@@ -72,7 +72,11 @@ export function useDashboardState() {
       query: searchParams.get("q") ?? "",
       from: searchParams.get("from"),
       to: searchParams.get("to"),
-      density: searchParams.get("density") === "rows" ? "rows" : "grid",
+      density: searchParams.get("density") === "rows"
+              ? "rows"
+              : searchParams.get("density") === "grouped"
+                ? "grouped"
+                : "grid",
     }),
     [searchParams],
   );

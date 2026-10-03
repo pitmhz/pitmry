@@ -121,7 +121,7 @@ export function TimelinesDeploys({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.3em]">
-            Canonical deployment records
+            Deployment records
           </div>
           <h1 className="mt-1 font-heading text-2xl md:text-3xl text-foreground font-semibold">
             Deployments
@@ -238,7 +238,7 @@ export function TimelinesDeploys({
           {!loading && error && <li role="alert" className="px-5 py-8 text-center text-sm text-destructive">Could not load deployment records: {error}</li>}
           {!loading && !error && filteredDeploys.length === 0 && (
             <li className="px-5 py-8 text-center text-sm text-muted-foreground">
-              No canonical deployment records have been captured.
+              No deployment records have been captured.
             </li>
           )}
           {filteredDeploys.map((d) => (
@@ -302,7 +302,7 @@ export function TimelinesDeploys({
                         className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline font-medium cursor-pointer"
                       >
                         <Layers className="size-3" />
-                        {expandedDeploys[d.id] ? "Hide changes" : `${d.bullets.length} change highlights`}
+                        {expandedDeploys[d.id] ? "Hide changes" : `${d.bullets.length} changes`}
                         {expandedDeploys[d.id] ? (
                           <ChevronUp className="size-3" />
                         ) : (

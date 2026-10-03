@@ -175,7 +175,7 @@ export function TableLogs() {
           <div className="flex items-center gap-2">
             <TerminalIcon className="size-5 text-primary" />
             <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              Server Logs & Localhost Status
+              Server logs
             </h1>
             <Badge variant="outline" className="ml-1 gap-1.5 font-mono text-[11px] font-semibold">
               <span
@@ -188,7 +188,7 @@ export function TableLogs() {
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Captures localhost API requests, database queries, vector syncs, and system reliability.
+            Local API requests, Python queries, and index rebuilds.
           </p>
         </div>
 

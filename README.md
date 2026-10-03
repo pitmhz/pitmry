@@ -159,6 +159,8 @@ Implemented in `components/diff/`. `components/code-diff-viewer.tsx` remains as 
 ### Stream View and Record Inspector
 
 - **Stream View**: Paginated canonical records with supported filters. The `commits` view is the same stream pinned to the commit type.
+- **Three densities.** `Cards` and `Rows` show the flat audit trail. `Grouped` folds each record's lifecycle transitions into a state trail on that record, so a work unit reads `PLANNED > IN_PROGRESS > IMPLEMENTED` on one line instead of three near-identical cards.
+- **Grouping is lossless, and proved to be.** A transition whose subject is filtered out or on another page is collected under one explicit "N state changes for records outside this page" heading rather than dropped, because a tidier view that quietly hides records is worse than a cluttered one. `scripts/check-record-grouping.mts` asserts conservation: every id in the flat page is reachable in the grouped page.
 - **Record Inspector** (`components/shell/record-dossier-panel.tsx`): Record metadata, provenance, content, and links. Docks beside the list on wide screens and becomes a bottom sheet on mobile, so it can never squeeze the list it belongs to.
 - **Decision Journey Tab**: Shows the focal record and evidence-backed explicit relations. It does not assign causal roles to unlinked records.
 - **Neighbors Tab**: Separates explicit relations from inferred candidates; missing similarity values remain unavailable rather than fabricated.
@@ -483,6 +485,14 @@ Project Intelligence links source intent to accepted requirements, planned work,
 The current working tree includes CLI operations for intake, decomposition import, reconciliation, baseline review, work planning/readiness, session lifecycle, evidence, verification, staleness, incident tracking, context, and release readiness. Run `python -m server.pitmry pi --help` to inspect the commands available in the checkout you are using.
 
 A record is classified into a lifecycle stage (Intent, Plan, Work, Evidence, Incidents, History, Relations) from its canonical id prefix and its `type` field. Readiness is never stored as a state: the backend derives a boolean plus structured reasons, so the UI renders readiness as an axis with blocking reasons rather than a literal `READY` column. Acceptance criteria are not projected by `project_context`; they are reachable through `contains` edges, which is why the inspector reads them from the chain. Requirements *are* projected with their subject key and conflict peers, so the Trust tab has what it needs without a second request.
+
+### Lifecycle events are bookkeeping, not content
+
+Project Intelligence state is event sourced: every transition between lifecycle states is persisted as a canonical observation. That is what lets `state_of` reconstruct state after a projection is deleted. It also means a plan generates a great many records — recording one baseline in `portfolio` emitted 83, because `baseline_project` accepts each requirement *and* each acceptance criterion individually.
+
+Those transitions stay in the canonical store but are kept out of retrieval. `is_lifecycle_event` in `models.py` marks them; `sqlite_projection` indexes the row with empty text so it matches no term, and `context` filters them out of results while over-fetching so the answer still fills the budget. Without this, an agent asking about a work unit is handed rows reading `PLANNED to IN_PROGRESS` instead of the requirement those rows describe.
+
+`scripts/repair-canonical-records.py` handles the failure that actually breaks a project: a record that fails validation freezes the whole projection, because `rebuild` refuses to run when `validate_all` or the Project Intelligence doctor reports anything. One unrecoverable record means `pitmry context` returns `NO_MATCH` for every query while the canonical files remain readable. The script repairs only stale hashes and unmapped enum values, backfills a source artifact from the file its own metadata names, and leaves anything else untouched rather than inventing history.
 
 See the [Project Intelligence PRD](docs/PROJECT-INTELLIGENCE-PRD.md), [backend specification](docs/PROJECT-INTELLIGENCE-BACKEND-SPEC.md), and [architecture history](docs/ARCHITECTURE.md).
 

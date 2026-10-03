@@ -58,7 +58,7 @@ export const VIEWS: ViewDefinition[] = [
   },
   {
     mode: "planning",
-    label: "Intelligence",
+    label: "Planning",
     title: "Project Intelligence",
     description:
       "Accepted intent, planned work, readiness, verification, the knowledge map, and release readiness.",
@@ -71,7 +71,7 @@ export const VIEWS: ViewDefinition[] = [
     label: "Records",
     title: "Record stream",
     description:
-      "Every canonical record in capture order. The audit trail behind the briefing.",
+      "Every record in capture order. The audit trail behind the briefing.",
     icon: ListFilter,
     primary: false,
   },
@@ -96,15 +96,15 @@ export const VIEWS: ViewDefinition[] = [
     mode: "activity",
     label: "Activity",
     title: "Recent activity",
-    description: "A timeline of canonical records and their recorded sources.",
+    description: "A timeline of records and their recorded sources.",
     icon: Activity,
     primary: false,
   },
   {
     mode: "status",
     label: "Status",
-    title: "Memory readiness",
-    description: "Independent status for canonical records and rebuildable indexes.",
+    title: "Status",
+    description: "Status of the record store and the rebuildable indexes.",
     icon: Server,
     primary: false,
   },
@@ -119,7 +119,7 @@ export const VIEWS: ViewDefinition[] = [
   {
     mode: "logs",
     label: "Logs",
-    title: "System logs",
+    title: "Logs",
     description: "Inspect local service and runtime events.",
     icon: Terminal,
     primary: false,

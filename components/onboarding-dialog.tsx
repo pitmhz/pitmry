@@ -49,7 +49,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Connect Your Memory Engine"
+      aria-label="Set up pitmry"
     >
       <div
         className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl cursor-default"
@@ -63,12 +63,12 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
             </div>
             <div>
               <h2 className="text-base font-bold text-foreground">
-                Connect Your Memory Engine
+                Set up pitmry
               </h2>
               <p className="text-xs text-muted-foreground">
                 {isDemo
-                  ? "You are currently exploring Demo Mode. Run setup to connect your real repositories."
-                  : "Memory engine setup & configuration guide."}
+                  ? "You are looking at sample data. Run setup to load your own projects."
+                  : "Setup and configuration guide."}
               </p>
             </div>
           </div>
@@ -94,7 +94,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
           {/* Quickstart 3-Step Flow */}
           <div className="space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Automated 1-Command Setup
+              One command setup
             </h3>
 
             {/* Step 1: Run pnpm setup */}
@@ -105,7 +105,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                     1
                   </span>
                   <span className="text-xs font-semibold text-foreground">
-                    Bootstrap Python venv & LanceDB
+                    Install the Python runtime
                   </span>
                 </div>
                 <Button
@@ -129,7 +129,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed pl-7">
-                Automates virtual environment creation, installs <code className="font-mono text-foreground">lancedb</code>, <code className="font-mono text-foreground">onnxruntime</code>, bootstraps the SQLite schema, and indexes your git commits.
+                Creates the Python environment, installs the search libraries, and indexes your git history.
               </p>
               <div className="pl-7">
                 <div className="rounded-lg bg-black/50 border border-border/60 p-2.5 font-mono text-xs text-primary flex items-center justify-between">
@@ -147,7 +147,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                     2
                   </span>
                   <span className="text-xs font-semibold text-foreground">
-                    Track Your Local Git Repositories (Optional)
+                    Track more repositories (optional)
                   </span>
                 </div>
                 <Button
@@ -183,7 +183,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                     3
                   </span>
                   <span className="text-xs font-semibold text-foreground">
-                    Verify Health & Launch
+                    Check the setup
                   </span>
                 </div>
                 <Button
@@ -207,7 +207,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed pl-7">
-                Run <code className="font-mono text-foreground">pnpm doctor</code> anytime to verify database integrity, vector tables, and repository bindings.
+                Run <code className="font-mono text-foreground">pnpm doctor</code> any time to check the database, search indexes, and project links.
               </p>
             </div>
           </div>
@@ -216,20 +216,20 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
           <div className="rounded-xl border border-border/60 bg-secondary/10 p-4 space-y-3">
             <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <Database className="h-3.5 w-3.5 text-primary" />
-              <span>Offline Architecture Guarantees</span>
+              <span>What runs locally</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
               <div className="rounded-lg border border-border/50 bg-secondary/20 p-2.5 space-y-1">
-                <span className="font-semibold text-foreground block">100% Offline</span>
-                <span className="text-muted-foreground">Zero cloud telemetry or external LLM API keys required.</span>
+                <span className="font-semibold text-foreground block">Local data only</span>
+                <span className="text-muted-foreground">Runs fully on your machine. No telemetry, no cloud accounts.</span>
               </div>
               <div className="rounded-lg border border-border/50 bg-secondary/20 p-2.5 space-y-1">
-                <span className="font-semibold text-foreground block">Sub-5ms Vectors</span>
-                <span className="text-muted-foreground">Local ONNX model produces 384-dim embeddings on CPU.</span>
+                <span className="font-semibold text-foreground block">Vector search</span>
+                <span className="text-muted-foreground">A local model produces embeddings on your CPU. No external service, no API key.</span>
               </div>
               <div className="rounded-lg border border-border/50 bg-secondary/20 p-2.5 space-y-1">
-                <span className="font-semibold text-foreground block">Zero Daemons</span>
-                <span className="text-muted-foreground">Python executes on-demand CLI queries with zero background bloat.</span>
+                <span className="font-semibold text-foreground block">No background service</span>
+                <span className="text-muted-foreground">Python starts when needed and exits when the request finishes.</span>
               </div>
             </div>
           </div>
@@ -247,7 +247,7 @@ export function OnboardingDialog({ open, onClose, isDemo = true }: OnboardingDia
             size="sm"
             className="gap-1.5 font-semibold"
           >
-            <span>Explore Dashboard</span>
+            <span>Open the dashboard</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>

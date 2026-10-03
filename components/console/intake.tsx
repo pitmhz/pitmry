@@ -127,7 +127,7 @@ export function Intake({
             This project has no Project Intelligence records yet
           </h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-            The canonical store exists, but it holds no requirements, phases or work units. Those
+            The record store exists, but it holds no requirements, phases or work units. Those
             come from importing a PRD, reviewing the result, and recording a baseline. Until that
             happens this console has nothing to show, and it will not invent any.
           </p>

@@ -7,7 +7,7 @@ import json
 
 from .canonical_store import CanonicalStore
 from .enums import QueryStatus, RelationProvenance
-from .models import MemoryRecord, RelationRecord
+from .models import MemoryRecord, RelationRecord, is_lifecycle_event
 from .relations import explicit_relations, inferred_relations, relation_payload
 from .retrieval import retrieve
 from .state_resolver import (CONFLICTING, CURRENT, HISTORICAL, REVERTED,
@@ -52,9 +52,22 @@ def context(query, *, root=None, project_id=None, max_records=8,
     memories = [record for record in all_records if isinstance(record, MemoryRecord)]
     relations = explicit_relations(all_records)
     states = resolve_states(memories, relations)
-    found = retrieve(query, root=root, project_id=project_id, limit=max_records,
-                     include_vectors=include_vectors, embedder=embedder)
-    warnings = list(found["warnings"])
+    # Lifecycle transitions are filtered here as well as at index time. The
+    # index may predate a record, and an agent's context budget is the scarcest
+    # thing in the system: spending it on "PLANNED to IN_PROGRESS" rows means
+    # the requirement those rows describe never makes it into the answer.
+    #
+    # Over-fetch, then trim. Trimming a page that was already capped would
+    # return fewer records than asked for while real matches sat just past the
+    # cutoff, which reads as "this project has little to say" when it does not.
+    fetched = retrieve(query, root=root, project_id=project_id,
+                       limit=max(max_records * 4, 40),
+                       include_vectors=include_vectors, embedder=embedder)
+    warnings = list(fetched["warnings"])
+    kept = [record for record in fetched["records"] if not is_lifecycle_event(record)]
+    found = {**fetched,
+             "records": kept[:max_records],
+             "signals": {record.id: fetched["signals"][record.id] for record in kept[:max_records]}}
     candidate_ids = [record.id for record in found["records"]]
     if found["ambiguous"]:
         status = QueryStatus.AMBIGUOUS.value

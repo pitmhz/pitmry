@@ -164,7 +164,7 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="Search decisions, commits, and notes..."
+            placeholder="Search decisions, commits, and discussions..."
             role="combobox"
             aria-expanded={results.length > 0}
             aria-controls="command-palette-list"
@@ -196,7 +196,7 @@ export function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps)
             </div>
           ) : results.length === 0 ? (
             <div className="py-8 text-center text-xs text-muted-foreground" role="status">
-              {query ? "No matching memory. Try a project, file, or decision term." : "Type to search..."}
+              {query ? "No matching records. Try a project, file, or decision term." : "Type to search..."}
             </div>
           ) : (
             <div id="command-palette-list" role="listbox" aria-label="Search results" className="space-y-1">

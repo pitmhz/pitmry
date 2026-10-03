@@ -6,7 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .models import MemoryRecord, RelationRecord
+from .models import MemoryRecord, RelationRecord, is_lifecycle_event
 
 PROJECTION_SCHEMA_VERSION = "1"
 
@@ -16,6 +16,12 @@ def _json(value):
 
 
 def searchable_content(record):
+    # Lifecycle transitions are indexed as an id-only row. They are kept in
+    # `records` so state and lineage can still read them, but their titles
+    # ("PLANNED to IN_PROGRESS") are the kind of text that matches almost any
+    # query about a work unit and then crowds out the requirement it belongs to.
+    if is_lifecycle_event(record):
+        return ""
     content = record.content
     fields = {
         "decision": ("context", "decision", "rationale", "trade_offs"),
@@ -99,6 +105,12 @@ def project_record(conn, record):
         return False
     conn.execute("INSERT OR REPLACE INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row)
     conn.execute("DELETE FROM records_fts WHERE id=?", (record.id,))
+    if is_lifecycle_event(record):
+        # Index the id alone. The row exists so the record stays addressable,
+        # but it matches no term, so it cannot outrank a real answer.
+        conn.execute("INSERT INTO records_fts VALUES (?,?,?,?,?,?)",
+                     (record.id, "", "", "", "", ""))
+        return True
     conn.execute("INSERT INTO records_fts VALUES (?,?,?,?,?,?)",
                  (record.id, record.title, record.summary, searchable_content(record),
                   " ".join(record.tags), " ".join(record.related_files)))

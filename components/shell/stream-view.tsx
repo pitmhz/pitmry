@@ -16,6 +16,7 @@ import type { MemoryItem, MemorySummary } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { StatTile } from "@/components/stat-tile";
 import { RecordCard, RecordRow } from "./record-renderers";
+import { GroupedStream } from "./record-groups";
 import type { Density } from "./use-dashboard-state";
 
 export function StreamStatTiles({
@@ -32,29 +33,25 @@ export function StreamStatTiles({
       <StatTile
         label="Decisions"
         value={summary?.stats?.total_adrs || 0}
-        description="Architecture choices saved"
-        badge="Saved"
+        description="Decision records in this store"
         onClick={() => onSelectType("adr")}
       />
       <StatTile
         label="Commits"
         value={summary?.stats?.total_commits || 0}
-        description="Code changes tracked"
-        badge="Git"
+        description="Captured commits"
         onClick={() => onSelectType("commit")}
       />
       <StatTile
         label="Discussions"
         value={summary?.stats?.total_grill || 0}
-        description="Questions and design notes"
-        badge="Notes"
+        description="Recorded questions and notes"
         onClick={() => onSelectType("grill")}
       />
       <StatTile
         label="Search index"
         value={summary?.stats?.total_vectors || 0}
-        description="Items connected by topic"
-        badge="Search"
+        description="Records indexed for search"
         onClick={onOpenStatus}
       />
     </div>
@@ -131,8 +128,8 @@ export function StreamView({
         >
           <AlertCircle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            The local Python backend did not answer, so these records are the built-in sample
-            set rather than your canonical store. Start the backend to see real records.
+            The local Python backend did not answer, so you are seeing the built-in sample
+            set instead of your own records. Start the backend to load them.
           </span>
         </p>
       ) : null}
@@ -157,7 +154,7 @@ export function StreamView({
                 aria-label="Record density"
                 className="flex items-center gap-0.5 rounded-md border border-border/70 bg-secondary/40 p-0.5 text-xs"
               >
-                {(["grid", "rows"] as const).map((option) => (
+                {(["grouped", "grid", "rows"] as const).map((option) => (
                   <button
                     key={option}
                     type="button"
@@ -169,7 +166,7 @@ export function StreamView({
                         : "rounded px-2 py-0.5 text-muted-foreground hover:text-foreground"
                     }
                   >
-                    {option === "grid" ? "Cards" : "Rows"}
+                    {option === "grid" ? "Cards" : option === "rows" ? "Rows" : "Grouped"}
                   </button>
                 ))}
               </div>
@@ -215,6 +212,8 @@ export function StreamView({
                 />
               ))}
             </div>
+          ) : density === "grouped" ? (
+            <GroupedStream items={items} activeItem={activeItem} onSelect={onSelect} />
           ) : (
             <div className="grid grid-cols-1 gap-3.5 @[640px]/feed:grid-cols-2 @[1120px]/feed:grid-cols-3 @[1580px]/feed:grid-cols-4">
               {items.map((item) => (

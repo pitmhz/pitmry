@@ -347,6 +347,32 @@ def canonical_json_bytes(record) -> bytes:
     return _canonical_json(record_to_dict(record))
 
 
+#: ``content.event_kind`` values that describe a transition of another record
+#: rather than a fact about the project.
+LIFECYCLE_EVENT_KIND = "project_intelligence_state"
+
+
+def is_lifecycle_event(record) -> bool:
+    """True for bookkeeping that describes how a record moved, not what is true.
+
+    A Project Intelligence lifecycle transition ("PLANNED to IN_PROGRESS") is
+    machinery. The state it leaves behind is already carried by the subject
+    record, so a transition tells a reader nothing they cannot get from the
+    record itself, while competing for the same retrieval budget as the
+    requirements and decisions that do matter. In a project with a real plan
+    these outnumber the substantive records several times over.
+
+    They stay in the canonical store, because `state_of` reads them to
+    reconstruct state and because lineage needs them. They are simply kept out
+    of the full-text index and out of retrieval results, so an agent asking
+    about a project is not handed a page of transitions.
+    """
+    content = getattr(record, "content", None)
+    if not isinstance(content, dict):
+        return False
+    return content.get("event_kind") == LIFECYCLE_EVENT_KIND
+
+
 def compute_content_hash(record) -> str:
     """SHA-256 of the record's canonical bytes, excluding ``content_hash``.
 

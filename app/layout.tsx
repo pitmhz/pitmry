@@ -6,7 +6,7 @@ import { OnboardingProvider } from "@/lib/onboarding-context";
 
 export const metadata: Metadata = {
   title: "pitmry",
-  description: "A personal memory dashboard by pitmhs — decisions, commits, and discussions",
+  description: "A personal memory dashboard by pitmhs: decisions, commits, and discussions",
 };
 
 export default function RootLayout({

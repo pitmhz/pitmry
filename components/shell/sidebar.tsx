@@ -205,7 +205,7 @@ export function DashboardSidebar({
               <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-primary" />
               <span className="truncate font-mono text-[10px] font-medium">
                 {filters.project || filters.type || filters.tag
-                  ? "Filtered view"
+                  ? "Clear filters"
                   : "All records"}
               </span>
             </SidebarMenuButton>

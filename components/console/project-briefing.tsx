@@ -167,7 +167,7 @@ export function ProjectBriefing({
     return (
       <div className="mx-auto max-w-3xl p-6">
         <EmptyState
-          title={isFallback ? "No canonical records available" : "This project has no records yet"}
+          title={isFallback ? "No records available" : "This project has no records yet"}
           action={
             isFallback ? (
               <p className="text-xs text-muted-foreground">

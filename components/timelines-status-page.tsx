@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 type Check = { status: string; message?: string; [key: string]: unknown };
 type Readiness = { version: number; status: "ready" | "degraded" | "critical"; checked_at: string; checks?: Record<string, Check>; error?: string };
-const labels: Record<string, string> = { canonical: "Canonical records", sqlite: "SQLite projection", fts: "Full-text search", vectors: "Vector projection", git: "Git" };
+const labels: Record<string, string> = { canonical: "Record store", sqlite: "SQLite projection", fts: "Full-text search", vectors: "Vector projection", git: "Git" };
 
 function detail(value: Check) {
   if (value.message) return value.message;

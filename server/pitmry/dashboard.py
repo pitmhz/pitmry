@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .canonical_store import CanonicalStore
 from .context_service import lineage
-from .models import MemoryRecord, RelationRecord
+from .models import MemoryRecord, RelationRecord, is_lifecycle_event
 from .relations import explicit_relations, inferred_relations, relation_view
 from .state_resolver import conflict_groups, resolve_states, subject_key_for
 
@@ -67,6 +67,18 @@ def _view(store, record, states=None, conflicts=None):
     # and projecting it here would invite a reader to group records on it and
     # conclude every requirement contradicts every other one.
     subject_key = subject_key_for(record)
+    # A lifecycle transition describes another record, so the stream needs to know
+    # which one. Without this the dashboard can only render 127 separate "PLANNED
+    # to IN_PROGRESS" cards and has no way to show them as the history of the work
+    # unit they belong to.
+    transition = None
+    if is_lifecycle_event(record):
+        transition = {"subject_id": content.get("subject_id"),
+                      "from_state": content.get("from_state"),
+                      "to_state": content.get("to_state"),
+                      "actor": content.get("actor"),
+                      "reason": content.get("reason", ""),
+                      "previous_event_id": content.get("previous_event_id")}
     return {
         "id": record.id, "type": legacy_type, "canonical_type": rec_type,
         "project": store.require_manifest()["name"], "project_id": record.project_id,
@@ -89,6 +101,7 @@ def _view(store, record, states=None, conflicts=None):
         "priority": content.get("priority"),
         "severity": content.get("severity"),
         "source_locator": content.get("source_locator"),
+        "transition": transition,
         "provenance": {"source_type": record.provenance.source_type,
                        "source_id": record.provenance.source_id,
                        "originator": record.provenance.originator,

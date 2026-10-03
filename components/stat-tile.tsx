@@ -21,19 +21,21 @@ export function StatTile({
   description,
   badge,
   className,
-  sparkline = [20, 30, 25, 45, 40, 55, 60],
+  sparkline,
   onClick,
 }: StatTileProps) {
-  const min = Math.min(...sparkline);
-  const max = Math.max(...sparkline);
+  const min = sparkline ? Math.min(...sparkline) : 0;
+  const max = sparkline ? Math.max(...sparkline) : 0;
   const range = max - min || 1;
   const points = sparkline
-    .map((v, i) => {
-      const x = (i / (sparkline.length - 1)) * 80;
-      const y = 28 - ((v - min) / range) * 20;
-      return `${x},${y}`;
-    })
-    .join(" ");
+    ? sparkline
+        .map((v, i) => {
+          const x = (i / (sparkline.length - 1)) * 80;
+          const y = 28 - ((v - min) / range) * 20;
+          return `${x},${y}`;
+        })
+        .join(" ")
+    : "";
 
   return (
     <div
@@ -73,20 +75,26 @@ export function StatTile({
           </div>
         </div>
 
-        {/* Minimalist Sparkline with Primary Accent */}
-        <div className="h-6 w-16 opacity-40 transition-opacity group-hover:opacity-100 shrink-0">
-          <svg viewBox="0 0 80 32" className="h-full w-full overflow-visible" aria-hidden="true">
-            <polyline
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-primary"
-              points={points}
-            />
-          </svg>
-        </div>
+        {
+          // Render a sparkline only when the caller supplies real data. A
+          // default series would be an invented trend line, which this
+          // product cannot afford to show.
+          sparkline && sparkline.length > 1 ? (
+            <div className="h-6 w-16 opacity-40 transition-opacity group-hover:opacity-100 shrink-0">
+              <svg viewBox="0 0 80 32" className="h-full w-full overflow-visible" aria-hidden="true">
+                <polyline
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-primary"
+                  points={points}
+                />
+              </svg>
+            </div>
+          ) : null
+        }
       </div>
     </div>
   );

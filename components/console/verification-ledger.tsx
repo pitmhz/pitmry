@@ -188,7 +188,7 @@ export function VerificationLedger({
       {sorted.length > 0 ? (
         <Panel
           title="Verification ledger"
-          description="Every recorded check, weakest evidence first, so the entries that need a human appear before the ones that do not."
+          description="Every recorded check, weakest evidence first. Entries that need a person come before the ones that do not."
         >
           <ul className="space-y-2">
             {sorted.map((verification) => (

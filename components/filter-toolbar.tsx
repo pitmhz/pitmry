@@ -33,7 +33,7 @@ export interface FilterToolbarState {
   type: string
   project: string
   dateRange: DateRangeValue
-  density: "rows" | "grid"
+  density: "rows" | "grid" | "grouped"
 }
 
 interface FilterToolbarProps {
@@ -48,7 +48,7 @@ interface FilterToolbarProps {
 
 const TYPE_OPTIONS = [
   { label: "All types", value: "all" },
-  { label: "Decisions (ADR)", value: "adr" },
+  { label: "Decisions", value: "adr" },
   { label: "Commits", value: "commit" },
   { label: "Discussions", value: "grill" },
   { label: "Deployments", value: "deploy" },
@@ -141,7 +141,7 @@ export function FilterToolbar({
           </InputGroupAddon>
           <InputGroupInput
             ref={searchInputRef}
-            placeholder="Filter memories, commits..."
+            placeholder="Filter records..."
             value={state.query}
             onChange={(e) => onChange({ ...state, query: e.target.value })}
             aria-label="Search filter query"
@@ -212,7 +212,7 @@ export function FilterToolbar({
             value={[state.density]}
             onValueChange={(v) => {
               const next = (v as string[])[0]
-              if (next === "rows" || next === "grid") {
+              if (next === "rows" || next === "grid" || next === "grouped") {
                 onChange({ ...state, density: next })
               }
             }}

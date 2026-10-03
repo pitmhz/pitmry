@@ -200,7 +200,7 @@ export function OverviewView({ item }: { item: MemoryItem }) {
 
       {content && Object.keys(content).length > 0 ? (
         <Section
-          title="Canonical content"
+          title="Stored content"
           caption="The fields the backend stored. Untyped by design, so the raw record is always one tab away."
         >
           <Disclosure summary={<span className="text-[0.6875rem] font-medium">{Object.keys(content).length} fields</span>}>
@@ -1147,7 +1147,7 @@ export function RawView({ item }: { item: MemoryItem }) {
 
   return (
     <Section
-      title="Canonical record"
+      title="Raw record"
       caption="Exactly what the backend stored, including the content hash."
     >
       {loading ? (

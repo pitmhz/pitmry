@@ -46,7 +46,7 @@ import { EmptyState } from "./primitives";
 
 function ChainSkeleton() {
   return (
-    <div role="status" aria-label="Loading canonical graph" className="space-y-3">
+    <div role="status" aria-label="Loading record graph" className="space-y-3">
       <div className="h-4 w-48 animate-pulse rounded bg-muted" />
       {[0, 1, 2, 3].map((row) => (
         <div key={row} className="flex items-center gap-3">
@@ -54,7 +54,7 @@ function ChainSkeleton() {
           <span className="h-3 flex-1 animate-pulse rounded bg-muted" />
         </div>
       ))}
-      <span className="sr-only">Loading canonical graph</span>
+      <span className="sr-only">Loading record graph</span>
     </div>
   );
 }
@@ -130,7 +130,7 @@ function ChainRow({
               </span>
               {isFocal ? (
                 <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[0.6875rem] text-primary">
-                  focal
+                  Selected
                 </span>
               ) : null}
               {node.state ? (
@@ -257,7 +257,7 @@ export function ChainView({
   if (error) {
     return (
       <div className="p-5">
-        <EmptyState title="The canonical graph is unavailable">
+        <EmptyState title="The record graph is unavailable">
           {error} The chain view reads recorded edges from the local store, so it does not fall
           back to a sample graph.
         </EmptyState>
@@ -364,7 +364,7 @@ export function ChainView({
           {!focalId ? (
             <EmptyState title="Choose a record to follow">
               Pick a connected record on the left, or search for one. The chain shows only what
-              the canonical store actually records.
+              the store actually records.
             </EmptyState>
           ) : !traversal || traversal.chain.length === 0 ? (
             <EmptyState title="No recorded history for this record">

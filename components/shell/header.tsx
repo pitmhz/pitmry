@@ -184,7 +184,7 @@ export function DashboardHeader({
           variant="outline"
           size="icon-sm"
           onClick={onRefresh}
-          title={`Refresh. Showing ${definition.title.toLowerCase()}.`}
+          title={`Refresh ${definition.title.toLowerCase()}`}
           aria-label="Refresh dashboard data"
         >
           <RefreshCw aria-hidden="true" className={cn("size-3.5", loading && "animate-spin motion-reduce:animate-none")} />

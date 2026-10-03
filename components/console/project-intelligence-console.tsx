@@ -36,10 +36,10 @@ import { ConsoleDiffOverlay } from "./console-diff-overlay";
 const TABS: { id: ConsoleTab; label: string; hint: string }[] = [
   { id: "board", label: "Work", hint: "Work units by lifecycle state, with readiness as a separate axis" },
   { id: "chain", label: "Chain", hint: "Follow a record through recorded edges, from requirement to verification" },
-  { id: "map", label: "Map", hint: "Relationships between canonical records" },
+  { id: "map", label: "Map", hint: "How records relate to each other" },
   { id: "handoff", label: "Handoff", hint: "Active leases and the session contract each agent inherits" },
-  { id: "verification", label: "Verified", hint: "What was proven, and what the proof no longer covers" },
-  { id: "release", label: "Release", hint: "Objective go or no-go derived from records" },
+  { id: "verification", label: "Checks", hint: "Recorded verifications, including passes that later changes invalidated" },
+  { id: "release", label: "Release", hint: "Go or no-go, derived from recorded evidence" },
 ];
 
 function TabBar({
@@ -311,7 +311,7 @@ export function ProjectIntelligenceConsole() {
       <div className="flex h-full items-center justify-center p-12">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
-          Reading canonical Project Intelligence records
+          Reading Project Intelligence records
         </p>
       </div>
     );
@@ -327,7 +327,7 @@ export function ProjectIntelligenceConsole() {
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{error}</p>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            This view reads the canonical store through the local Python service. It never falls
+            This view reads the record store through the local Python service. It never falls
             back to sample data, so an empty result means the backend did not answer rather than
             that nothing exists.
           </p>

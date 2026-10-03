@@ -22,26 +22,26 @@ const DEFAULT_STEPS: WelcomeStep[] = [
   {
     Icon: Database,
     badge: "Local storage",
-    title: "Offline memory engine",
-    body: "Links this repository with local SQLite Cavemem tables and LanceDB vector indexes. Queries run locally on your system without cloud dependencies.",
+    title: "Local project memory",
+    body: "Keeps project records in this repository and indexes them on your machine. No cloud service, no telemetry.",
   },
   {
     Icon: GitCommit,
     badge: "Git tracking",
-    title: "Commits and visual diffs",
-    body: "Analyzes repository commits with semantic digests and file diffs. Track changes with architectural context directly from your workspace.",
+    title: "Commits and diffs",
+    body: "Records each commit with its diff, so you can read what actually changed.",
   },
   {
     Icon: Layers,
     badge: "Decisions",
-    title: "Architectural records",
-    body: "Stores architectural decision records (ADRs) and interview logs alongside git history to maintain technical rationale over time.",
+    title: "Decisions and discussions",
+    body: "Stores decisions and discussions next to the commits, so the reasons survive after the session ends.",
   },
   {
     Icon: Command,
     badge: "Navigation",
-    title: "Command palette and graphs",
-    body: "Press ⌘K to search decisions, commits, and tags. Switch between the chronological stream, 2D knowledge graph, and 3D vector views.",
+    title: "Command palette and views",
+    body: "Press ⌘K to search decisions, commits, and tags. Switch between the briefing, the record stream, and the planning views.",
   },
 ];
 

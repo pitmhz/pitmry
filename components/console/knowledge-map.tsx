@@ -149,7 +149,7 @@ export function KnowledgeMap({
   if (graph.nodes.length === 0) {
     return (
       <EmptyState title="No relationships to map yet">
-        The knowledge map draws edges between canonical Project Intelligence records. Once a
+        The knowledge map draws edges between Project Intelligence records. Once a
         project has a baseline, phases and work units, the map fills in.
       </EmptyState>
     );

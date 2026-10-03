@@ -103,11 +103,11 @@ export function TimelinesActivityFeed({
         setData(json);
         setError(null);
       } else {
-        setError("The canonical activity feed could not be loaded. Refresh to try again.");
+        setError("The activity feed could not be loaded. Refresh to try again.");
       }
     } catch (err) {
       console.error("Failed to fetch activity:", err);
-      setError("The canonical activity feed could not be reached. Refresh to try again.");
+      setError("The activity feed could not be reached. Refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -139,7 +139,7 @@ export function TimelinesActivityFeed({
             Recent Activity
           </h1>
           <p className="mt-1 text-xs md:text-sm text-muted-foreground">
-            A timeline of canonical records and their recorded sources.
+            A timeline of records and their recorded sources.
           </p>
         </div>
 
@@ -184,7 +184,7 @@ export function TimelinesActivityFeed({
       {/* Grouped Day Sections */}
       <div className="space-y-6">
         {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">{error}</div>}
-        {loading && <div role="status" className="py-8 text-center text-sm text-muted-foreground">Loading canonical activity…</div>}
+        {loading && <div role="status" className="py-8 text-center text-sm text-muted-foreground">Loading activity…</div>}
         {todayFiltered.length > 0 && (
           <DaySection
             label="Today"
@@ -215,7 +215,7 @@ export function TimelinesActivityFeed({
         {todayFiltered.length === 0 && yesterdayFiltered.length === 0 && earlierFiltered.length === 0 && !loading && (
           <div className="py-12 text-center rounded-xl border border-dashed border-border/60 bg-card/20">
             <Layers className="size-8 mx-auto text-muted-foreground/50 mb-2" />
-            <p className="text-sm text-muted-foreground">{filterType === "all" ? "No canonical records have been captured yet." : "No records match this filter."}</p>
+            <p className="text-sm text-muted-foreground">{filterType === "all" ? "No records have been captured yet." : "No records match this filter."}</p>
           </div>
         )}
       </div>
@@ -288,7 +288,7 @@ function DaySection({
                       <div className="mt-2 space-y-1.5">
                         <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground font-medium">
                           <Layers className="size-3" />
-                          <span>{e.bullets.length} change highlights:</span>
+                          <span>{e.bullets.length} changes:</span>
                         </div>
                         <ul className="space-y-1 pl-1">
                           {e.bullets.slice(0, 3).map((b, i) => (
@@ -299,7 +299,7 @@ function DaySection({
                           ))}
                           {e.bullets.length > 3 && (
                             <li className="text-[11px] font-mono text-muted-foreground font-medium">
-                              +{e.bullets.length - 3} more points...
+                              +{e.bullets.length - 3} more...
                             </li>
                           )}
                         </ul>

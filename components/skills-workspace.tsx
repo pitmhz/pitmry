@@ -49,18 +49,17 @@ export function SkillsWorkspace() {
                 <Blocks className="size-4 text-muted-foreground" aria-hidden="true" />
               </div>
               <h1 className="font-heading text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                Skills &amp; Automations Hub
+                Skills and automations
               </h1>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Manage custom agent skills, execute Python automations, and configure machine runtime
-              paths.
+              Custom skills, Python automations, and local runtime settings.
             </p>
           </div>
 
           <div
             role="tablist"
-            aria-label="Hub tabs"
+            aria-label="Skills tabs"
             className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/50 p-1 text-xs"
           >
             {TABS.map((tab) => {
