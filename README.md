@@ -30,9 +30,10 @@ The app and memory store run locally. Optional integrations, package installatio
 10. [Keyboard Shortcuts](#keyboard-shortcuts)
 11. [Project Directory Layout](#project-directory-layout)
 12. [Project Intelligence](#project-intelligence)
-13. [Performance Notes](#performance-notes)
-14. [GitLab and GitHub](#gitlab-and-github)
-15. [Architecture History](docs/ARCHITECTURE.md)
+13. [Trust and Conflicts](#trust-and-conflicts)
+14. [Performance Notes](#performance-notes)
+15. [GitLab and GitHub](#gitlab-and-github)
+16. [Architecture History](docs/ARCHITECTURE.md)
 
 ---
 
@@ -484,6 +485,26 @@ A record is classified into a lifecycle stage (Intent, Plan, Work, Evidence, Inc
 See the [Project Intelligence PRD](docs/PROJECT-INTELLIGENCE-PRD.md), [backend specification](docs/PROJECT-INTELLIGENCE-BACKEND-SPEC.md), and [architecture history](docs/ARCHITECTURE.md).
 
 Git capture hooks are opt-in. The post-commit adapter is fail-open and does not replace an existing hook.
+
+## Trust and Conflicts
+
+`pitmry context` is the only answer surface an agent trusts, so a conflict it fails to report is worse than no conflict report at all. State is resolved from canonical explicit relations only. Recency and text similarity never change a record's state.
+
+| Record type | Resolved state |
+|---|---|
+| `decision`, `constraint`, `requirement`, `acceptance_criterion` | `CURRENT` — these are claims about the project |
+| `phase`, `work_unit`, `session`, `implementation`, `verification`, `test_result`, `bug`, `fix`, `regression`, `source_artifact`, `git_change`, `discussion`, `checkpoint`, `session_summary` | `HISTORICAL` — these record that something happened |
+| any record targeted by an explicit `supersedes` / `reverts` edge | `SUPERSEDED` / `REVERTED` |
+
+Two `CURRENT` claims about the same subject are marked `CONFLICTING`. This is what makes a contradictory requirement visible instead of two rows that both look like current truth.
+
+**A subject key only counts when it was declared.** Project Intelligence requirements always carry a `subject_key`, but when the source does not supply one the importer derives a content hash so that re-importing a decomposition is idempotent. That derived key is unique per requirement by construction, so grouping on it would mark every record in the project as conflicting. The importer therefore records `subject_key_declared`, and the resolver only groups records where that flag is `True`. Decisions written through the CLI always pass an explicit `--subject-key` and keep their previous behaviour.
+
+```bash
+PYTHONPATH=. .venv/Scripts/python.exe scripts/check-conflict-detection.py
+```
+
+The check covers both directions: a real contradiction on one declared subject reports `CONFLICT`, and unrelated claims with no declared subject are all still returned as `CURRENT` with zero conflicts. A conflict detector that cries wolf is ignored, which is the same failure as one that never fires.
 
 ## Performance Notes
 
