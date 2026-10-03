@@ -16,6 +16,7 @@
 
 import * as React from "react";
 import {
+  AlertTriangle,
   Braces,
   Code2,
   FileText,
@@ -43,6 +44,7 @@ import {
   ReadinessView,
   RelationsView,
   SessionView,
+  TrustView,
   VerificationView,
 } from "./capability-views";
 
@@ -57,6 +59,7 @@ const ICONS: Record<CapabilityDefinition["icon"], LucideIcon> = {
   share: Share2,
   code: Code2,
   braces: Braces,
+  alert: AlertTriangle,
 };
 
 export function CapabilityPanel({
@@ -145,7 +148,10 @@ export function CapabilityPanel({
       <div
         role="tablist"
         aria-label="Record capabilities"
-        className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-border/60 px-2 py-1"
+        // The tabs wrap instead of scrolling. A capability list that scrolls
+        // sideways hides its own length: the reader cannot tell that a sixth
+        // tab exists, so the tab they most needed stays invisible.
+        className="flex shrink-0 flex-wrap gap-0.5 border-b border-border/60 px-2 py-1"
       >
         {capabilities.map((capability) => {
           const Icon = ICONS[capability.icon];
@@ -320,6 +326,9 @@ function CapabilityBody({
   switch (capability) {
     case "overview":
       return <OverviewView item={item} />;
+
+    case "trust":
+      return <TrustView item={item} onSelectRecord={onSelectRecord} />;
 
     case "readiness":
       return (

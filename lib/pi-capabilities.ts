@@ -41,6 +41,7 @@ import type { RecordClass } from "./pi-dossier.ts";
 
 export type CapabilityId =
   | "overview"
+  | "trust"
   | "readiness"
   | "criteria"
   | "chain"
@@ -62,8 +63,13 @@ export type CapabilityDefinition = {
    * record has none of them, so a diff tab never appears on a requirement.
    */
   requires?: string[];
+  /**
+   * Record prefixes for which the tab is *urgent*: it is shown ahead of the
+   * others because a record in one of these classes is currently wrong.
+   */
+  alert?: string[];
   /** Icon key, resolved by the panel to avoid importing icons into data. */
-  icon: "info" | "gauge" | "check" | "link" | "play" | "file" | "shield" | "share" | "code" | "braces";
+  icon: "info" | "gauge" | "check" | "link" | "play" | "file" | "shield" | "share" | "code" | "braces" | "alert";
 };
 
 export const CAPABILITIES: Record<CapabilityId, CapabilityDefinition> = {
@@ -73,7 +79,14 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDefinition> = {
     hint: "Identity, authority, lifecycle state and the claim this record makes",
     icon: "info",
   },
-  readiness: {
+  trust: {
+      id: "trust",
+      label: "Trust",
+      hint: "Whether this claim is contradicted, what it rests on, and how it was recorded",
+      requires: ["dec", "req", "ac", "chk", "obs"],
+      icon: "alert",
+    },
+    readiness: {
     id: "readiness",
     label: "Readiness",
     hint: "Why this work can or cannot start, and what it depends on",
@@ -138,8 +151,8 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDefinition> = {
 /** Which capabilities a record kind offers, in tab order. */
 const BY_PREFIX: Record<string, CapabilityId[]> = {
   work: ["overview", "readiness", "criteria", "chain", "session", "evidence", "verification", "diff", "raw"],
-  req: ["overview", "criteria", "chain", "relations", "raw"],
-  ac: ["overview", "chain", "raw"],
+  req: ["overview", "trust", "criteria", "chain", "relations", "raw"],
+  ac: ["overview", "trust", "chain", "raw"],
   ph: ["overview", "chain", "raw"],
   sess: ["overview", "session", "chain", "raw"],
   impl: ["overview", "session", "evidence", "verification", "diff", "chain", "raw"],
@@ -149,17 +162,17 @@ const BY_PREFIX: Record<string, CapabilityId[]> = {
   fix: ["overview", "chain", "relations", "raw"],
   reg: ["overview", "chain", "relations", "raw"],
   src: ["overview", "chain", "raw"],
-  dec: ["overview", "chain", "relations", "diff", "raw"],
+  dec: ["overview", "trust", "chain", "relations", "diff", "raw"],
   git: ["overview", "evidence", "diff", "chain", "raw"],
-  obs: ["overview", "chain", "raw"],
-  chk: ["overview", "chain", "raw"],
+  obs: ["overview", "trust", "chain", "raw"],
+  chk: ["overview", "trust", "chain", "raw"],
   rel: ["overview", "relations", "raw"],
   sum: ["overview", "chain", "raw"],
   dis: ["overview", "chain", "raw"],
 };
 
 /** Fallback for an unknown prefix, so a new record type still renders. */
-const DEFAULT_CAPABILITIES: CapabilityId[] = ["overview", "chain", "relations", "raw"];
+const DEFAULT_CAPABILITIES: CapabilityId[] = ["overview", "trust", "chain", "relations", "raw"];
 
 export function prefixOf(id: string): string {
   return id.split("_")[0] ?? "";
@@ -186,6 +199,8 @@ export function capabilityApplies(capability: CapabilityDefinition, id: string):
  */
 export function stageForCapability(capability: CapabilityId): RecordClass | null {
   switch (capability) {
+    case "trust":
+      return "intent";
     case "readiness":
     case "criteria":
       return "plan";

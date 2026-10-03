@@ -141,7 +141,14 @@ export function ProjectIntelligenceConsole() {
   }, []);
 
   const project = React.useMemo(
-    () => projects.find((item) => item.project_id === projectId) ?? projects[0] ?? null,
+    () =>
+      // Two writers share the `project` param: the sidebar filter sets the
+      // project name, and the console's own dropdown sets the project id. Matching
+      // on only one made the sidebar filter silently fall through to the first
+      // project, which looked like the view ignoring you.
+      projects.find(
+        (item) => item.project_id === projectId || item.project_name === projectId,
+      ) ?? projects[0] ?? null,
     [projects, projectId],
   );
 
@@ -184,7 +191,14 @@ export function ProjectIntelligenceConsole() {
         project: project.project_name,
         title: requirement.statement,
         state: requirement.state,
-        timestamp: "",
+        // The trust fields are projected by the same resolver `pitmry context`
+        // uses, so the panel shows the identical verdict an agent would read.
+        subject_key: requirement.subject_key ?? null,
+        conflicts_with: requirement.conflicts_with ?? [],
+        content_hash: requirement.content_hash ?? null,
+        priority: requirement.priority ?? null,
+        authority: requirement.authority,
+        timestamp: requirement.recorded ?? "",
         tags: [],
       } as MemoryItem;
     }

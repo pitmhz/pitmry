@@ -98,6 +98,17 @@ export type PiRequirement = {
   kind?: string;
   priority?: string;
   state: PiState;
+  /**
+   * The subject this requirement was declared to be about, or null when the
+   * source named none. Null is the common case and is not a fault: a
+   * requirement with no subject is never compared against another claim.
+   */
+  subject_key?: string | null;
+  /** Claims the resolver recorded as contradicting this one. */
+  conflicts_with?: string[];
+  content_hash?: string | null;
+  authority?: string;
+  recorded?: string;
 };
 
 export type PiSession = {

@@ -58,3 +58,6 @@ pitmry.config.json
 
 # Temporary imports & staging
 .temp/
+
+# Local dev server output
+/.next-start.log

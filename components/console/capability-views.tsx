@@ -867,6 +867,257 @@ export function RelationsView({
   );
 }
 
+/* ------------------------------------------------------------------ trust */
+
+/**
+ * A claim the reader is being asked to rely on.
+ *
+ * This is the one tab that can tell a reader that the record is wrong, so it
+ * leads with the contradiction rather than burying it under identity fields. A
+ * record that is merely `CURRENT` says so plainly and explains how it got
+ * there, because "no contradiction found" and "not checked" must never look
+ * the same.
+ */
+function ClaimCard({
+  claim,
+  role,
+  onOpen,
+}: {
+  claim: { id: string; title: string; statement?: string; decision?: string; authority?: string; recorded?: string };
+  role: string;
+  /** Omitted for the record already on screen, which is not a link to itself. */
+  onOpen?: (id: string) => void;
+}) {
+  const body = claim.statement || claim.decision || claim.title;
+  const inner = (
+    <>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[0.625rem] font-semibold uppercase tracking-[0.06em] text-danger">
+          {role}
+        </span>
+        {claim.authority ? (
+          <span className="text-[0.625rem] text-muted-foreground">{claim.authority}</span>
+        ) : null}
+      </div>
+      <p className="mt-1 text-[0.6875rem] leading-relaxed text-foreground">{body}</p>
+      <p className="mt-1 truncate font-mono text-[0.625rem] text-muted-foreground">{claim.id}</p>
+    </>
+  );
+  const shell = cn(
+    "w-full rounded border border-danger/40 bg-danger/5 px-2.5 py-2 text-left transition-colors",
+    onOpen && "hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  );
+  if (!onOpen) {
+    return <div className={shell}>{inner}</div>;
+  }
+  return (
+    <button type="button" onClick={() => onOpen(claim.id)} className={shell}>
+      {inner}
+    </button>
+  );
+}
+
+export function TrustView({
+  item,
+  onSelectRecord,
+}: {
+  item: MemoryItem;
+  onSelectRecord?: (id: string) => void;
+}) {
+  const id = String(item.id);
+  const peers = item.conflicts_with ?? [];
+  const state = item.state ?? "UNKNOWN";
+  const subject = item.subject_key ?? null;
+  // Two different state machines meet here. The Project Intelligence lifecycle
+  // (PROPOSED, ACCEPTED, IMPLEMENTED, VERIFIED) says how far a record got. The
+  // resolver state (CURRENT, SUPERSEDED, REVERTED) says whether the claim is
+  // still standing. Only the second one is about trust, so the verdict is driven
+  // by the peer list and the resolver state, and the lifecycle is reported
+  // separately as progress. Treating one as the other produced a requirement
+  // reporting "recorded as implemented" as though that were a trust finding.
+  const RETIRED = new Set(["SUPERSEDED", "REVERTED"]);
+  const retired = RETIRED.has(state);
+  const contradicted = peers.length > 0;
+
+  // The list projection carries the peer ids. Resolving them to readable claims
+  // needs one more request, which is deferred because most records have no
+  // conflict and should not pay for it.
+  const [detail, setDetail] = React.useState<{ id: string; claims: TrustClaim[] } | null>(null);
+  React.useEffect(() => {
+    if (peers.length === 0) return;
+    const controller = new AbortController();
+    fetch(`/api/memory?action=record&item_id=${encodeURIComponent(id)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setDetail({
+          id,
+          claims: (data?.record?.conflicting_claims ?? []) as TrustClaim[],
+        });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setDetail({ id, claims: [] });
+      });
+    return () => controller.abort();
+    // `peers.length` is the trigger: the ids themselves are already on the item.
+  }, [id, peers.length]);
+
+  const claims = detail?.id === id ? detail.claims : [];
+  const loading = peers.length > 0 && detail?.id !== id;
+  const provenance = item.provenance;
+  const locator = item.source_locator ?? null;
+
+  return (
+    <div>
+      <Section
+        title="Verdict"
+        count={1}
+        caption="Resolved from explicit recorded relations. Search rank and recency never change it."
+      >
+        {contradicted ? (
+          <div className="rounded border border-danger/40 bg-danger/5 px-2.5 py-2">
+            <p className="flex items-center gap-1.5 text-[0.6875rem] font-semibold text-danger">
+              <AlertTriangle aria-hidden="true" className="size-3" />
+              Contradicted by {peers.length} other claim{peers.length === 1 ? "" : "s"}
+            </p>
+            <p className="mt-1 text-[0.6875rem] leading-relaxed text-foreground">
+              More than one current claim exists for{" "}
+              <span className="font-mono">{subject ?? "this subject"}</span>. Treat none of them as
+              settled until one supersedes the others.
+            </p>
+          </div>
+        ) : retired ? (
+          <div className="flex items-start gap-1.5">
+            <XCircle aria-hidden="true" className="mt-px size-3 shrink-0 text-muted-foreground" />
+            <p className="text-[0.6875rem] leading-relaxed text-foreground">
+              Retired. A later record replaced this claim, so read the successor instead of this one.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-1.5">
+            <ShieldCheck aria-hidden="true" className="mt-px size-3 shrink-0 text-success" />
+            <div>
+              <p className="text-[0.6875rem] leading-relaxed text-foreground">
+                No other current claim contradicts this one.
+              </p>
+              {subject === null ? (
+                <p className="mt-1 text-[0.625rem] leading-relaxed text-muted-foreground">
+                  This claim declares no subject, so it was never compared against another. Being
+                  uncontradicted here means ungrouped, not verified.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+        {state !== "UNKNOWN" && state !== "CURRENT" ? (
+          <p className="mt-2 text-[0.625rem] leading-relaxed text-muted-foreground">
+            Progress: <span className="text-foreground">{state}</span>. That is the lifecycle
+            position, not a trust verdict.
+          </p>
+        ) : null}
+      </Section>
+
+      <Section
+        title="Subject"
+        caption="Two claims are only compared when the source named the same subject. Derived keys are not subjects and never group records."
+      >
+        <dl>
+          <Field
+            label="Subject key"
+            mono
+            value={subject ?? <span className="text-muted-foreground">none declared</span>}
+            hint={
+              subject
+                ? "Declared by the source, so other claims on this subject are compared against it."
+                : "This record declares no subject, so it is never grouped with another claim."
+            }
+          />
+          <Field label="Content hash" mono value={item.content_hash ?? null} />
+          <Field label="Priority" value={item.priority ?? null} />
+        </dl>
+      </Section>
+
+      {peers.length > 0 ? (
+        <Section
+          title="Contradicting claims"
+          count={peers.length}
+          caption="Both sides are current. Open either one to compare what each asserts."
+        >
+          {loading ? (
+            <p className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
+              <Loader2 aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />
+              Reading the other claims
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <ClaimCard
+                role="This record"
+                claim={{
+                  id,
+                  title: item.title,
+                  statement: item.summary,
+                  authority: item.authority,
+                }}
+              />
+              {claims.map((claim) => (
+                <ClaimCard
+                  key={claim.id}
+                  role="Contradicts this"
+                  claim={claim}
+                  onOpen={onSelectRecord}
+                />
+              ))}
+            </div>
+          )}
+          {loading ? null : (
+            <p className="mt-2 rounded border border-dashed border-border px-2 py-1.5 text-[0.625rem] leading-relaxed text-muted-foreground">
+              Resolve with{" "}
+              <code className="font-mono">pitmry supersede NEW OLD</code>, naming the record that
+              should win. That edge retires the loser and clears this state.
+            </p>
+          )}
+        </Section>
+      ) : null}
+
+      <Section
+        title="How this was recorded"
+        caption="Authority is what lets you judge a claim. An agent-reported requirement is not a human decision."
+      >
+        <dl>
+          <Field label="Authority" value={item.authority ?? null} />
+          <Field label="Truth domain" value={item.truth_domain ?? null} />
+          <Field label="Source type" value={provenance?.source_type ?? null} />
+          <Field label="Captured by" value={provenance?.captured_by ?? null} />
+          <Field label="Source commit" mono value={provenance?.source_commit ?? null} />
+          {locator && Object.keys(locator).length > 0 ? (
+            <Field
+              label="Source locator"
+              mono
+              value={
+                Object.entries(locator)
+                  .filter(([key]) => key !== "artifact_id")
+                  .map(([key, value]) => `${key}=${String(value)}`)
+                  .join("  ") || null
+              }
+            />
+          ) : null}
+        </dl>
+      </Section>
+    </div>
+  );
+}
+
+type TrustClaim = {
+  id: string;
+  title: string;
+  statement?: string;
+  decision?: string;
+  authority?: string;
+  recorded?: string;
+};
+
 /* ------------------------------------------------------------------- raw */
 
 export function RawView({ item }: { item: MemoryItem }) {

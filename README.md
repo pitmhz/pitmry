@@ -135,7 +135,9 @@ Pitmry integrates four specialized developer timeline components:
 The Project Intelligence view is a three-column console: a schema navigator, a main surface, and a context-aware inspector.
 
 - **Main surface stays scannable.** Each tab (work board, chain, knowledge map, handoff, verification ledger, release gate) shows one line per record. Selecting a record opens the inspector rather than expanding a row in place.
-- **Capability-aware inspector.** The inspector's tab bar is derived from the selected record's kind, so a work unit offers Readiness, Criteria, Session, Evidence, Chain and Diff, while a requirement offers Criteria and Relations. Tabs that would show nothing are not offered.
+- **Capability-aware inspector.** The inspector's tab bar is derived from the selected record's kind, so a work unit offers Readiness, Criteria, Session, Evidence, Chain and Diff, while a requirement offers Trust, Criteria and Relations. Tabs that would show nothing are not offered. The bar wraps rather than scrolls, because a list that scrolls sideways hides its own length.
+- **Trust tab.** For every claim record the inspector opens on trust: whether another current claim contradicts it, which subject it was declared about, and what it rests on. It reads the peers from the same resolver `pitmry context` uses, so the panel and an agent can never disagree about the verdict.
+- **Trust and progress are reported separately.** A Project Intelligence record carries two unrelated states: the lifecycle position (`IMPLEMENTED`, `VERIFIED`) says how far it got, while the resolver state (`CURRENT`, `SUPERSEDED`) says whether the claim still stands. The Trust tab reports the lifecycle under an explicit "Progress" line so an advanced requirement never reads as a trust finding.
 - **Provenance-aware chain traversal.** A chain follows only evidence-backed edges. Inferred edges are collected into a separate similarity block and are never mixed into a chain, because a chain of guesses would assert a history the store never recorded.
 - **Diff capability** is reachable from any record carrying a commit, and opens the shared diff viewer in an overlay.
 
@@ -480,7 +482,7 @@ Project Intelligence links source intent to accepted requirements, planned work,
 
 The current working tree includes CLI operations for intake, decomposition import, reconciliation, baseline review, work planning/readiness, session lifecycle, evidence, verification, staleness, incident tracking, context, and release readiness. Run `python -m server.pitmry pi --help` to inspect the commands available in the checkout you are using.
 
-A record is classified into a lifecycle stage (Intent, Plan, Work, Evidence, Incidents, History, Relations) from its canonical id prefix and its `type` field. Readiness is never stored as a state: the backend derives a boolean plus structured reasons, so the UI renders readiness as an axis with blocking reasons rather than a literal `READY` column. Acceptance criteria are not projected by `project_context`; they are reachable through `contains` edges, which is why the inspector reads them from the chain.
+A record is classified into a lifecycle stage (Intent, Plan, Work, Evidence, Incidents, History, Relations) from its canonical id prefix and its `type` field. Readiness is never stored as a state: the backend derives a boolean plus structured reasons, so the UI renders readiness as an axis with blocking reasons rather than a literal `READY` column. Acceptance criteria are not projected by `project_context`; they are reachable through `contains` edges, which is why the inspector reads them from the chain. Requirements *are* projected with their subject key and conflict peers, so the Trust tab has what it needs without a second request.
 
 See the [Project Intelligence PRD](docs/PROJECT-INTELLIGENCE-PRD.md), [backend specification](docs/PROJECT-INTELLIGENCE-BACKEND-SPEC.md), and [architecture history](docs/ARCHITECTURE.md).
 

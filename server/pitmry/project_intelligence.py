@@ -26,7 +26,9 @@ from .ids import derive_record_id, new_source_id
 from .models import MemoryRecord, Provenance, SCHEMA_VERSION, utc_now_iso
 from .state_resolver import CONFLICTING as DECISION_CONFLICTING
 from .state_resolver import CURRENT as DECISION_CURRENT
+from .state_resolver import conflict_groups as claim_conflict_groups
 from .state_resolver import state_for as decision_state_for
+from .state_resolver import subject_key_for
 
 
 class ProjectIntelligenceError(ValueError):
@@ -1337,6 +1339,12 @@ def project_context(store):
                     and r.content.get("event_kind") == "verification_stale"]
     requirements = [r for r in records if r.type == RecordType.requirement]
     dependency_edges = [e for e in _relations(store, RelationType.depends_on)]
+    # Conflict peers come from the same resolver `pitmry context` uses, so the
+    # console and an agent cannot disagree about which claims contradict. The PI
+    # lifecycle state says how far a requirement got; it says nothing about
+    # whether a rival claim exists, which is why both travel separately.
+    claim_conflicts = claim_conflict_groups(records, _relations(store))
+    claim_subjects = {r.id: subject_key_for(r) for r in requirements}
     return {"project_id": store.project_id, "project_name": store.require_manifest()["name"],
             "baseline_id": baselines[-1].id if baselines else None,
             "open_reconciliations": [{"id": r.id, "classification": r.content["classification"],
@@ -1349,7 +1357,13 @@ def project_context(store):
             "requirements": [{"id": r.id, "statement": r.content.get("statement", r.title),
                               "kind": r.content.get("requirement_kind", "requirement"),
                               "priority": r.content.get("priority", "required"),
-                              "state": state_of(store, r.id)} for r in requirements],
+                              "state": state_of(store, r.id),
+                              "subject_key": claim_subjects.get(r.id),
+                              "conflicts_with": sorted(claim_conflicts.get(r.id, [])),
+                              "content_hash": r.content_hash,
+                              "authority": r.authority.value,
+                              "recorded": r.created_at}
+                             for r in requirements],
             "dependencies": [{"work_id": edge.source_record_id,
                               "depends_on_id": edge.target_record_id}
                              for edge in dependency_edges],

@@ -23,6 +23,19 @@ export interface MemoryItem {
   authority?: string;
   truth_domain?: string;
   state?: string;
+    /**
+     * The subject this record was *declared* to be about. Null when the record has
+     * none, which is the common case: a requirement the source did not name a
+     * subject for is never grouped with anything.
+     */
+    subject_key?: string | null;
+    /** Ids of the claims this record is recorded as contradicting. */
+    conflicts_with?: string[];
+    content_hash?: string | null;
+    priority?: string | null;
+    severity?: string | null;
+    source_locator?: Record<string, unknown> | null;
+    related_symbols?: string[];
   provenance?: {
     source_type?: string;
     source_id?: string;
