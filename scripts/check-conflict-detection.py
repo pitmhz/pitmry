@@ -29,7 +29,14 @@ from pitmry.models import (  # noqa: E402
     Provenance,
     RelationRecord,
 )
-from pitmry.state_resolver import CONFLICTING, CURRENT, HISTORICAL, resolve_states  # noqa: E402
+from pitmry.state_resolver import (  # noqa: E402
+    CONFLICTING,
+    CURRENT,
+    HISTORICAL,
+    conflict_groups,
+    resolve_states,
+    subject_key_for,
+)
 
 failures = 0
 
@@ -153,6 +160,36 @@ states = resolve_states([newer, req_a], [edge(newer.id, req_a.id, RelationType.s
 check("an explicit supersedes edge resolves a requirement conflict",
       states[req_a.id] != CONFLICTING and states[newer.id] != CONFLICTING,
       f"got {states[req_a.id]}/{states[newer.id]}")
+
+# --- What the panel is allowed to show -------------------------------------
+#
+# A record flagged CONFLICTING that cannot name the claims it contradicts is not
+# actionable. The dashboard is handed the peers by this resolver rather than
+# re-deriving them, because a panel that re-implemented the rule would eventually
+# show a conflict the agent does not report.
+
+peers = conflict_groups([req_a, req_b, work], [])
+check("conflict_groups names the peer, not the record itself",
+      peers.get(req_a.id) == [req_b.id], f"got {peers.get(req_a.id)}")
+check("the conflict is symmetric across both claims",
+      peers.get(req_b.id) == [req_a.id], f"got {peers.get(req_b.id)}")
+check("an unrelated historical record is not given a conflict",
+      work.id not in peers, "work unit has no peer")
+
+# After the supersedes edge, the same inputs must report no conflict at all. A
+# stale peer list would tell the reader to go reconcile a contradiction that the
+# resolver has already settled.
+settled = conflict_groups([newer, req_a], [edge(newer.id, req_a.id, RelationType.supersedes)])
+check("a superseded claim reports no conflicting peers",
+      not settled.get(req_a.id) and not settled.get(newer.id), f"got {settled}")
+
+# The subject key is the join between the two views. It must be exposed when
+# declared and absent when derived, or the panel would either miss a real
+# conflict or invent one.
+check("a declared subject key is exposed to the panel",
+      subject_key_for(req_a) == DECLARED, str(subject_key_for(req_a)))
+check("a derived subject key is never exposed as a subject",
+      subject_key_for(req_c) is None, str(subject_key_for(req_c)))
 
 print()
 if failures:

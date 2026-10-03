@@ -11,7 +11,7 @@ from .canonical_store import CanonicalStore
 from .context_service import lineage
 from .models import MemoryRecord, RelationRecord
 from .relations import explicit_relations, inferred_relations, relation_view
-from .state_resolver import resolve_states
+from .state_resolver import conflict_groups, resolve_states, subject_key_for
 
 
 LEGACY_TYPE = {"decision": "adr", "git_change": "commit", "discussion": "grill",
@@ -58,10 +58,15 @@ def all_records(root=None):
     return result
 
 
-def _view(store, record, states=None):
+def _view(store, record, states=None, conflicts=None):
     content = getattr(record, "content", {})
     rec_type = getattr(getattr(record, "type", None), "value", "relation")
     legacy_type = LEGACY_TYPE.get(rec_type, "other")
+    # The subject key is reported only when the source declared it. The key a
+    # requirement falls back to when the source says nothing is a content hash,
+    # and projecting it here would invite a reader to group records on it and
+    # conclude every requirement contradicts every other one.
+    subject_key = subject_key_for(record)
     return {
         "id": record.id, "type": legacy_type, "canonical_type": rec_type,
         "project": store.require_manifest()["name"], "project_id": record.project_id,
@@ -70,11 +75,20 @@ def _view(store, record, states=None):
         "decision": content.get("decision", ""), "body": content.get("message", ""),
         "timestamp": getattr(record, "created_at", ""), "tags": list(getattr(record, "tags", ())),
         "related_files": list(getattr(record, "related_files", ())),
+        "related_symbols": list(getattr(record, "related_symbols", ())),
         "commit_hash": content.get("commit_sha") or getattr(record.provenance, "source_commit", None),
         "branch": content.get("branch"), "author": content.get("author"),
         "authority": getattr(getattr(record, "authority", None), "value", ""),
         "truth_domain": getattr(getattr(record, "truth_domain", None), "value", ""),
         "state": states.get(record.id, "UNKNOWN") if states else "UNKNOWN",
+        # Trust. A record that is flagged CONFLICTING but cannot name the claims
+        # it contradicts is not actionable, so the peers travel with the state.
+        "subject_key": subject_key,
+        "conflicts_with": sorted((conflicts or {}).get(record.id, [])),
+        "content_hash": getattr(record, "content_hash", None),
+        "priority": content.get("priority"),
+        "severity": content.get("severity"),
+        "source_locator": content.get("source_locator"),
         "provenance": {"source_type": record.provenance.source_type,
                        "source_id": record.provenance.source_id,
                        "originator": record.provenance.originator,
@@ -124,7 +138,8 @@ def workspace_summary(root=None):
         records = store.load_all()
         memories = [record for record in records if isinstance(record, MemoryRecord)]
         states = resolve_states(memories, explicit_relations(records))
-        project_items = [_view(store, record, states) for record in memories]
+        conflicts = conflict_groups(memories, explicit_relations(records))
+        project_items = [_view(store, record, states, conflicts) for record in memories]
         project_items.sort(key=lambda item: (item["timestamp"], item["id"]), reverse=True)
         all_items.extend(project_items)
         projects.append({"id": store.project_id, "name": store.require_manifest()["name"],
@@ -213,6 +228,7 @@ def records_page(project=None, record_type=None, tag=None, query=None, state=Non
     stores = project_roots(root)
     selected = []
     states = {}
+    conflicts = {}
     warnings = []
     for store in stores:
         name = store.require_manifest()["name"]
@@ -220,7 +236,9 @@ def records_page(project=None, record_type=None, tag=None, query=None, state=Non
             continue
         records = store.load_all()
         memories = [item for item in records if isinstance(item, MemoryRecord)]
-        states.update(resolve_states(memories, explicit_relations(records)))
+        edges = explicit_relations(records)
+        states.update(resolve_states(memories, edges))
+        conflicts.update(conflict_groups(memories, edges))
         for record in memories:
             if record_type and record.type.value != TYPE_FILTER.get(record_type, record_type):
                 continue
@@ -256,7 +274,7 @@ def records_page(project=None, record_type=None, tag=None, query=None, state=Non
     page = selected[cursor:cursor + limit]
     items = []
     for store, record in page:
-        item = _view(store, record, states)
+        item = _view(store, record, states, conflicts)
         item["score"] = scores.get(record.id, {}).get("rrf_score")
         items.append(item)
     total = len(selected)
@@ -270,12 +288,27 @@ def record_detail(record_id, root=None):
     if not record:
         return {"status": "NO_MATCH", "record": None, "explicit": [], "inferred": []}
     records = store.load_all()
-    states = resolve_states([item for item in records if isinstance(item, MemoryRecord)],
-                            explicit_relations(records))
-    item = _view(store, record, states)
+    memories = [item for item in records if isinstance(item, MemoryRecord)]
+    edges = explicit_relations(records)
+    states = resolve_states(memories, edges)
+    conflicts = conflict_groups(memories, edges)
+    item = _view(store, record, states, conflicts)
     item["content"] = record.content
     item["related_files"] = list(record.related_files)
     item["related_symbols"] = list(record.related_symbols)
+    # Resolve the conflict partners to readable records rather than leaving bare
+    # ids. The panel shows them side by side, and a reader cannot compare two
+    # claims they cannot read.
+    by_id = {memory.id: memory for memory in memories}
+    item["conflicting_claims"] = [
+        {"id": peer_id, "title": by_id[peer_id].title, "summary": by_id[peer_id].summary,
+         "authority": by_id[peer_id].authority.value,
+         "recorded": by_id[peer_id].created_at,
+         "statement": by_id[peer_id].content.get("statement", ""),
+         "rationale": by_id[peer_id].content.get("rationale", ""),
+         "decision": by_id[peer_id].content.get("decision", "")}
+        for peer_id in conflicts.get(record_id, []) if peer_id in by_id
+    ]
     links = relations(record_id, root)
     evidence_by_peer = {}
     for edge in links["explicit"]:
