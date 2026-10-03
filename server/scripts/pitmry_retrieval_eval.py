@@ -62,11 +62,14 @@ def _state_accuracy_fixtures():
     other_project_id = "prj_000000000000000000000002"
 
     def decision(project, source_id, subject_key):
+        # `subject_key_declared` is what the real capture path writes, and what
+        # conflict detection reads. A fixture that omits it is not describing a
+        # decision the system could actually have produced.
         return SimpleNamespace(
             id=derive_record_id(project, "state_eval", source_id, RecordType.decision),
             project_id=project,
             type=RecordType.decision,
-            content={"subject_key": subject_key},
+            content={"subject_key": subject_key, "subject_key_declared": True},
         )
 
     def supersedes(source, target):

@@ -46,6 +46,10 @@ def capture_decision(store, title, decision, context="", rationale="", trade_off
         if not isinstance(subject_key, str) or not subject_key.strip():
             raise ValueError("subject_key must be a non-empty string")
         content["subject_key"] = subject_key.strip()
+        # A decision subject is always explicit: it was passed in, never
+        # derived. The flag is what conflict detection reads, and a decision
+        # written without one is simply not part of any subject group.
+        content["subject_key_declared"] = True
     return _record(store, RecordType.decision, "decision", source_id, title, decision,
                    content, authority, TruthDomain.intent,
                    created_at=created_at, tags=tags)

@@ -235,12 +235,21 @@ def import_decomposition(store, artifact_id, payload):
 
     imported = []
     for key, kind, statement, locator, identity, item, validated_criteria in validated:
+        # A subject key the source actually declares is a claim that two
+        # requirements are about the same subject, which is what conflict
+        # detection needs. The fallback is a content hash that exists only to
+        # make re-importing idempotent, so it is recorded as undeclared and the
+        # resolver will never treat it as a shared subject.
+        declared_subject = item.get("subject_key")
+        has_declared_subject = (isinstance(declared_subject, str)
+                                and bool(declared_subject.strip()))
         rid = _record(store, RecordType.requirement, "project_requirement", f"{artifact_id}:{identity}",
                       statement[:100], statement,
-                       {"requirement_kind": kind, "statement": statement,
+                      {"requirement_kind": kind, "statement": statement,
                        "initial_state": "PROPOSED",
                        "priority": item.get("priority", "required"),
-                       "subject_key": item.get("subject_key") or identity[:20],
+                       "subject_key": declared_subject.strip() if has_declared_subject else identity[:20],
+                       "subject_key_declared": has_declared_subject,
                        "source_locator": {**locator, "artifact_id": artifact_id},
                        "temporary_key": key}, tags=("project-intelligence", "requirement"))
         _link(store, rid, artifact, RelationType.derived_from)
